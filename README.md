@@ -1,27 +1,49 @@
 <img width="300" height="300" alt="LiquidTouchGitHub1" src="https://github.com/user-attachments/assets/bf58deaa-91a8-46a2-8f21-12f267484c13" />
 
+# Liquid Touch
 
+A *vibecoded* Liquid Glass home launcher for Android.
 
-# LiquidTouch
+---
 
-A *vibecoded* "Liquid Glass" android home launcher.
+## Overview
 
-# This is **VIBECODED**
-I feel kinda ashamed as most of my projects are fully coded by myself and my tiny ass brain, especially the poorly made Unity games. However, I've never made an android or mobile app in general without Unity. So this project is 99% vibecoded (this readme is written fully by me.)
+Liquid Touch is a prototype Android home launcher built around the aesthetic of Apple's Liquid Glass design language — brought to Android through the [Android Liquid Glass (Backdrop) Library](https://github.com/Kyant0/AndroidLiquidGlass) by Kyant0, which served as the primary inspiration for this project.
 
-But unfortunately, even with YouTube tutorials, I wasnt able to get this project off the ground. EVEN WITH AI, these fuckin models couldnt make an app drawer to save its server power. so yes, that was mine. and this project uses the Android Liquid Glass (Backdrop) library, which was the main inspiration behind this launcher.
+The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), and all original contributors have been preserved in the project's contributor history. Many thanks to the entire Fossify team.
 
-[Android Liquid Glass Library](https://github.com/Kyant0/AndroidLiquidGlass)
+---
 
-I hope one day, someone can fork this project and fully redo it with the power of their frontal cortex. But until then, this is a very built prototype or proof of concept.
+## A Note on the Code
 
-Issues are open for either suggestions or actual bugs experienced. I have made a pact with myself to try to fix/patch out all bugs or implement suggestions using this code and my existing knowledge as a starting base. AI WILL ONLY BE USED IF I CANNOT, for the life of me, IMPLEMENT IT FULLY OR A MEMBER OF THE COMMUNITY CANT EITHER.
+Most of my projects are written entirely by hand — including some painfully handcrafted Unity games. This one is different. Having never built an Android or mobile app outside of Unity, I leaned heavily on AI assistance to get this off the ground. Roughly 99% of this codebase was vibecoded using various models (Claude Opus, Sonnet, Gemini, and others). This readme, however, is fully written by me.
 
-Again while 99% of this project is vibecoded using various models (Opus, Sonnet, Gemini etc.), I would like the code to be mostly human coded from now on.
+I will be honest: even with AI, getting a functional app drawer proved genuinely difficult. That part was mine. The rest is a collaboration between me, a few language models, and a concerning number of YouTube tutorials.
 
-Many Thanks,
-Evan (quiqqy/quimodotcom)
+This is very much a proof of concept. It is rough. It works enough to demonstrate the idea. I hope someone with more frontal cortex available will one day fork it and take it somewhere great.
 
-p.s. Thanks to the entirety of the Fossify Home Launcher Team and contributors. This code was originally forked from that launcher and therefore I have kept all of you lovely fellows in the contributors of this project too!
+---
 
-NOW WITH WORKING ANIMATED COVER ART FOR THE LOCK SCREEN!!!
+## What's New
+
+**Animated cover art now works on the lock screen.** This was a long time coming.
+
+---
+
+## Going Forward
+
+From here, I intend to move away from AI-assisted development as much as possible. My goal is for this codebase to become predominantly human-written over time, using what exists now as a foundation. AI will only be brought back in as a last resort — when neither I nor anyone in the community can crack a particular problem.
+
+Issues are open. Use them for bug reports or feature suggestions. I have made a personal commitment to address everything I reasonably can using my own knowledge and the existing code as a base.
+
+---
+
+## Dependencies
+
+- [Android Liquid Glass Library](https://github.com/Kyant0/AndroidLiquidGlass) — Kyant0
+- [Fossify Home Launcher](https://github.com/FossifyOrg/Home) — the foundation this project is built on
+
+---
+
+*Many thanks,*  
+*Evan — quiqqy / quimodotcom*
