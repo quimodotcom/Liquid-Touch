@@ -10,7 +10,7 @@ A *vibecoded* Liquid Glass home launcher for Android.
 
 Liquid Touch is a prototype Android home launcher built around the aesthetic of Apple's Liquid Glass design language — brought to Android through the [Android Liquid Glass (Backdrop) Library](https://github.com/Kyant0/AndroidLiquidGlass) by Kyant0, which served as the primary inspiration for this project.
 
-The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), and all original contributors have been preserved in the project's contributor history. Many thanks to the entire Fossify team.
+The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), so many thanks to the entire Fossify team.
 
 ---
 
