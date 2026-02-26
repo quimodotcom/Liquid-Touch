@@ -1,0 +1,634 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.11.1" type="baseline" client="gradle" dependencies="false" name="AGP (8.11.1)" variant="all" version="8.11.1">
+
+    <issue
+        id="NewApi"
+        message="`android:enforceNavigationBarContrast` requires API level 29 (current min is 26)"
+        errorLine1="        &lt;item name=&quot;android:enforceNavigationBarContrast&quot;>false&lt;/item>"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/styles.xml"
+            line="12"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="`android:enforceStatusBarContrast` requires API level 29 (current min is 26)"
+        errorLine1="        &lt;item name=&quot;android:enforceStatusBarContrast&quot;>false&lt;/item>"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/styles.xml"
+            line="13"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="`android:windowLayoutInDisplayCutoutMode` requires API level 27 (current min is 26)"
+        errorLine1="        &lt;item name=&quot;android:windowLayoutInDisplayCutoutMode&quot;>shortEdges&lt;/item>"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/styles.xml"
+            line="14"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NotificationPermission"
+        message="When targeting Android 13 or higher, posting a permission requires holding the `POST_NOTIFICATIONS` permission (usage from org.fossify.commons.asynctasks.CopyMoveTask)">
+        <location
+            file="src/main/AndroidManifest.xml"/>
+    </issue>
+
+    <issue
+        id="CustomSplashScreen"
+        message="The application should not provide its own launch screen"
+        errorLine1="class SplashActivity : BaseSplashActivity() {"
+        errorLine2="      ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/activities/SplashActivity.kt"
+            line="6"
+            column="7"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 8.13 is available: 8.14.3"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/work/Launcher/Launcher/gradle/wrapper/gradle-wrapper.properties"
+            line="3"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of com.android.application than 8.11.1 is available: 8.13.2. (There is also a newer version of 8.11.𝑥 available, if upgrading to 8.13.2 is difficult: 8.11.2)"
+        errorLine1="gradlePlugins-agp = &quot;8.11.1&quot;"
+        errorLine2="                    ~~~~~~~~">
+        <location
+            file="$HOME/work/Launcher/Launcher/gradle/libs.versions.toml"
+            line="14"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="LockedOrientationActivity"
+        message="Expecting `android:screenOrientation=&quot;unspecified&quot;` or `&quot;fullSensor&quot;` for this activity so the user can use the application in any orientation and provide a great experience on Chrome OS devices"
+        errorLine1="            android:screenOrientation=&quot;portrait&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="47"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of io.nlopez.compose.rules:detekt than 0.4.28 is available: 0.5.3"
+        errorLine1="detektCompose = &quot;0.4.28&quot;"
+        errorLine2="                ~~~~~~~~">
+        <location
+            file="$HOME/work/Launcher/Launcher/gradle/libs.versions.toml"
+            line="8"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Fixed screen orientations will be ignored in most cases, starting from Android 16. Android is moving toward a model where apps are expected to adapt to various orientations, display sizes, and aspect ratios."
+        errorLine1="            android:screenOrientation=&quot;portrait&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="47"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;app_launcher_name&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;ne&quot; (Nepali), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;app_launcher_name&quot;>Launcher_debug&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/debug/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;app_launcher_name&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;ne&quot; (Nepali), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;app_launcher_name&quot;>Launcher&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;launcher_settings&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;launcher_settings&quot;>Launcher Settings&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;app_info&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;app_info&quot;>App info&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="5"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;touch_hold_widget&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;touch_hold_widget&quot;>Long press the widget and drag it on your home screen&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="6"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;uninstall&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;uninstall&quot;>Uninstall&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="7"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;hide_icon&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;hide_icon&quot;>Hide icon&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;add_hidden_icons&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;add_hidden_icons&quot;>Add hidden icons&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="9"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;manage_hidden_icons&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;manage_hidden_icons&quot;>Manage hidden icons&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="10"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;hidden_icons&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;hidden_icons&quot;>Hidden icons&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="11"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;hidden_icons_placeholder&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;si&quot; (Sinhala), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;bqi&quot;"
+        errorLine1="    &lt;string name=&quot;hidden_icons_placeholder&quot;>Some apps cannot be uninstalled due to system restrictions, but you can at least hide their icons to avoid seeing them.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="12"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;app_drawer_settings&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;app_drawer_settings&quot;>App drawer&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="13"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;close_app_drawer_on_app_open&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;close_app_drawer_on_app_open&quot;>Close app drawer on opening an app&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="14"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;auto_show_keyboard_in_app_drawer&quot; is not translated in &quot;hi&quot; (Hindi), &quot;fil&quot; (Filipino; Pilipino), &quot;hu&quot; (Hungarian), &quot;ia&quot; (Interlingua), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;in&quot; (Indonesian), &quot;ms&quot; (Malay), &quot;el&quot; (Greek), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;vi&quot; (Vietnamese), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;ro&quot; (Romanian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;gl&quot; (Galician), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;auto_show_keyboard_in_app_drawer&quot;>Automatically show keyboard in drawer&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="15"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;home_screen_settings&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;home_screen_settings&quot;>Home screen&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="16"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;widget_too_big&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh)"
+        errorLine1="    &lt;string name=&quot;widget_too_big&quot;>Widget is too big for current home screen size&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="17"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;double_tap_to_lock&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;ia&quot; (Interlingua), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;vi&quot; (Vietnamese), &quot;nb&quot; (Norwegian Bokmål), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;ro&quot; (Romanian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;double_tap_to_lock&quot;>Double tap to lock screen&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="18"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;lock_device_admin_hint&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;ia&quot; (Interlingua), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;vi&quot; (Vietnamese), &quot;nb&quot; (Norwegian Bokmål), &quot;ja&quot; (Japanese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;ro&quot; (Romanian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;bqi&quot;, &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;lock_device_admin_hint&quot;>To enable the double tap to lock screen feature, you need to grant admin permission. Note that the app cannot be uninstalled until this permission is removed.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="19"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingTranslation"
+        message="&quot;lock_device_admin_warning&quot; is not translated in &quot;fil&quot; (Filipino; Pilipino), &quot;ia&quot; (Interlingua), &quot;mk&quot; (Macedonian), &quot;ml&quot; (Malayalam), &quot;ms&quot; (Malay), &quot;en&quot; (English), &quot;is&quot; (Icelandic), &quot;my&quot; (Burmese), &quot;ar&quot; (Arabic), &quot;vi&quot; (Vietnamese), &quot;nb&quot; (Norwegian Bokmål), &quot;ja&quot; (Japanese), &quot;ne&quot; (Nepali), &quot;az&quot; (Azerbaijani), &quot;fa&quot; (Persian), &quot;ro&quot; (Romanian), &quot;nn&quot; (Norwegian Nynorsk), &quot;be&quot; (Belarusian), &quot;bg&quot; (Bulgarian), &quot;bn&quot; (Bangla), &quot;br&quot; (Breton), &quot;bs&quot; (Bosnian), &quot;si&quot; (Sinhala), &quot;sl&quot; (Slovenian), &quot;zgh&quot; (Standard Moroccan Tamazight), &quot;ltg&quot;, &quot;kn&quot; (Kannada), &quot;or&quot; (Odia), &quot;ko&quot; (Korean), &quot;kr&quot; (Kanuri), &quot;sat&quot; (Santali), &quot;ta&quot; (Tamil), &quot;cr&quot; (Cree), &quot;pa&quot; (Punjabi), &quot;te&quot; (Telugu), &quot;th&quot; (Thai), &quot;cy&quot; (Welsh), &quot;ckb&quot;"
+        errorLine1="    &lt;string name=&quot;lock_device_admin_warning&quot;>Deactivating admin permission will disable the double tap to lock screen feature.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/adapters/FolderIconsAdapter.kt"
+            line="107"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            notifyDataSetChanged()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/adapters/WidgetsAdapter.kt"
+            line="120"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            notifyDataSetChanged()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/adapters/WidgetsAdapter.kt"
+            line="127"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `?attr/selectableItemBackground` with a theme that also paints a background (inferred theme is `@style/AppTheme`)"
+        errorLine1="    android:background=&quot;?attr/selectableItemBackground&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_hidden_icon.xml"
+            line="6"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.layout.dialog_folder_icons` appears to be unused"
+        errorLine1="&lt;FrameLayout xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/layout/dialog_folder_icons.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.icon_long_press_anchor_offset_y` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;icon_long_press_anchor_offset_y&quot;>150dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.min_folder_view_height` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;min_folder_view_height&quot;>200dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="12"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.dimen.max_folder_view_height` appears to be unused"
+        errorLine1="    &lt;dimen name=&quot;max_folder_view_height&quot;>500dp&lt;/dimen>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/dimens.xml"
+            line="13"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.ic_launcher_amber_background` appears to be unused"
+        errorLine1="    &lt;color name=&quot;ic_launcher_amber_background&quot;>#106D20&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/ic_launcher_amber_background.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.ic_launcher_blue_background` appears to be unused"
+        errorLine1="    &lt;color name=&quot;ic_launcher_blue_background&quot;>#106D20&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/ic_launcher_blue_background.xml"
+            line="3"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.hide_icon` appears to be unused"
+        errorLine1="    &lt;string name=&quot;hide_icon&quot;>Hide icon&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.add_hidden_icons` appears to be unused"
+        errorLine1="    &lt;string name=&quot;add_hidden_icons&quot;>Add hidden icons&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="9"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(wasHomeScreenInit) = prefs.edit().putBoolean(WAS_HOME_SCREEN_INIT, wasHomeScreenInit).apply()"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="14"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(homeColumnCount) = prefs.edit().putInt(HOME_COLUMN_COUNT, homeColumnCount).apply()"
+        errorLine2="                               ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="18"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(homeRowCount) = prefs.edit().putInt(HOME_ROW_COUNT, homeRowCount).apply()"
+        errorLine2="                            ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="22"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(drawerColumnCount) = prefs.edit().putInt(DRAWER_COLUMN_COUNT, drawerColumnCount).apply()"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="26"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(showSearchBar) = prefs.edit().putBoolean(SHOW_SEARCH_BAR, showSearchBar).apply()"
+        errorLine2="                             ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="30"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(closeAppDrawer) = prefs.edit().putBoolean(CLOSE_APP_DRAWER, closeAppDrawer).apply()"
+        errorLine2="                              ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="34"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        set(autoShowKeyboardInAppDrawer) = prefs.edit()"
+        errorLine2="                                           ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/helpers/Config.kt"
+            line="38"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Int.toDrawable` instead?"
+        errorLine1="        background = ColorDrawable(Color.TRANSPARENT)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/views/MyAppWidgetResizeFrame.kt"
+            line="48"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Int.toDrawable` instead?"
+        errorLine1="        background = ColorDrawable(Color.TRANSPARENT)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/views/MyAppWidgetResizeFrame.kt"
+            line="48"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `MyAppWidgetHostView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(event: MotionEvent?): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/views/MyAppWidgetHostView.kt"
+            line="23"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `MyAppWidgetResizeFrame` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(event: MotionEvent?): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/views/MyAppWidgetResizeFrame.kt"
+            line="105"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="    &lt;ImageView"
+        errorLine2="     ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_widget_preview.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Number formatting does not take into account locale settings. Consider using `String.format` instead."
+        errorLine1="        binding.settingsDrawerColumnCount.text = currentColumnCount.toString()"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/activities/SettingsActivity.kt"
+            line="156"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Number formatting does not take into account locale settings. Consider using `String.format` instead."
+        errorLine1="        binding.settingsHomeScreenRowCount.text = currentRowCount.toString()"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/activities/SettingsActivity.kt"
+            line="192"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Number formatting does not take into account locale settings. Consider using `String.format` instead."
+        errorLine1="        binding.settingsHomeScreenColumnCount.text = currentColumnCount.toString()"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/kotlin/org/fossify/home/activities/SettingsActivity.kt"
+            line="218"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="RtlSymmetry"
+        message="When you define `paddingStart` you should probably also define `paddingEnd` for right-to-left symmetry"
+        errorLine1="        android:paddingStart=&quot;@dimen/medium_margin&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/item_widget_list_section.xml"
+            line="27"
+            column="9"/>
+    </issue>
+
+</issues>

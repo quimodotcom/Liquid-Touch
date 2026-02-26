@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:installLocation="internalOnly">
+
+    <!-- Required for fetching weather data -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Allow the app to set the device wallpaper when the user chooses a wallpaper in the launcher -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <uses-permission
+        android:name="android.permission.BIND_APPWIDGET"
+        tools:ignore="ProtectedPermissions" />
+
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <uses-permission
+        android:name="android.permission.USE_FINGERPRINT"
+        tools:node="remove" />
+
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <application
+        android:name=".LqApp"
+        android:allowBackup="true"
+        android:appCategory="productivity"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_launcher_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Liquid Glass Launcher activity only -->
+        <activity
+            android:name=".activities.LiquidGlassLauncherActivity"
+            android:clearTaskOnLaunch="true"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait"
+            android:theme="@style/LauncherTheme">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".activities.LauncherAlias"
+            android:clearTaskOnLaunch="true"
+            android:enabled="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:launchMode="singleTask"
+            android:roundIcon="@mipmap/ic_launcher"
+            android:targetActivity=".activities.LiquidGlassLauncherActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <service
+            android:name=".services.LiquidGlassWallpaperService"
+            android:enabled="true"
+            android:label="@string/app_launcher_name"
+            android:permission="android.permission.BIND_WALLPAPER"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/wallpaper" />
+        </service>
+
+        <service
+            android:name=".services.MediaListenerService"
+            android:label="@string/app_launcher_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+    </application>
+</manifest>
