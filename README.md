@@ -1,4 +1,6 @@
-<img width="300" height="300" alt="LiquidTouchGitHub1" src="https://github.com/user-attachments/assets/bf58deaa-91a8-46a2-8f21-12f267484c13" />
+<p align="center">
+  <img width="300" height="300" alt="LiquidTouchGitHub1" src="https://github.com/user-attachments/assets/bf58deaa-91a8-46a2-8f21-12f267484c13" />
+</p>
 
 # Liquid Touch
 
@@ -10,7 +12,7 @@ A *vibecoded* Liquid Glass home launcher for Android.
 
 Liquid Touch is a prototype Android home launcher built around the aesthetic of Apple's Liquid Glass design language — brought to Android through the [Android Liquid Glass (Backdrop) Library](https://github.com/Kyant0/AndroidLiquidGlass) by Kyant0, which served as the primary inspiration for this project.
 
-The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), so many thanks to the entire Fossify team.
+The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), and all original contributors have been preserved in the project's contributor history. Many thanks to the entire Fossify team.
 
 ---
 
@@ -27,6 +29,10 @@ This is very much a proof of concept. It is rough. It works enough to demonstrat
 ## What's New
 
 **Animated cover art now works on the lock screen.** This was a long time coming.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f7947370-267c-4507-8c56-66d40a6ac3e7" width="250" alt="Animated lock screen cover art" />
+</p>
 
 ---
 
