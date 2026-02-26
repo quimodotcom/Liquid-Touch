@@ -1,4 +1,6 @@
+<img width="760" height="760" alt="LiquidTouchGitHub1" src="https://github.com/user-attachments/assets/bf58deaa-91a8-46a2-8f21-12f267484c13" />
 # LiquidTouch
+
 A *vibecoded* "Liquid Glass" android home launcher.
 
 # This is **VIBECODED**
