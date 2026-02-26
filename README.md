@@ -2,33 +2,21 @@
   <img width="300" height="300" alt="LiquidTouchGitHub1" src="https://github.com/user-attachments/assets/bf58deaa-91a8-46a2-8f21-12f267484c13" />
 </p>
 
-# Liquid Touch
+# Liquid Touch: A Refreshing Twist on Android Home Launchers
 
-A *vibecoded* Liquid Glass home launcher for Android.
-
----
-
-## Overview
-
-Liquid Touch is a prototype Android home launcher built around the aesthetic of Apple's Liquid Glass design language — brought to Android through the [Android Liquid Glass (Backdrop) Library](https://github.com/Kyant0/AndroidLiquidGlass) by Kyant0, which served as the primary inspiration for this project.
-
-The launcher is forked from the [Fossify Home Launcher](https://github.com/FossifyOrg/Home), and all original contributors have been preserved in the project's contributor history. Many thanks to the entire Fossify team.
+Meet Liquid Touch, an Android home launcher inspired by Apple's sleek Liquid Glass style. This fresh take uses the [Android Liquid Glass (Backdrop) Library](https://github.com/Kyant0/AndroidLiquidGlass), courtesy of Kyant0. It's a standout project that not only draws from this innovative aesthetic but also utilizes the existing [Fossify Home Launcher](https://github.com/FossifyOrg/Home) as its backbone. Kudos to all those original minds who laid down the groundwork!
 
 ---
 
-## A Note on the Code
+## A Peek Behind the Curtain
 
-Most of my projects are written entirely by hand — including some painfully handcrafted Unity games. This one is different. Having never built an Android or mobile app outside of Unity, I leaned heavily on AI assistance to get this off the ground. Roughly 99% of this codebase was vibecoded using various models (Claude Opus, Sonnet, Gemini, and others). This readme, however, is fully written by me.
-
-I will be honest: even with AI, getting a functional app drawer proved genuinely difficult. That part was mine. The rest is a collaboration between me, a few language models, and a concerning number of YouTube tutorials.
-
-This is very much a proof of concept. It is rough. It works enough to demonstrate the idea. I hope someone with more frontal cortex available will one day fork it and take it somewhere great.
+Coding has always been a hands-on affair for me — just think about those Unity games I coded from scratch! Yet, this venture into app development was a bit different. Outside my usual playground of Unity, I dabbled with AI tools to piece together what you see today in Liquid Touch. Believe it or not, carving out a working app drawer was a true headache — but hey, that part's all me! The rest? Let's just say it's been a group effort with some AI input and an endless stream of YouTube tutorials.
 
 ---
 
-## What's New
+## What's Hot Off the Press?
 
-**Animated cover art now works on the lock screen.** This was a long time coming.
+Animated cover art now works right on your lock screen — a feature many have eagerly awaited.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/f7947370-267c-4507-8c56-66d40a6ac3e7" width="250" alt="Animated lock screen cover art" />
@@ -36,20 +24,26 @@ This is very much a proof of concept. It is rough. It works enough to demonstrat
 
 ---
 
-## Going Forward
+## Looking Ahead
 
-From here, I intend to move away from AI-assisted development as much as possible. My goal is for this codebase to become predominantly human-written over time, using what exists now as a foundation. AI will only be brought back in as a last resort — when neither I nor anyone in the community can crack a particular problem.
+Going forward, my plan is to steer clear of AI help as much as possible. I aim to evolve this codebase into something predominantly crafted by human hands, building on what we've started here. Sure, I might call on AI again if we hit a really tough snag — but only as a last resort.
 
-Issues are open. Use them for bug reports or feature suggestions. I have made a personal commitment to address everything I reasonably can using my own knowledge and the existing code as a base.
+---
+
+## Call for Collaboration
+
+Got bugs? Ideas? The floor is open — drop your suggestions or issues anytime. Rest assured, I'm here to tackle them using the arsenal of existing code and whatever grey matter I can muster.
 
 ---
 
 ## Dependencies
 
-- [Android Liquid Glass Library](https://github.com/Kyant0/AndroidLiquidGlass) — Kyant0
-- [Fossify Home Launcher](https://github.com/FossifyOrg/Home) — the foundation this project is built on
+This project wouldn't be what it is without some key players:
+
+- [Fossify Home Launcher](https://github.com/FossifyOrg/Home) — the foundational backbone
+- [Android Liquid Glass Library](https://github.com/Kyant0/AndroidLiquidGlass) — the style-defining work of Kyant0
 
 ---
 
-*Many thanks,*  
+*Cheers,*  
 *Evan — quiqqy / quimodotcom*
