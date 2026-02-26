@@ -1,6 +1,21 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.nio.file.Files
+import java.nio.file.Paths
 
+// --------------------------------------------------------------------------
+// Helper to read plain‑text credential files from app/keystore
+// --------------------------------------------------------------------------
+fun readCredential(fileName: String): String? {
+    val path = Paths.get(rootProject.projectDir.path, "app", "keystore", fileName)
+    return if (Files.isRegularFile(path)) {
+        Files.readString(path).trim()
+    } else null
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Plugins                                                                  */
+/* -------------------------------------------------------------------------- */
 plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.kotlinAndroid)
@@ -11,9 +26,8 @@ plugins {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  No keystore handling – signing is supplied by the GitHub Action            */
+/*  Android configuration                                                     */
 /* -------------------------------------------------------------------------- */
-
 android {
     compileSdk = 36 // Revert back to 36
 
@@ -21,6 +35,7 @@ android {
         applicationId = project.property("APP_ID").toString()
         minSdk = project.libs.versions.app.build.minimumSDK.get().toInt()
         targetSdk = 36 // Revert back to 36
+
         val versionBase = project.findProperty("VERSION_BASE")?.toString() ?: "0.9"
         val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 0
         versionName = "$versionBase.$buildNumber"
@@ -39,19 +54,26 @@ android {
     /* --------------------------- signingConfigs --------------------------- */
     signingConfigs {
         create("release") {
+            // 1️⃣ Prefer CI environment variables (used by GitHub Actions)
             val storeFileEnv = System.getenv("SIGNING_STORE_FILE")
-            val storePasswordEnv = System.getenv("SIGNING_STORE_PASSWORD")
-            val keyAliasEnv = System.getenv("SIGNING_KEY_ALIAS")
-            val keyPasswordEnv = System.getenv("SIGNING_KEY_PASSWORD")
-
-            if (storeFileEnv != null && storePasswordEnv != null && keyAliasEnv != null && keyPasswordEnv != null) {
+            if (storeFileEnv != null) {
                 storeFile = file(storeFileEnv)
-                storePassword = storePasswordEnv
-                keyAlias = keyAliasEnv
-                keyPassword = keyPasswordEnv
-                enableV1Signing = true
-                enableV2Signing = true
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            } else {
+                // 2️⃣ Fallback to local text‑file credentials
+                storeFile = file("keystore/myrelease.jks")
+                storePassword = readCredential("storePassword.txt")
+                ?: throw GradleException("Missing storePassword.txt in app/keystore")
+                keyAlias = readCredential("keyAlias.txt")
+                ?: throw GradleException("Missing keyAlias.txt in app/keystore")
+                keyPassword = readCredential("keyPassword.txt")
+                ?: throw GradleException("Missing keyPassword.txt in app/keystore")
             }
+
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
     /* -------------------------------------------------------------------- */
@@ -71,12 +93,11 @@ android {
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                          "proguard-rules.pro"
             )
-            // Apply signing config if environment variables are present
-            if (System.getenv("SIGNING_STORE_FILE") != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // Always apply the signing config; it will be populated either from CI env vars
+            // or from the local text‑file fallback defined above.
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

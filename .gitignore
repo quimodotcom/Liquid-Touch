@@ -14,3 +14,4 @@ fastlane/report.xml
 nul
 *.log
 .*/
+app/keystore/
