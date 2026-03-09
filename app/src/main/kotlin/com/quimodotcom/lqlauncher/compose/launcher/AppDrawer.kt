@@ -155,17 +155,15 @@ fun AppDrawer(
                     backdrop = backdrop,
                     shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
                     effects = {
-                         // Optimization: Defer expensive blur effects until the drawer is nearly static/open
-                         // This significantly improves frame rate during the drag/animation.
-                         if (swipeableState.offset.value <= 10f) {
-                             if (glassSettings.vibrancyEnabled) vibrancy()
-                             if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                             if (glassSettings.lensEnabled) lens(
-                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                                chromaticAberration = glassSettings.chromaticAberration
-                            )
-                         }
+                         // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
+                         // causes RenderEffect crashes on custom ROMs like LineageOS.
+                         if (glassSettings.vibrancyEnabled) vibrancy()
+                         if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                         if (glassSettings.lensEnabled) lens(
+                             refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                             refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                             chromaticAberration = glassSettings.chromaticAberration
+                         )
                     },
                     onDrawSurface = {
                          drawRect(panelColor.copy(alpha = panelAlpha))
