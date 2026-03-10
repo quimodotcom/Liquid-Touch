@@ -2377,20 +2377,9 @@ private suspend fun loadAvailableApps(context: Context): List<AvailableApp> {
             val override = overrides[pkg]
 
             val label = override?.label ?: resolveInfo.loadLabel(pm).toString()
-            val icon = try {
-                if (override?.customIconUri != null) {
-                    loadDrawableFromUri(context, override.customIconUri) ?: resolveInfo.loadIcon(pm)
-                } else {
-                    resolveInfo.loadIcon(pm)
-                }
-            } catch (e: Exception) {
-                null
-            }
-
             AvailableApp(
                 packageName = pkg,
                 label = label,
-                icon = icon,
                 componentName = ComponentName(pkg, resolveInfo.activityInfo.name),
                 customIconUri = override?.customIconUri
             )
