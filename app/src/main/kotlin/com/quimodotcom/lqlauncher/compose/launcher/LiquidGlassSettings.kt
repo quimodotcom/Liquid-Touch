@@ -2,6 +2,8 @@ package com.quimodotcom.lqlauncher.compose.launcher
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import java.util.Calendar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -80,9 +82,35 @@ data class LiquidGlassSettings(
     // Debug & Updates
     val showDebugSettings: Boolean = false,
     val showDebugLogs: Boolean = false,
+    val lowPerformanceMode: Boolean = false,
+    val wallpaperSwitchMode: String = "System", // System, Scheduled, Manual Day, Manual Night
+    val dayStartHour: Int = 6,
+    val nightStartHour: Int = 18,
     val githubUpdateUrl: String = "",
     val githubToken: String = ""
-)
+) {
+    /**
+     * Determines if night mode should be active for wallpapers based on current settings.
+     */
+    fun isNightModeActive(context: Context): Boolean {
+        return when (wallpaperSwitchMode) {
+            "Scheduled" -> {
+                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                if (dayStartHour < nightStartHour) {
+                    hour < dayStartHour || hour >= nightStartHour
+                } else {
+                    // Over midnight case
+                    hour >= nightStartHour && hour < dayStartHour
+                }
+            }
+            "Manual Night" -> true
+            "Manual Day" -> false
+            else -> { // "System" or default
+                (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+    }
+}
 
 /**
  * Repository for saving/loading liquid glass settings
