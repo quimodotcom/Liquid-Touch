@@ -548,7 +548,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService) ?: LauncherConfig()
-                val isNightMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val isNightMode = settings.isNightModeActive(this@LiquidGlassWallpaperService)
 
                 val uri = if (isNightMode) config.nightWallpaperUri ?: config.wallpaperUri else config.wallpaperUri
                 val subjectUri = if (isNightMode) config.nightWallpaperSubjectUri ?: config.wallpaperSubjectUri else config.wallpaperSubjectUri

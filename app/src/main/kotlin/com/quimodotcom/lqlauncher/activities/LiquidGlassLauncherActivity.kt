@@ -232,6 +232,16 @@ private fun EditableLauncherScreen(
         }
     }
 
+    // Update theme when scheduled time passes or settings change
+    LaunchedEffect(glassSettings.wallpaperSwitchMode, glassSettings.dayStartHour, glassSettings.nightStartHour) {
+        if (glassSettings.wallpaperSwitchMode == "Scheduled") {
+            while (true) {
+                // This triggers recomposition when the hour changes, which updates isNightMode
+                delay(1000 * 60) // Check every minute
+            }
+        }
+    }
+
     // Save config whenever it changes (with debounce)
     LaunchedEffect(launcherConfig) {
         if (isConfigLoaded) {
@@ -260,7 +270,7 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    val isNightMode = androidx.compose.foundation.isSystemInDarkTheme()
+    val isNightMode = glassSettings.isNightModeActive(context)
 
     // Wallpaper painter (honour permission)
     val wallpaperPainter = rememberWallpaperPainter(
