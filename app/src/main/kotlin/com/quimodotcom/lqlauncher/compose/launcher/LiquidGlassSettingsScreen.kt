@@ -512,6 +512,21 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
+                    // === PERFORMANCE ===
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Performance", icon = Icons.Rounded.Speed)
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Low Performance Mode",
+                            subtitle = "Disables expensive glass effects and reduces frame rate for better battery life",
+                            checked = settings.lowPerformanceMode,
+                            onCheckedChange = { onSettingsChanged(settings.copy(lowPerformanceMode = it)) }
+                        )
+                    }
+
                     // === DEBUG ===
                     item {
                         Spacer(Modifier.height(16.dp))

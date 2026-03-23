@@ -29,6 +29,7 @@ import coil.request.ImageRequest
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import com.quimodotcom.lqlauncher.helpers.StackBlur
 import com.quimodotcom.lqlauncher.helpers.DebugLogger
+import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfig
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettingsRepository
 import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfigRepository
@@ -335,6 +336,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                         // Generate blur in background
                         launch(Dispatchers.Default) {
+                            if (settings.lowPerformanceMode) {
+                                synchronized(this@LiquidGlassEngine) {
+                                    blurredMediaArt?.recycle()
+                                    blurredMediaArt = null
+                                }
+                                draw()
+                                return@launch
+                            }
+
                             val art = animatedMediaArt ?: state.art
                             if (art != null && !art.isRecycled) {
                                 try {
@@ -537,10 +547,11 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val targetH = dm.heightPixels
 
                 // Use LauncherConfig for wallpaper URI
-                val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
+                val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService) ?: LauncherConfig()
+                val isNightMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 
-                val uri = config?.wallpaperUri
-                val subjectUri = config?.wallpaperSubjectUri
+                val uri = if (isNightMode) config.nightWallpaperUri ?: config.wallpaperUri else config.wallpaperUri
+                val subjectUri = if (isNightMode) config.nightWallpaperSubjectUri ?: config.wallpaperSubjectUri else config.wallpaperSubjectUri
 
                 if (uri != null && !config.useSystemWallpaper) {
                     val parsedUri = Uri.parse(uri)
@@ -742,6 +753,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     handler.removeCallbacks(drawRunnable)
                     if (isPowerSaveMode) {
                         handler.postDelayed(drawRunnable, 1000)
+                    } else if (settings.lowPerformanceMode) {
+                        handler.postDelayed(drawRunnable, 66) // ~15fps
                     } else {
                         handler.postDelayed(drawRunnable, 33) // ~30fps
                     }

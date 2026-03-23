@@ -80,6 +80,7 @@ data class LiquidGlassSettings(
     // Debug & Updates
     val showDebugSettings: Boolean = false,
     val showDebugLogs: Boolean = false,
+    val lowPerformanceMode: Boolean = false,
     val githubUpdateUrl: String = "",
     val githubToken: String = ""
 )
