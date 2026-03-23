@@ -154,6 +154,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private val srcRect = Rect()
         private val dstRect = Rect()
         private val cardRect = RectF()
+        private val controlIconRect = RectF()
 
         // Broadcast Receiver for settings updates
         private val configReceiver = object : BroadcastReceiver() {
@@ -233,6 +234,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Initial load
             reloadSettings()
             updateLockState()
+
+            setTouchEventsEnabled(true)
 
             // Check initial Power Save Mode
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -450,6 +453,36 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
             }
             return super.onCommand(action, x, y, z, extras, resultRequested)
+        }
+
+        override fun onTouchEvent(event: android.view.MotionEvent?) {
+            super.onTouchEvent(event)
+            if (event?.action == android.view.MotionEvent.ACTION_UP && isLocked && !isInAmbientMode) {
+                val density = resources.displayMetrics.density
+                val w = surfaceHolder?.surfaceFrame?.width() ?: 0
+                val h = surfaceHolder?.surfaceFrame?.height() ?: 0
+
+                if (w > 0 && h > 0) {
+                    val x = event.x
+                    val y = event.y
+
+                    // Check for media control taps
+                    // Controls are near the bottom
+                    val bottomMargin = 150f * density
+                    val controlY = h - bottomMargin - (50f * density) // approximate area
+
+                    if (y > h - bottomMargin - (100f * density) && y < h - bottomMargin + (50f * density)) {
+                         // Horizontal zones
+                         if (x < w / 3f) {
+                             MediaStateRepository.sendCommand(MediaCommand.PREVIOUS)
+                         } else if (x > 2 * w / 3f) {
+                             MediaStateRepository.sendCommand(MediaCommand.NEXT)
+                         } else {
+                             MediaStateRepository.sendCommand(MediaCommand.TOGGLE)
+                         }
+                    }
+                }
+            }
         }
 
         private fun handlePowerSaveMode(enabled: Boolean) {
@@ -883,8 +916,31 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density
             canvas.drawText(date, centerX, dateY, datePaint)
 
-            // Hide media info in Ambient Mode to reduce clutter/burn-in
+            // Hide media info/controls in Ambient Mode to reduce clutter/burn-in
             if (isInAmbientMode) return
+
+            val currentState = MediaStateRepository.mediaState.value
+
+            // --- Draw Media Controls ---
+            if (currentState != null) {
+                val bottomMargin = BOTTOM_MARGIN_DP * density
+                val iconSize = 40f * density
+                val iconGap = 60f * density
+                val controlY = height - bottomMargin - (iconSize / 2f)
+
+                // 1. Previous
+                if (currentState.canSkipPrev) {
+                    drawMediaIcon(canvas, centerX - iconGap, controlY, iconSize, "PREV")
+                }
+
+                // 2. Play/Pause
+                drawMediaIcon(canvas, centerX, controlY, iconSize, if (currentState.isPlaying) "PAUSE" else "PLAY")
+
+                // 3. Next
+                if (currentState.canSkipNext) {
+                    drawMediaIcon(canvas, centerX + iconGap, controlY, iconSize, "NEXT")
+                }
+            }
 
             // --- Draw Media Info ---
             if (mediaTitle.isBlank() && mediaArtist.isBlank()) return
@@ -991,6 +1047,63 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         }
                         currentY += layout.height + DEBUG_LOG_LINE_SPACING
                     }
+                }
+            }
+        }
+
+        private fun drawMediaIcon(canvas: Canvas, x: Float, y: Float, size: Float, type: String) {
+            val half = size / 2f
+            controlIconRect.set(x - half, y - half, x + half, y + half)
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                alpha = 200
+                style = Paint.Style.FILL
+            }
+
+            when (type) {
+                "PLAY" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x - half * 0.6f, y - half * 0.8f)
+                    path.lineTo(x + half * 0.8f, y)
+                    path.lineTo(x - half * 0.6f, y + half * 0.8f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                }
+                "PAUSE" -> {
+                    val barW = size * 0.2f
+                    canvas.drawRect(x - barW * 1.5f, y - half * 0.8f, x - barW * 0.5f, y + half * 0.8f, paint)
+                    canvas.drawRect(x + barW * 0.5f, y - half * 0.8f, x + barW * 1.5f, y + half * 0.8f, paint)
+                }
+                "NEXT" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x - half * 0.8f, y - half * 0.6f)
+                    path.lineTo(x, y)
+                    path.lineTo(x - half * 0.8f, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+
+                    path.reset()
+                    path.moveTo(x, y - half * 0.6f)
+                    path.lineTo(x + half * 0.8f, y)
+                    path.lineTo(x, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                }
+                "PREV" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x + half * 0.8f, y - half * 0.6f)
+                    path.lineTo(x, y)
+                    path.lineTo(x + half * 0.8f, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+
+                    path.reset()
+                    path.moveTo(x, y - half * 0.6f)
+                    path.lineTo(x - half * 0.8f, y)
+                    path.lineTo(x, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
                 }
             }
         }
