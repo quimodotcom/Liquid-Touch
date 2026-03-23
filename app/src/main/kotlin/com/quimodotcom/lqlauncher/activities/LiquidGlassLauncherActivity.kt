@@ -232,14 +232,17 @@ private fun EditableLauncherScreen(
         }
     }
 
-    // Update theme when scheduled time passes or settings change
-    LaunchedEffect(glassSettings.wallpaperSwitchMode, glassSettings.dayStartHour, glassSettings.nightStartHour) {
-        if (glassSettings.wallpaperSwitchMode == "Scheduled") {
-            while (true) {
-                // This triggers recomposition when the hour changes, which updates isNightMode
-                delay(1000 * 60) // Check every minute
-            }
+    // Track current hour to trigger recomposition when scheduled time thresholds are crossed
+    val currentHour by produceState(initialValue = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+        while (true) {
+            delay(1000 * 30) // Check every 30 seconds
+            value = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         }
+    }
+
+    // React to hour changes if scheduled mode is active
+    LaunchedEffect(currentHour, glassSettings.wallpaperSwitchMode, glassSettings.dayStartHour, glassSettings.nightStartHour) {
+        // Hour change will trigger recomposition and recalculate isNightMode
     }
 
     // Save config whenever it changes (with debounce)

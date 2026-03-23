@@ -75,6 +75,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private val handler = android.os.Handler(android.os.Looper.getMainLooper())
         private val drawRunnable = Runnable { draw() }
 
+        // Last checked theme state for scheduled switching
+        private var lastNightMode: Boolean? = null
+
         // Lock screen state
         private val keyguardManager by lazy { getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager }
         private var isVisible = false
@@ -682,6 +685,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastMediaState: String = ""
 
         private fun draw() {
+            // Check for scheduled theme change
+            if (settings.wallpaperSwitchMode == "Scheduled") {
+                val currentNightMode = settings.isNightModeActive(this@LiquidGlassWallpaperService)
+                if (lastNightMode != null && lastNightMode != currentNightMode) {
+                    DebugLogger.log("WallpaperService", "Scheduled theme switch: $currentNightMode")
+                    reloadSettings() // This will trigger loadWallpapers()
+                }
+                lastNightMode = currentNightMode
+            }
+
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
                 // Use Canvas drawing for Ambient Mode to avoid GL overhead if possible,
