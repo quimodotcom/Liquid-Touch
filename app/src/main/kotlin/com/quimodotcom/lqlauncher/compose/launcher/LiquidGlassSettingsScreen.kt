@@ -43,6 +43,8 @@ import android.content.ComponentName
 fun LiquidGlassSettingsScreen(
     settings: LiquidGlassSettings,
     onSettingsChanged: (LiquidGlassSettings) -> Unit,
+    onExportSchematic: () -> Unit,
+    onImportSchematic: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val view = LocalView.current
@@ -568,6 +570,28 @@ fun LiquidGlassSettingsScreen(
                                 onCheckedChange = { onSettingsChanged(settings.copy(showDebugLogs = it)) }
                             )
                         }
+
+                    // === BACKUP & RESTORE ===
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Backup & Restore", icon = Icons.Rounded.Backup)
+                    }
+
+                    item {
+                        SettingItem(
+                            title = "Export Schematic",
+                            description = "Save current layout and settings to a file",
+                            onClick = onExportSchematic
+                        )
+                    }
+
+                    item {
+                        SettingItem(
+                            title = "Import Schematic",
+                            description = "Restore layout and settings from a file",
+                            onClick = onImportSchematic
+                        )
+                    }
 
                         item {
                             Spacer(Modifier.height(8.dp))

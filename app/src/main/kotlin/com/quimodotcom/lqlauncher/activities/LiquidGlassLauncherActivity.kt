@@ -3,11 +3,14 @@ package com.quimodotcom.lqlauncher.activities
 import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -961,6 +964,68 @@ private fun EditableLauncherScreen(
         )
     }
 
+    // Schematic Export Launcher
+    val exportSchematicLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val metadata = AppMetadataRepository.loadAll(context)
+                val schematic = LauncherSchematic(
+                    config = launcherConfig,
+                    settings = glassSettings,
+                    metadata = metadata
+                )
+                val success = SchematicRepository.exportSchematic(context, uri, schematic)
+                if (success) {
+                    Toast.makeText(context, "Schematic exported successfully", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Schematic Import Launcher
+    val importSchematicLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val schematic = SchematicRepository.importSchematic(context, uri)
+                if (schematic != null) {
+                    // Check if icon pack is installed
+                    var finalSettings = schematic.settings
+                    if (finalSettings.iconPackPackageName.isNotEmpty()) {
+                        try {
+                            context.packageManager.getPackageInfo(finalSettings.iconPackPackageName, 0)
+                        } catch (e: PackageManager.NameNotFoundException) {
+                            // Icon pack not found, reset to default
+                            finalSettings = finalSettings.copy(iconPackPackageName = "")
+                            Toast.makeText(context, "Icon pack not found, using default icons", Toast.LENGTH_LONG).show()
+                        }
+                    }
+
+                    // Apply layout and settings
+                    launcherConfig = schematic.config
+                    glassSettings = finalSettings
+
+                    // Persist changes immediately
+                    LauncherConfigRepository.saveConfig(context, schematic.config)
+                    LiquidGlassSettingsRepository.saveSettings(context, finalSettings)
+
+                    // Apply metadata
+                    AppMetadataRepository.saveAllMetadata(context, schematic.metadata)
+
+                    Toast.makeText(context, "Schematic imported successfully", Toast.LENGTH_SHORT).show()
+                    showSettings = false // Close settings after import
+                } else {
+                    Toast.makeText(context, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     // Liquid Glass Settings dialog
     if (showSettings) {
         LiquidGlassSettingsScreen(
@@ -972,6 +1037,12 @@ private fun EditableLauncherScreen(
                     gridColumns = newSettings.gridColumns,
                     gridRows = newSettings.gridRows
                 )
+            },
+            onExportSchematic = {
+                exportSchematicLauncher.launch("liquid_glass_layout.json")
+            },
+            onImportSchematic = {
+                importSchematicLauncher.launch(arrayOf("application/json", "application/octet-stream"))
             },
             onDismiss = { showSettings = false }
         )
