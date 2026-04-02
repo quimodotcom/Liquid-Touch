@@ -151,24 +151,28 @@ fun AppDrawer(
                 .fillMaxWidth()
                 .fillMaxHeight(0.95f)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
-                    effects = {
-                         // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
-                         // causes RenderEffect crashes on custom ROMs like LineageOS.
-                         if (glassSettings.vibrancyEnabled) vibrancy()
-                         if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                         if (glassSettings.lensEnabled) lens(
-                             refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                             refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                             chromaticAberration = glassSettings.chromaticAberration
-                         )
-                    },
-                    onDrawSurface = {
-                         drawRect(panelColor.copy(alpha = panelAlpha))
+                .let {
+                    if (glassSettings.lowPerformanceMode) {
+                        it.background(panelColor.copy(alpha = panelAlpha.coerceAtLeast(0.85f)))
+                    } else {
+                        it.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
+                            effects = {
+                                if (glassSettings.vibrancyEnabled) vibrancy()
+                                if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                                if (glassSettings.lensEnabled) lens(
+                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                    chromaticAberration = glassSettings.chromaticAberration
+                                )
+                            },
+                            onDrawSurface = {
+                                drawRect(panelColor.copy(alpha = panelAlpha))
+                            }
+                        )
                     }
-                )
+                }
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                     // Prevent clicks passing through and clear focus
                     focusManager.clearFocus()
@@ -358,6 +362,7 @@ fun AppDrawerItem(
     val context = androidx.compose.ui.platform.LocalContext.current
     val cornerRadius = glassSettings.iconCornerRadius.dp
     val tintColor = Color(glassSettings.panelTintColor)
+    val iconSize = if (glassSettings.lowPerformanceMode) 128 else 192
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -370,7 +375,7 @@ fun AppDrawerItem(
                 onLongClick = onLongClick
             )
             .background(
-                color = tintColor.copy(alpha = glassSettings.iconBackgroundAlpha),
+                color = tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(if (glassSettings.lowPerformanceMode) 0.15f else 0.05f)),
                 shape = RoundedCornerShape(cornerRadius)
             )
             .padding(8.dp)
@@ -378,16 +383,16 @@ fun AppDrawerItem(
         val iconPack = if (glassSettings.useIconPackInAppDrawer) glassSettings.iconPackPackageName else null
 
         // Fast path: Check memory cache first
-        val memoryIcon = remember(app, iconPack) {
-            AppIconCache.getIconFromMemory(context, app.componentName, 192, app.customIconUri, iconPack)
+        val memoryIcon = remember(app, iconPack, iconSize) {
+            AppIconCache.getIconFromMemory(context, app.componentName, iconSize, app.customIconUri, iconPack)
         }
 
         val iconBitmap = if (memoryIcon != null) {
              remember { androidx.compose.runtime.mutableStateOf(memoryIcon.asImageBitmap()) }
         } else {
-             produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri, iconPack) {
+             produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri, iconPack, iconSize) {
                  withContext(Dispatchers.IO) {
-                     val loaded = AppIconCache.loadIcon(context, app.componentName, 192, app.customIconUri, iconPack)
+                     val loaded = AppIconCache.loadIcon(context, app.componentName, iconSize, app.customIconUri, iconPack)
                      value = loaded?.asImageBitmap()
                  }
              }

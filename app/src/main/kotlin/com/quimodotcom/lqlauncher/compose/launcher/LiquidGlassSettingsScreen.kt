@@ -473,6 +473,44 @@ fun LiquidGlassSettingsScreen(
                     }
 
                     item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Wallpaper Switching", icon = Icons.Rounded.Schedule)
+                    }
+
+                    item {
+                        val modes = listOf("System", "Scheduled", "Manual Day", "Manual Night")
+                        StyleSelector(
+                            title = "Switching Mode",
+                            currentStyle = settings.wallpaperSwitchMode,
+                            options = modes,
+                            onStyleSelected = { onSettingsChanged(settings.copy(wallpaperSwitchMode = it)) }
+                        )
+                    }
+
+                    if (settings.wallpaperSwitchMode == "Scheduled") {
+                        item {
+                            SliderSetting(
+                                title = "Day Starts At",
+                                value = settings.dayStartHour.toFloat(),
+                                valueRange = 0f..23f,
+                                steps = 22,
+                                valueLabel = "${settings.dayStartHour}:00",
+                                onValueChange = { onSettingsChanged(settings.copy(dayStartHour = it.toInt())) }
+                            )
+                        }
+                        item {
+                            SliderSetting(
+                                title = "Night Starts At",
+                                value = settings.nightStartHour.toFloat(),
+                                valueRange = 0f..23f,
+                                steps = 22,
+                                valueLabel = "${settings.nightStartHour}:00",
+                                onValueChange = { onSettingsChanged(settings.copy(nightStartHour = it.toInt())) }
+                            )
+                        }
+                    }
+
+                    item {
                         SwitchSetting(
                             title = "Open browser when tapping search",
                             subtitle = "Tapping the search panel will open the browser instead of focusing input",
@@ -511,6 +549,21 @@ fun LiquidGlassSettingsScreen(
                                 }
                                 onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
                             }
+                        )
+                    }
+
+                    // === PERFORMANCE ===
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Performance", icon = Icons.Rounded.Speed)
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Low Performance Mode",
+                            subtitle = "Disables expensive glass effects and reduces frame rate for better battery life",
+                            checked = settings.lowPerformanceMode,
+                            onCheckedChange = { onSettingsChanged(settings.copy(lowPerformanceMode = it)) }
                         )
                     }
 

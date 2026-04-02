@@ -235,6 +235,19 @@ private fun EditableLauncherScreen(
         }
     }
 
+    // Track current hour to trigger recomposition when scheduled time thresholds are crossed
+    val currentHour by produceState(initialValue = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+        while (true) {
+            delay(1000 * 30) // Check every 30 seconds
+            value = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        }
+    }
+
+    // React to hour changes if scheduled mode is active
+    LaunchedEffect(currentHour, glassSettings.wallpaperSwitchMode, glassSettings.dayStartHour, glassSettings.nightStartHour) {
+        // Hour change will trigger recomposition and recalculate isNightMode
+    }
+
     // Save config whenever it changes (with debounce)
     LaunchedEffect(launcherConfig) {
         if (isConfigLoaded) {
@@ -263,9 +276,11 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
+    val isNightMode = glassSettings.isNightModeActive(context)
+
     // Wallpaper painter (honour permission)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = launcherConfig.wallpaperUri,
+        customUri = if (isNightMode) launcherConfig.nightWallpaperUri ?: launcherConfig.wallpaperUri else launcherConfig.wallpaperUri,
         useSystem = launcherConfig.useSystemWallpaper,
         permissionGranted = hasWallpaperPermission
     )
@@ -482,11 +497,12 @@ private fun EditableLauncherScreen(
             }
 
             // 2. Subject Layer (Middle)
-            if (launcherConfig.wallpaperSubjectUri != null) {
+            val activeSubjectUri = if (isNightMode) launcherConfig.nightWallpaperSubjectUri ?: launcherConfig.wallpaperSubjectUri else launcherConfig.wallpaperSubjectUri
+            if (activeSubjectUri != null) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(activeSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -523,7 +539,7 @@ private fun EditableLauncherScreen(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(activeSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -822,16 +838,22 @@ private fun EditableLauncherScreen(
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
             currentWallpaperUri = launcherConfig.wallpaperUri,
+            nightWallpaperUri = launcherConfig.nightWallpaperUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
+            nightSubjectUri = launcherConfig.nightWallpaperSubjectUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
             subjectScale = launcherConfig.subjectScale,
             subjectOffsetX = launcherConfig.subjectOffsetX,
             subjectOffsetY = launcherConfig.subjectOffsetY,
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
-            onWallpaperSelected = { uri ->
+            onWallpaperSelected = { uri, isNight ->
                 launcherConfig = if (uri == null) {
-                    launcherConfig.copy(useSystemWallpaper = true, wallpaperUri = null)
+                    if (isNight) {
+                        launcherConfig.copy(useSystemWallpaper = true, nightWallpaperUri = null)
+                    } else {
+                        launcherConfig.copy(useSystemWallpaper = true, wallpaperUri = null)
+                    }
                 } else {
                     // Check if LiquidGlassWallpaperService is active
                     val wallpaperManager = android.app.WallpaperManager.getInstance(context)
@@ -841,7 +863,11 @@ private fun EditableLauncherScreen(
                         wallpaperInfo.serviceName == com.quimodotcom.lqlauncher.services.LiquidGlassWallpaperService::class.java.name
 
                     // Persist chosen wallpaper for launcher
-                    val newConfig = launcherConfig.copy(useSystemWallpaper = false, wallpaperUri = uri)
+                    val newConfig = if (isNight) {
+                        launcherConfig.copy(useSystemWallpaper = false, nightWallpaperUri = uri)
+                    } else {
+                        launcherConfig.copy(useSystemWallpaper = false, wallpaperUri = uri)
+                    }
 
                     if (!isServiceActive) {
                         // Only set system wallpaper if our service is NOT active (fallback behavior)
@@ -945,8 +971,12 @@ private fun EditableLauncherScreen(
                     newConfig
                 }
             },
-            onSubjectSelected = { uri ->
-                launcherConfig = launcherConfig.copy(wallpaperSubjectUri = uri)
+            onSubjectSelected = { uri, isNight ->
+                launcherConfig = if (isNight) {
+                    launcherConfig.copy(nightWallpaperSubjectUri = uri)
+                } else {
+                    launcherConfig.copy(wallpaperSubjectUri = uri)
+                }
             },
             onSubjectConfigChanged = { match, scale, offX, offY ->
                 launcherConfig = launcherConfig.copy(
@@ -1274,8 +1304,13 @@ private fun AppShortcutView(
     val iconDrawable = iconDrawableState.value
     val view = LocalView.current
 
-    Column(
-        modifier = Modifier
+    val contentModifier = if (glassSettings.lowPerformanceMode) {
+        Modifier
+            .size(scaledSize)
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(0.15f)))
+    } else {
+        Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
             .drawBackdrop(
@@ -1294,6 +1329,10 @@ private fun AppShortcutView(
                     drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
                 }
             )
+    }
+
+    Column(
+        modifier = contentModifier
             .pointerInput(isEditMode) {
                 if (!isEditMode) {
                     detectTapGestures(
@@ -1358,29 +1397,39 @@ private fun GlassPanelBackground(
     val blurRadius = glassSettings.blurRadius.dp
     val cornerRadius = glassSettings.panelCornerRadius.dp
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
-                    )
-                },
-                onDrawSurface = {
-                    // Lower alpha so grid shows through in edit mode
-                    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-                    drawRect(panelTintColor.copy(alpha = alpha))
-                }
-            )
-    )
+    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
+
+    if (glassSettings.lowPerformanceMode) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(cornerRadius))
+                .background(panelTintColor.copy(alpha = alpha.coerceAtLeast(0.2f)))
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(cornerRadius))
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedRectangle(cornerRadius) },
+                    effects = {
+                        if (glassSettings.vibrancyEnabled) vibrancy()
+                        if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                        if (glassSettings.lensEnabled) lens(
+                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                            chromaticAberration = glassSettings.chromaticAberration
+                        )
+                    },
+                    onDrawSurface = {
+                        // Lower alpha so grid shows through in edit mode
+                        drawRect(panelTintColor.copy(alpha = alpha))
+                    }
+                )
+        )
+    }
 }
 
 @Composable
@@ -2026,8 +2075,13 @@ private fun FolderView(
         }
     }
 
-    Column(
-        modifier = Modifier
+    val contentModifier = if (glassSettings.lowPerformanceMode) {
+        Modifier
+            .size(scaledSize)
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(0.15f)))
+    } else {
+        Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
             .drawBackdrop(
@@ -2046,6 +2100,10 @@ private fun FolderView(
                     drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
                 }
             )
+    }
+
+    Column(
+        modifier = contentModifier
             .pointerInput(isEditMode) {
                 if (!isEditMode) {
                     detectTapGestures(
@@ -2184,22 +2242,28 @@ private fun OpenedFolderDialog(
             modifier = Modifier
                 .width(280.dp)
                 .clip(RoundedCornerShape(cornerRadius))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(cornerRadius) },
-                    effects = {
-                        if (glassSettings.vibrancyEnabled) vibrancy()
-                        if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                        if (glassSettings.lensEnabled) lens(
-                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                            chromaticAberration = glassSettings.chromaticAberration
+                .let {
+                    if (glassSettings.lowPerformanceMode) {
+                        it.background(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha.coerceAtLeast(0.2f)))
+                    } else {
+                        it.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(cornerRadius) },
+                            effects = {
+                                if (glassSettings.vibrancyEnabled) vibrancy()
+                                if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                                if (glassSettings.lensEnabled) lens(
+                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                    chromaticAberration = glassSettings.chromaticAberration
+                                )
+                            },
+                            onDrawSurface = {
+                                drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
+                            }
                         )
-                    },
-                    onDrawSurface = {
-                        drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
                     }
-                )
+                }
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
