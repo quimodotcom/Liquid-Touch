@@ -711,11 +711,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 return
             }
 
-            // Unify everything to use GL Renderer if possible
+            // Unify everything to use GL Renderer
             if (isLocked) {
                 // Pass static art to renderer (if not already set)
                 // If media art is null, fall back to the scaled wallpaper bitmap
                 videoRenderer?.setBackground(mediaArtBitmap ?: scaledWallpaper)
+                videoRenderer?.setSubject(null)
 
                 // Render UI to Bitmap, then pass to GL
                 // Check if UI needs update
@@ -724,7 +725,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val currentDate = dateFormat.format(calendar.time)
 
                 // Include time in state check to redraw every second
-                val currentState = "$mediaTitle|$mediaArtist|${surfaceHolder?.surfaceFrame?.width()}|$currentTime|$currentDate"
+                val currentState = "LOCKED|$mediaTitle|$mediaArtist|${surfaceHolder?.surfaceFrame?.width()}|$currentTime|$currentDate"
 
                 if (cachedUiBitmap == null || currentState != lastMediaState) {
                     cachedUiBitmap?.recycle()
@@ -747,28 +748,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     }
                 }
             } else {
-                handler.removeCallbacks(drawRunnable)
-                // Standard Canvas Drawing for Home Screen (if not using GL for everything)
-                // For now, keep Home Screen on Canvas if it doesn't need video
-                val holder = surfaceHolder
-                if (holder == null || holder.surface == null || !holder.surface.isValid) return
+                // Unlocked / Home Screen - Always use GL
+                videoRenderer?.setBackground(scaledWallpaper)
+                videoRenderer?.setSubject(scaledSubject)
 
-                var canvas: Canvas? = null
-                try {
-                    canvas = holder.lockCanvas()
-                    if (canvas != null) {
-                        drawFrame(canvas)
-                    }
-                } catch (e: Exception) {
-                    Log.e("LiquidGlassWallpaper", "Error locking canvas", e)
-                } finally {
-                    if (canvas != null) {
-                        try {
-                            holder.unlockCanvasAndPost(canvas)
-                        } catch (e: Exception) {
-                            Log.e("LiquidGlassWallpaper", "Error unlocking canvas", e)
-                        }
-                    }
+                val currentState = "UNLOCKED|${surfaceHolder?.surfaceFrame?.width()}"
+                if (currentState != lastMediaState) {
+                    videoRenderer?.updateUI(null)
+                    lastMediaState = currentState
+                }
+
+                videoRenderer?.draw()
+
+                // Request next frame even for home screen to keep GL engine alive and responsive
+                if (isVisible) {
+                    handler.removeCallbacks(drawRunnable)
+                    handler.postDelayed(drawRunnable, 33)
                 }
             }
         }
@@ -792,52 +787,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
             return bmp
         }
 
-        private fun drawFrame(canvas: Canvas) {
-            try {
-                val width = canvas.width.toFloat()
-                val height = canvas.height.toFloat()
-
-                if (isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null && !mediaArtBitmap!!.isRecycled) {
-                    drawLockScreen(canvas, width, height)
-                } else if (isLocked) {
-                    drawStaticWallpaper(canvas, width, height)
-                } else {
-                    drawWallpaper(canvas, width, height)
-                }
-            } catch (e: Exception) {
-                Log.e("LiquidGlassWallpaper", "Error in drawFrame", e)
-                try {
-                    canvas.drawColor(Color.BLACK)
-                } catch (e2: Exception) { }
-            }
-        }
-
-        private fun drawLockScreen(canvas: Canvas, width: Float, height: Float) {
-            // This is used for fallback (static image) rendering
-            // Prioritize animated/high-res art
-            val art = animatedMediaArt ?: mediaArtBitmap ?: return
-            if (art.isRecycled) return
-
-            // Draw Media Art (Center Crop)
-            val scale = max(width / art.width, height / art.height)
-            val w = art.width * scale
-            val h = art.height * scale
-            val x = (width - w) / 2
-            val y = (height - h) / 2
-
-            srcRect.set(0, 0, art.width, art.height)
-            dstRect.set(x.toInt(), y.toInt(), (x + w).toInt(), (y + h).toInt())
-            canvas.drawBitmap(art, srcRect, dstRect, bitmapPaint)
-
-            // Draw gradient
-            val gradientHeight = height * 0.4f
-            canvas.drawRect(0f, height - gradientHeight, width, height, gradientPaint)
-
-            val calendar = Calendar.getInstance()
-            val time = timeFormat.format(calendar.time)
-            val date = dateFormat.format(calendar.time)
-            drawLockScreenUI(canvas, width, height, time, date)
-        }
 
         private fun drawLockScreenUI(canvas: Canvas, width: Float, height: Float, time: String, date: String) {
             val centerX = (width / 2f) + burnInOffsetX
@@ -1015,69 +964,5 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
         }
 
-        // Static wallpaper for lock screen
-        private fun drawStaticWallpaper(canvas: Canvas, width: Float, height: Float) {
-            canvas.drawColor(Color.BLACK)
-
-            val bmp = scaledWallpaper
-            if (bmp != null && !bmp.isRecycled) {
-                canvas.drawBitmap(bmp, 0f, 0f, bitmapPaint)
-            } else {
-                // Fallback to scaling raw if scaled not ready
-                val raw = wallpaperBitmap
-                if (raw != null && !raw.isRecycled) {
-                    val scale = max(width / raw.width, height / raw.height)
-                    val w = raw.width * scale
-                    val h = raw.height * scale
-                    val x = (width - w) / 2
-                    val y = (height - h) / 2
-                    dstRect.set(x.toInt(), y.toInt(), (x + w).toInt(), (y + h).toInt())
-                    canvas.drawBitmap(raw, null, dstRect, bitmapPaint)
-                } else {
-                    canvas.drawRect(0f, 0f, width, height, fallbackPaint)
-                }
-            }
-        }
-
-        private fun drawWallpaper(canvas: Canvas, width: Float, height: Float) {
-            canvas.drawColor(Color.BLACK)
-
-            // Draw Wallpaper (Scaled)
-            val bmp = scaledWallpaper
-            if (bmp != null && !bmp.isRecycled) {
-                canvas.drawBitmap(bmp, 0f, 0f, bitmapPaint)
-            } else {
-                // Fallback
-                val raw = wallpaperBitmap
-                if (raw != null && !raw.isRecycled) {
-                    val scale = max(width / raw.width, height / raw.height)
-                    val w = raw.width * scale
-                    val h = raw.height * scale
-                    val x = (width - w) / 2
-                    val y = (height - h) / 2
-                    dstRect.set(x.toInt(), y.toInt(), (x + w).toInt(), (y + h).toInt())
-                    canvas.drawBitmap(raw, null, dstRect, bitmapPaint)
-                } else {
-                    canvas.drawRect(0f, 0f, width, height, fallbackPaint)
-                }
-            }
-
-            // Draw Subject (Scaled)
-            val sub = scaledSubject
-            if (sub != null && !sub.isRecycled) {
-                canvas.drawBitmap(sub, 0f, 0f, bitmapPaint)
-            } else {
-                val rawSub = subjectBitmap
-                if (rawSub != null && !rawSub.isRecycled) {
-                    val scale = max(width / rawSub.width, height / rawSub.height)
-                    val w = rawSub.width * scale
-                    val h = rawSub.height * scale
-                    val x = (width - w) / 2
-                    val y = (height - h) / 2
-                    dstRect.set(x.toInt(), y.toInt(), (x + w).toInt(), (y + h).toInt())
-                    canvas.drawBitmap(rawSub, null, dstRect, bitmapPaint)
-                }
-            }
-        }
     }
 }

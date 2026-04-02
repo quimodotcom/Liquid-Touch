@@ -51,9 +51,7 @@
         <!-- Liquid Glass Launcher activity only -->
         <activity
             android:name=".activities.LiquidGlassLauncherActivity"
-            android:clearTaskOnLaunch="true"
             android:configChanges="orientation|keyboardHidden|screenSize"
-            android:excludeFromRecents="true"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="portrait"
@@ -62,26 +60,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-
-        <activity-alias
-            android:name=".activities.LauncherAlias"
-            android:clearTaskOnLaunch="true"
-            android:enabled="true"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher"
-            android:launchMode="singleTask"
-            android:roundIcon="@mipmap/ic_launcher"
-            android:targetActivity=".activities.LiquidGlassLauncherActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-        </activity-alias>
+        </activity>
 
         <service
             android:name=".services.LiquidGlassWallpaperService"
