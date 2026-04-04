@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -53,10 +55,20 @@ class LockScreenMediaActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
 
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_NOT_EXPORTED)
@@ -66,8 +78,15 @@ class LockScreenMediaActivity : ComponentActivity() {
 
         setContent {
             LockScreenMediaOverlay(onDismiss = {
-                keyguardManager.requestDismissKeyguard(this, null)
-                finish()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                        override fun onDismissError() { finish() }
+                        override fun onDismissSucceeded() { finish() }
+                        override fun onDismissCancelled() { finish() }
+                    })
+                } else {
+                    finish()
+                }
             })
         }
     }
@@ -118,7 +137,7 @@ fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-                    color = Color.Black.copy(alpha = 0.25f),
+                    color = Color.Black.copy(alpha = 0.15f),
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -152,7 +171,7 @@ fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 16.dp, vertical = 32.dp),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
-                color = Color.Black.copy(alpha = 0.3f),
+                color = Color.Black.copy(alpha = 0.15f),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
             ) {
             Column(

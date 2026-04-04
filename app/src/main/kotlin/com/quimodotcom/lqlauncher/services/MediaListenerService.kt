@@ -50,12 +50,9 @@ class MediaListenerService : NotificationListenerService() {
         try {
             val activeNotifications = activeNotifications
             val notificationItems = activeNotifications.filter { sbn ->
-                // Filter out non-clearable (ongoing) notifications and those without title/text
-                val isClearable = (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0 &&
-                                  (sbn.notification.flags and Notification.FLAG_NO_CLEAR) == 0
+                // Show all notifications with a title (removed isClearable filter)
                 val hasTitle = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE) != null
-
-                isClearable && hasTitle
+                hasTitle
             }.map { sbn ->
                 NotificationItem(
                     key = sbn.key,

@@ -167,10 +167,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         updateLockState()
-                        if (isLocked && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
+                        // Ensure keyguard is NOT just being dismissed and is still active
+                        // This prevents showing the overlay when an app (like camera) is already shown when locked
+                        val isKeyguardShowing = keyguardManager.isKeyguardLocked
+                        if (isLocked && isKeyguardShowing && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
                             val activityIntent = Intent(applicationContext, LockScreenMediaActivity::class.java).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             }
                             startActivity(activityIntent)
                         }
