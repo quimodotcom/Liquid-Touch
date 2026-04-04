@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -52,11 +53,22 @@ class LockScreenMediaActivity : ComponentActivity() {
         }
     }
 
+    private fun dismissWithKeyguard() {
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissError() { finish() }
+                override fun onDismissSucceeded() { finish() }
+                override fun onDismissCancelled() { finish() }
+            })
+        } else {
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -77,18 +89,13 @@ class LockScreenMediaActivity : ComponentActivity() {
         }
 
         setContent {
-            LockScreenMediaOverlay(onDismiss = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                    keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
-                        override fun onDismissError() { finish() }
-                        override fun onDismissSucceeded() { finish() }
-                        override fun onDismissCancelled() { finish() }
-                    })
-                } else {
-                    finish()
-                }
-            })
+            LockScreenMediaOverlay(onDismiss = { dismissWithKeyguard() })
         }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        dismissWithKeyguard()
     }
 
     override fun onDestroy() {
@@ -100,6 +107,9 @@ class LockScreenMediaActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
+    BackHandler {
+        onDismiss()
+    }
     val mediaState by MediaStateRepository.mediaState.collectAsState()
     val notifications by MediaStateRepository.notifications.collectAsState()
 
