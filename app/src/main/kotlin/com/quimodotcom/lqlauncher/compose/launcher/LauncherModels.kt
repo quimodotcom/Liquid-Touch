@@ -101,6 +101,16 @@ data class LauncherConfig(
 )
 
 /**
+ * Represents a complete launcher setup that can be exported/imported
+ */
+@Serializable
+data class LauncherSchematic(
+    val config: LauncherConfig,
+    val settings: LiquidGlassSettings,
+    val metadata: Map<String, AppMetadata> = emptyMap()
+)
+
+/**
  * Edit mode state
  */
 data class EditModeState(
