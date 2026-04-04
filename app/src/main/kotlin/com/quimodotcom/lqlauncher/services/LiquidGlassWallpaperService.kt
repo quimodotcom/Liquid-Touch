@@ -29,6 +29,7 @@ import coil.request.ImageRequest
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import com.quimodotcom.lqlauncher.helpers.StackBlur
 import com.quimodotcom.lqlauncher.helpers.DebugLogger
+import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfig
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettingsRepository
 import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfigRepository
@@ -73,6 +74,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var videoRenderer: VideoWallpaperRenderer? = null
         private val handler = android.os.Handler(android.os.Looper.getMainLooper())
         private val drawRunnable = Runnable { draw() }
+
+        // Last checked theme state for scheduled switching
+        private var lastNightMode: Boolean? = null
 
         // Lock screen state
         private val keyguardManager by lazy { getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager }
@@ -150,6 +154,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private val srcRect = Rect()
         private val dstRect = Rect()
         private val cardRect = RectF()
+        private val controlIconRect = RectF()
 
         // Broadcast Receiver for settings updates
         private val configReceiver = object : BroadcastReceiver() {
@@ -236,6 +241,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Initial load
             reloadSettings()
             updateLockState()
+
+            setTouchEventsEnabled(true)
 
             // Check initial Power Save Mode
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -342,6 +349,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                         // Generate blur in background
                         launch(Dispatchers.Default) {
+                            if (settings.lowPerformanceMode) {
+                                synchronized(this@LiquidGlassEngine) {
+                                    blurredMediaArt?.recycle()
+                                    blurredMediaArt = null
+                                }
+                                draw()
+                                return@launch
+                            }
+
                             val art = animatedMediaArt ?: state.art
                             if (art != null && !art.isRecycled) {
                                 try {
@@ -446,6 +462,36 @@ class LiquidGlassWallpaperService : WallpaperService() {
             return super.onCommand(action, x, y, z, extras, resultRequested)
         }
 
+        override fun onTouchEvent(event: android.view.MotionEvent?) {
+            super.onTouchEvent(event)
+            if (event?.action == android.view.MotionEvent.ACTION_UP && isLocked && !isInAmbientMode) {
+                val density = resources.displayMetrics.density
+                val w = surfaceHolder?.surfaceFrame?.width() ?: 0
+                val h = surfaceHolder?.surfaceFrame?.height() ?: 0
+
+                if (w > 0 && h > 0) {
+                    val x = event.x
+                    val y = event.y
+
+                    // Check for media control taps
+                    // Controls are near the bottom
+                    val bottomMargin = 150f * density
+                    val controlY = h - bottomMargin - (50f * density) // approximate area
+
+                    if (y > h - bottomMargin - (100f * density) && y < h - bottomMargin + (50f * density)) {
+                         // Horizontal zones
+                         if (x < w / 3f) {
+                             MediaStateRepository.sendCommand(MediaCommand.PREVIOUS)
+                         } else if (x > 2 * w / 3f) {
+                             MediaStateRepository.sendCommand(MediaCommand.NEXT)
+                         } else {
+                             MediaStateRepository.sendCommand(MediaCommand.TOGGLE)
+                         }
+                    }
+                }
+            }
+        }
+
         private fun handlePowerSaveMode(enabled: Boolean) {
             isPowerSaveMode = enabled
             DebugLogger.log("WallpaperService", "PowerSave: $enabled")
@@ -544,10 +590,11 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val targetH = dm.heightPixels
 
                 // Use LauncherConfig for wallpaper URI
-                val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
+                val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService) ?: LauncherConfig()
+                val isNightMode = settings.isNightModeActive(this@LiquidGlassWallpaperService)
 
-                val uri = config?.wallpaperUri
-                val subjectUri = config?.wallpaperSubjectUri
+                val uri = if (isNightMode) config.nightWallpaperUri ?: config.wallpaperUri else config.wallpaperUri
+                val subjectUri = if (isNightMode) config.nightWallpaperSubjectUri ?: config.wallpaperSubjectUri else config.wallpaperSubjectUri
 
                 if (uri != null && !config.useSystemWallpaper) {
                     val parsedUri = Uri.parse(uri)
@@ -678,6 +725,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastMediaState: String = ""
 
         private fun draw() {
+            // Check for scheduled theme change
+            if (settings.wallpaperSwitchMode == "Scheduled") {
+                val currentNightMode = settings.isNightModeActive(this@LiquidGlassWallpaperService)
+                if (lastNightMode != null && lastNightMode != currentNightMode) {
+                    DebugLogger.log("WallpaperService", "Scheduled theme switch: $currentNightMode")
+                    reloadSettings() // This will trigger loadWallpapers()
+                }
+                lastNightMode = currentNightMode
+            }
+
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
                 // Use Canvas drawing for Ambient Mode to avoid GL overhead if possible,
@@ -750,6 +807,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     handler.removeCallbacks(drawRunnable)
                     if (isPowerSaveMode) {
                         handler.postDelayed(drawRunnable, 1000)
+                    } else if (settings.lowPerformanceMode) {
+                        handler.postDelayed(drawRunnable, 66) // ~15fps
                     } else {
                         handler.postDelayed(drawRunnable, 33) // ~30fps
                     }
@@ -813,16 +872,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density
             canvas.drawText(date, centerX, dateY, datePaint)
 
-            // Hide media info in Ambient Mode to reduce clutter/burn-in
+            // Hide media info/controls in Ambient Mode to reduce clutter/burn-in
             if (isInAmbientMode) return
 
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {
                 val logX = DEBUG_LOG_X_OFFSET_DP * density
                 val logs = DebugLogger.getLogs()
-                val maxWidth = (width - (DEBUG_LOG_X_OFFSET_DP * DEBUG_LOG_MARGIN_MULTIPLIER * density)).toInt()
+                val maxWidthLogs = (width - (DEBUG_LOG_X_OFFSET_DP * DEBUG_LOG_MARGIN_MULTIPLIER * density)).toInt()
 
-                if (maxWidth > 0) {
+                if (maxWidthLogs > 0) {
                     val textPaint = android.text.TextPaint(debugPaint)
                     val layouts = ArrayList<android.text.StaticLayout>()
                     var totalHeight = 0f
@@ -830,7 +889,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     // 1. Calculate layouts and total height
                     for (log in logs) {
                         val builder = android.text.StaticLayout.Builder.obtain(
-                            log, 0, log.length, textPaint, maxWidth
+                            log, 0, log.length, textPaint, maxWidthLogs
                         )
                             .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
                             .setLineSpacing(DEBUG_LOG_LINE_SPACING, DEBUG_LOG_LINE_MULTIPLIER)
@@ -844,10 +903,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     val startY = DEBUG_LOG_Y_OFFSET_DP * density
                     val availableHeight = height - startY - (DEBUG_LOG_BOTTOM_MARGIN_DP * density)
 
-                    var currentY = if (totalHeight > availableHeight) {
+                    var currentYLogs = if (totalHeight > availableHeight) {
                         // Align bottom of logs to bottom of available space
-                        // currentY should start at (startY + availableHeight) - totalHeight
-                        // This pushes top logs off-screen
                         startY + availableHeight - totalHeight
                     } else {
                         startY
@@ -855,16 +912,71 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                     // 3. Draw visible logs
                     for (layout in layouts) {
-                        // Optimization: Only draw if potentially visible on screen (allowing partial visibility)
-                        // Ideally checking against the "window" of (startY) to (startY + availableHeight)
-                        if (currentY + layout.height > startY && currentY < height) {
+                        if (currentYLogs + layout.height > startY && currentYLogs < height) {
                             canvas.save()
-                            canvas.translate(logX, currentY)
+                            canvas.translate(logX, currentYLogs)
                             layout.draw(canvas)
                             canvas.restore()
                         }
-                        currentY += layout.height + DEBUG_LOG_LINE_SPACING
+                        currentYLogs += layout.height + DEBUG_LOG_LINE_SPACING
                     }
+                }
+            }
+        }
+
+        private fun drawMediaIcon(canvas: Canvas, x: Float, y: Float, size: Float, type: String) {
+            val half = size / 2f
+            controlIconRect.set(x - half, y - half, x + half, y + half)
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                alpha = 200
+                style = Paint.Style.FILL
+            }
+
+            when (type) {
+                "PLAY" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x - half * 0.6f, y - half * 0.8f)
+                    path.lineTo(x + half * 0.8f, y)
+                    path.lineTo(x - half * 0.6f, y + half * 0.8f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                }
+                "PAUSE" -> {
+                    val barW = size * 0.2f
+                    canvas.drawRect(x - barW * 1.5f, y - half * 0.8f, x - barW * 0.5f, y + half * 0.8f, paint)
+                    canvas.drawRect(x + barW * 0.5f, y - half * 0.8f, x + barW * 1.5f, y + half * 0.8f, paint)
+                }
+                "NEXT" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x - half * 0.8f, y - half * 0.6f)
+                    path.lineTo(x, y)
+                    path.lineTo(x - half * 0.8f, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+
+                    path.reset()
+                    path.moveTo(x, y - half * 0.6f)
+                    path.lineTo(x + half * 0.8f, y)
+                    path.lineTo(x, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                }
+                "PREV" -> {
+                    val path = android.graphics.Path()
+                    path.moveTo(x + half * 0.8f, y - half * 0.6f)
+                    path.lineTo(x, y)
+                    path.lineTo(x + half * 0.8f, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+
+                    path.reset()
+                    path.moveTo(x, y - half * 0.6f)
+                    path.lineTo(x - half * 0.8f, y)
+                    path.lineTo(x, y + half * 0.6f)
+                    path.close()
+                    canvas.drawPath(path, paint)
                 }
             }
         }
