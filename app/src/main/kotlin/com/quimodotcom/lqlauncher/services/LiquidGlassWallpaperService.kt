@@ -809,62 +809,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Hide media info in Ambient Mode to reduce clutter/burn-in
             if (isInAmbientMode) return
 
-            // --- Draw Media Info ---
-            if (mediaTitle.isBlank() && mediaArtist.isBlank()) return
-
-            // Position text near the bottom
-            val bottomMargin = BOTTOM_MARGIN_DP * density
-            var currentY = height - bottomMargin
-            val maxWidth = (width - (40f * density)).toInt() // 20dp padding each side
-
-            if (maxWidth > 0) {
-                // Let's re-do properly stacking upwards
-                var yPos = height - bottomMargin
-
-                // 1. Artist
-                if (mediaArtist.isNotBlank()) {
-                    val artistTextPaint = android.text.TextPaint(artistPaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val artistLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaArtist, 0, mediaArtist.length, artistTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= artistLayout.height
-                    canvas.save()
-                    canvas.translate(centerX - (maxWidth / 2), yPos)
-                    artistLayout.draw(canvas)
-                    canvas.restore()
-                }
-
-                // 2. Gap
-                yPos -= (TEXT_GAP_DP * density)
-
-                // 3. Title
-                if (mediaTitle.isNotBlank()) {
-                    val titleTextPaint = android.text.TextPaint(titlePaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val titleLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaTitle, 0, mediaTitle.length, titleTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= titleLayout.height
-                    canvas.save()
-                    canvas.translate(centerX - (maxWidth / 2), yPos)
-                    titleLayout.draw(canvas)
-                    canvas.restore()
-                }
-            }
-
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {
                 val logX = DEBUG_LOG_X_OFFSET_DP * density
