@@ -129,9 +129,9 @@ fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 100.dp, bottom = if (mediaState != null) 300.dp else 100.dp, start = 16.dp, end = 16.dp),
+                .padding(top = 160.dp, bottom = if (mediaState != null) 320.dp else 100.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
+            contentPadding = PaddingValues(vertical = 8.dp)
         ) {
             items(notifications, key = { it.key }) { notification ->
                 Surface(

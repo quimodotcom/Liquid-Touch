@@ -52,7 +52,11 @@ class MediaListenerService : NotificationListenerService() {
             val notificationItems = activeNotifications.filter { sbn ->
                 // Show all notifications with a title (removed isClearable filter)
                 val hasTitle = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE) != null
-                hasTitle
+
+                // Filter out "Now Playing" notifications (those with a media session)
+                val isMediaNotification = sbn.notification.extras.get(Notification.EXTRA_MEDIA_SESSION) != null
+
+                hasTitle && !isMediaNotification
             }.map { sbn ->
                 NotificationItem(
                     key = sbn.key,

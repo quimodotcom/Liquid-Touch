@@ -322,9 +322,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                         mediaArtBitmap = bitmap
                                         updateClockColor(mediaArtBitmap)
 
-                                        // Trigger video player update
+                        // Trigger video player update (only for Home Screen)
                                         withContext(Dispatchers.Main) {
-                                            if (isVisible && isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                            if (isVisible && !isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                                                 if (file.absolutePath != currentVideoPath) {
                                                     DebugLogger.log("WallpaperService", "Swapping video: ${file.name}, ${file.length()}b")
                                                     videoRenderer?.setVideoSource(file)
@@ -427,8 +427,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                // Resume video if file exists
-                if (isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
+                // Resume video if file exists (Home Screen only)
+                if (!isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 draw()
@@ -459,7 +459,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 videoRenderer?.stop()
             } else {
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
             }
@@ -482,7 +482,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 datePaint.alpha = 255
 
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 // Reset burn-in offset
