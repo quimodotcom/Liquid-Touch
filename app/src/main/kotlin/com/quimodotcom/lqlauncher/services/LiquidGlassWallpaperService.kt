@@ -176,6 +176,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         updateLockState()
                         draw()
                     }
+                    Intent.ACTION_CONFIGURATION_CHANGED -> {
+                        reloadSettings()
+                    }
                 }
             }
         }
@@ -210,6 +213,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 addAction(Intent.ACTION_SCREEN_ON)
                 addAction(Intent.ACTION_SCREEN_OFF)
                 addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Intent.ACTION_CONFIGURATION_CHANGED)
             }
             registerReceiver(screenReceiver, screenFilter)
 
@@ -539,10 +543,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
 
-                val uri = config?.wallpaperUri
+                val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+                val uri = if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
                 val subjectUri = config?.wallpaperSubjectUri
 
-                if (uri != null && !config.useSystemWallpaper) {
+                if (uri != null && config != null && !config.useSystemWallpaper) {
                     val parsedUri = Uri.parse(uri)
                     wallpaperBitmap = loadBitmap(parsedUri, targetW, targetH)
                 } else {
