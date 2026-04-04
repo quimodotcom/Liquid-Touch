@@ -69,24 +69,46 @@ object AppleMusicIntegration {
             }
 
             // 2. Search iTunes to get Apple Music ID
-            // Include album in query if available for better accuracy
-            val queryTerm = if (!album.isNullOrBlank()) {
-                 "$title $artist $album"
-            } else {
-                 "$title $artist"
+            val primaryArtist = artist.split(Regex("[,&]|\\s+(?i)(feat\\.|featuring|with)\\s+")).first().trim()
+            var collectionId = ""
+
+            // Priority 1: Search for the album entity directly if album and artist are available
+            // This is most reliable for getting the correct album-level animated artwork
+            if (!album.isNullOrBlank()) {
+                val albumQuery = "$primaryArtist $album".replace(" ", "+")
+                val albumSearchUrl = "https://itunes.apple.com/search?term=$albumQuery&entity=album&limit=1"
+                val albumSearchReq = Request.Builder().url(albumSearchUrl).build()
+
+                val albumSearchResp = runInterruptible { client.newCall(albumSearchReq).execute() }
+                val albumSearchBody = albumSearchResp.body?.string() ?: ""
+                val albumSearchObj = JSONObject(albumSearchBody)
+
+                if (albumSearchObj.optInt("resultCount") > 0) {
+                    val result = albumSearchObj.getJSONArray("results").getJSONObject(0)
+                    collectionId = result.optString("collectionId")
+                }
             }
-            val query = queryTerm.replace(" ", "+")
-            val searchUrl = "https://itunes.apple.com/search?term=$query&entity=album&limit=1"
-            val searchReq = Request.Builder().url(searchUrl).build()
 
-            val searchResp = runInterruptible { client.newCall(searchReq).execute() }
-            val searchBody = searchResp.body?.string() ?: return@withContext null
+            // Priority 2: Search for the song entity if album search failed or was skipped
+            if (collectionId.isEmpty()) {
+                val songQueryTerm = if (!album.isNullOrBlank()) {
+                    "$title $primaryArtist $album"
+                } else {
+                    "$title $primaryArtist"
+                }
+                val songQuery = songQueryTerm.replace(" ", "+")
+                val songSearchUrl = "https://itunes.apple.com/search?term=$songQuery&entity=song&limit=1"
+                val songSearchReq = Request.Builder().url(songSearchUrl).build()
 
-            val searchObj = JSONObject(searchBody)
-            if (searchObj.optInt("resultCount") == 0) return@withContext null
+                val songSearchResp = runInterruptible { client.newCall(songSearchReq).execute() }
+                val songSearchBody = songSearchResp.body?.string() ?: ""
 
-            val result = searchObj.getJSONArray("results").getJSONObject(0)
-            val collectionId = result.optString("collectionId")
+                val songSearchObj = JSONObject(songSearchBody)
+                if (songSearchObj.optInt("resultCount") > 0) {
+                    val result = songSearchObj.getJSONArray("results").getJSONObject(0)
+                    collectionId = result.optString("collectionId")
+                }
+            }
 
             if (collectionId.isEmpty()) return@withContext null
 

@@ -89,7 +89,9 @@ data class LauncherConfig(
     val gridRows: Int = 6,
     val items: List<LauncherItem> = emptyList(),
     val wallpaperUri: String? = null,
+    val nightWallpaperUri: String? = null,
     val wallpaperSubjectUri: String? = null,
+    val nightWallpaperSubjectUri: String? = null,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,
@@ -98,6 +100,16 @@ data class LauncherConfig(
     val showStatusBar: Boolean = true,
     // Whether the first-open wallpaper permission prompt has been shown
     val permissionPromptShown: Boolean = false
+)
+
+/**
+ * Represents a complete launcher setup that can be exported/imported
+ */
+@Serializable
+data class LauncherSchematic(
+    val config: LauncherConfig,
+    val settings: LiquidGlassSettings,
+    val metadata: Map<String, AppMetadata> = emptyMap()
 )
 
 /**
