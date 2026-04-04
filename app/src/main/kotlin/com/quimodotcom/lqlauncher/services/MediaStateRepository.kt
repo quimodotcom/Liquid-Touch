@@ -17,10 +17,6 @@ data class MediaState(
     val isPlaying: Boolean = false
 )
 
-enum class MediaCommand {
-    PLAY, PAUSE, TOGGLE, NEXT, PREVIOUS
-}
-
 object MediaStateRepository {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
@@ -50,13 +46,5 @@ object MediaStateRepository {
 
     fun skipPrevious() {
         currentController?.transportControls?.skipToPrevious()
-    }
-
-    fun setCommandHandler(handler: ((MediaCommand) -> Unit)?) {
-        commandHandler = handler
-    }
-
-    fun sendCommand(command: MediaCommand) {
-        commandHandler?.invoke(command)
     }
 }

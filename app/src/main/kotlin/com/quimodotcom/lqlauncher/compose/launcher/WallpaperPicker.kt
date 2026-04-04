@@ -47,17 +47,15 @@ private enum class InteractionType {
 @Composable
 fun WallpaperPickerDialog(
     currentWallpaperUri: String?,
-    nightWallpaperUri: String?,
     useSystemWallpaper: Boolean,
-    onWallpaperSelected: (String?, Boolean) -> Unit, // uri, isNight
+    onWallpaperSelected: (String?) -> Unit, // null = use system wallpaper
     onWallpaperPermissionGranted: () -> Unit,
     currentSubjectUri: String? = null,
-    nightSubjectUri: String? = null,
     subjectMatchWallpaper: Boolean = true,
     subjectScale: Float = 1f,
     subjectOffsetX: Float = 0f,
     subjectOffsetY: Float = 0f,
-    onSubjectSelected: ((String?, Boolean) -> Unit)? = null, // uri, isNight
+    onSubjectSelected: ((String?) -> Unit)? = null,
     onSubjectConfigChanged: ((Boolean, Float, Float, Float) -> Unit)? = null,
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
@@ -72,21 +70,17 @@ fun WallpaperPickerDialog(
         android.Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Background, 1 = Subject
-    var selectedConfigTheme by remember { mutableIntStateOf(0) } // 0 = Day, 1 = Night
-
     // Permission launcher for system wallpaper access
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted: Boolean ->
         if (granted) {
             onWallpaperPermissionGranted()
-            onWallpaperSelected(null, selectedConfigTheme == 1)
+            onWallpaperSelected(null)
         } else {
             android.widget.Toast.makeText(context, "Permission denied", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    var activeInteraction by remember { mutableStateOf(InteractionType.None) }
 
     // Image picker launcher for Background
     val backgroundPickerLauncher = rememberLauncherForActivityResult(
@@ -94,7 +88,7 @@ fun WallpaperPickerDialog(
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
-            onWallpaperSelected(persistedUri, selectedConfigTheme == 1)
+            onWallpaperSelected(persistedUri)
         }
     }
 
@@ -104,9 +98,12 @@ fun WallpaperPickerDialog(
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
-            onSubjectSelected?.invoke(persistedUri, selectedConfigTheme == 1)
+            onSubjectSelected?.invoke(persistedUri)
         }
     }
+
+    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Background, 1 = Subject
+    var activeInteraction by remember { mutableStateOf(InteractionType.None) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -174,43 +171,8 @@ fun WallpaperPickerDialog(
                         )
                     }
 
-                    Spacer(Modifier.height(16.dp))
-
-                    // Theme selector for configuration
-                    TabRow(
-                        selectedTabIndex = selectedConfigTheme,
-                        containerColor = Color.Transparent,
-                        contentColor = Color(0xFF6366F1),
-                        indicator = { tabPositions ->
-                            TabRowDefaults.Indicator(
-                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedConfigTheme]),
-                                color = Color(0xFF6366F1)
-                            )
-                        }
-                    ) {
-                        Tab(
-                            selected = selectedConfigTheme == 0,
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                selectedConfigTheme = 0
-                            },
-                            text = { Text("Day Mode") }
-                        )
-                        Tab(
-                            selected = selectedConfigTheme == 1,
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                selectedConfigTheme = 1
-                            },
-                            text = { Text("Night Mode") }
-                        )
-                    }
-
                     Spacer(Modifier.height(24.dp))
                 }
-
-                val activeWallpaperUri = if (selectedConfigTheme == 0) currentWallpaperUri else nightWallpaperUri
-                val activeSubjectUri = if (selectedConfigTheme == 0) currentSubjectUri else nightSubjectUri
 
                 if (selectedTab == 0 && activeInteraction == InteractionType.None) {
                     // === BACKGROUND TAB ===
@@ -223,7 +185,7 @@ fun WallpaperPickerDialog(
                         isSelected = useSystemWallpaper,
                         onClick = {
                             if (useSystemWallpaper) {
-                                onWallpaperSelected(null, selectedConfigTheme == 1)
+                                onWallpaperSelected(null)
                             } else {
                                 permissionLauncher.launch(wallpaperPermission)
                             }
@@ -237,7 +199,7 @@ fun WallpaperPickerDialog(
                         icon = Icons.Rounded.PhotoLibrary,
                         title = "Choose from Gallery",
                         description = "Select an image from your photos",
-                        isSelected = !useSystemWallpaper && activeWallpaperUri != null,
+                        isSelected = !useSystemWallpaper && currentWallpaperUri != null,
                         onClick = { backgroundPickerLauncher.launch("image/*") }
                     )
 
@@ -261,9 +223,9 @@ fun WallpaperPickerDialog(
                                 Spacer(Modifier.height(8.dp))
                                 Text("Using system wallpaper", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
                             }
-                        } else if (activeWallpaperUri != null) {
+                        } else if (currentWallpaperUri != null) {
                             AsyncImage(
-                                model = ImageRequest.Builder(context).data(activeWallpaperUri).crossfade(true).build(),
+                                model = ImageRequest.Builder(context).data(currentWallpaperUri).crossfade(true).build(),
                                 contentDescription = "Current wallpaper",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
@@ -287,18 +249,18 @@ fun WallpaperPickerDialog(
                             icon = Icons.Rounded.PhotoLibrary,
                             title = "Select Subject Image",
                             description = "Pick a transparent PNG",
-                            isSelected = activeSubjectUri != null,
+                            isSelected = currentSubjectUri != null,
                             onClick = { subjectPickerLauncher.launch("image/*") }
                         )
 
-                        if (activeSubjectUri != null) {
+                        if (currentSubjectUri != null) {
                             Spacer(Modifier.height(12.dp))
                             WallpaperOption(
                                 icon = Icons.Rounded.Close,
                                 title = "Clear Subject",
                                 description = "Remove the foreground layer",
                                 isSelected = false,
-                                onClick = { onSubjectSelected?.invoke(null, selectedConfigTheme == 1) }
+                                onClick = { onSubjectSelected?.invoke(null) }
                             )
 
                             Spacer(Modifier.height(24.dp))
@@ -338,7 +300,7 @@ fun WallpaperPickerDialog(
                         }
                     }
 
-                    if (activeSubjectUri != null && !subjectMatchWallpaper) {
+                    if (currentSubjectUri != null && !subjectMatchWallpaper) {
                         if (activeInteraction == InteractionType.None) Spacer(Modifier.height(16.dp))
 
                         // Scale Slider
@@ -464,10 +426,10 @@ fun WallpaperPickerDialog(
                                 .background(Color(0xFF2E2E3E)),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (activeSubjectUri != null) {
+                            if (currentSubjectUri != null) {
                                 // In preview, we always fit so they can see what it is
                                 AsyncImage(
-                                    model = ImageRequest.Builder(context).data(activeSubjectUri).crossfade(true).build(),
+                                    model = ImageRequest.Builder(context).data(currentSubjectUri).crossfade(true).build(),
                                     contentDescription = "Current subject",
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier.fillMaxSize()
