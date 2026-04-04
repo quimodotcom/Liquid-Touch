@@ -5,36 +5,46 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+import android.media.session.MediaController
+import android.media.session.PlaybackState
+
 data class MediaState(
     val title: String,
     val artist: String,
     val art: Bitmap?,
     val animatedArtUrl: String? = null,
     val album: String? = null,
-    val isPlaying: Boolean = false,
-    val canSkipNext: Boolean = true,
-    val canSkipPrev: Boolean = true
+    val isPlaying: Boolean = false
 )
-
-enum class MediaCommand {
-    PLAY, PAUSE, TOGGLE, NEXT, PREVIOUS
-}
 
 object MediaStateRepository {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
 
-    private var commandHandler: ((MediaCommand) -> Unit)? = null
+    private var currentController: MediaController? = null
 
-    fun update(state: MediaState?) {
+    fun update(state: MediaState?, controller: MediaController? = null) {
         _mediaState.value = state
+        if (controller != null) {
+            currentController = controller
+        }
     }
 
-    fun setCommandHandler(handler: ((MediaCommand) -> Unit)?) {
-        commandHandler = handler
+    fun togglePlayPause() {
+        val controller = currentController ?: return
+        val pbState = controller.playbackState?.state
+        if (pbState == PlaybackState.STATE_PLAYING) {
+            controller.transportControls.pause()
+        } else {
+            controller.transportControls.play()
+        }
     }
 
-    fun sendCommand(command: MediaCommand) {
-        commandHandler?.invoke(command)
+    fun skipNext() {
+        currentController?.transportControls?.skipToNext()
+    }
+
+    fun skipPrevious() {
+        currentController?.transportControls?.skipToPrevious()
     }
 }

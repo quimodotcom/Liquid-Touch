@@ -168,7 +168,7 @@ fun AppDrawer(
                     onDrawSurface = {
                          drawRect(panelColor.copy(alpha = panelAlpha))
                     }
-                }
+                )
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                     // Prevent clicks passing through and clear focus
                     focusManager.clearFocus()
@@ -358,7 +358,6 @@ fun AppDrawerItem(
     val context = androidx.compose.ui.platform.LocalContext.current
     val cornerRadius = glassSettings.iconCornerRadius.dp
     val tintColor = Color(glassSettings.panelTintColor)
-    val iconSize = if (glassSettings.lowPerformanceMode) 128 else 192
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -371,7 +370,7 @@ fun AppDrawerItem(
                 onLongClick = onLongClick
             )
             .background(
-                color = tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(if (glassSettings.lowPerformanceMode) 0.15f else 0.05f)),
+                color = tintColor.copy(alpha = glassSettings.iconBackgroundAlpha),
                 shape = RoundedCornerShape(cornerRadius)
             )
             .padding(8.dp)
@@ -379,16 +378,16 @@ fun AppDrawerItem(
         val iconPack = if (glassSettings.useIconPackInAppDrawer) glassSettings.iconPackPackageName else null
 
         // Fast path: Check memory cache first
-        val memoryIcon = remember(app, iconPack, iconSize) {
-            AppIconCache.getIconFromMemory(context, app.componentName, iconSize, app.customIconUri, iconPack)
+        val memoryIcon = remember(app, iconPack) {
+            AppIconCache.getIconFromMemory(context, app.componentName, 192, app.customIconUri, iconPack)
         }
 
         val iconBitmap = if (memoryIcon != null) {
              remember { androidx.compose.runtime.mutableStateOf(memoryIcon.asImageBitmap()) }
         } else {
-             produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri, iconPack, iconSize) {
+             produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri, iconPack) {
                  withContext(Dispatchers.IO) {
-                     val loaded = AppIconCache.loadIcon(context, app.componentName, iconSize, app.customIconUri, iconPack)
+                     val loaded = AppIconCache.loadIcon(context, app.componentName, 192, app.customIconUri, iconPack)
                      value = loaded?.asImageBitmap()
                  }
              }

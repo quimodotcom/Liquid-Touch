@@ -3,14 +3,11 @@ package com.quimodotcom.lqlauncher.activities
 import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -235,19 +232,6 @@ private fun EditableLauncherScreen(
         }
     }
 
-    // Track current hour to trigger recomposition when scheduled time thresholds are crossed
-    val currentHour by produceState(initialValue = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-        while (true) {
-            delay(1000 * 30) // Check every 30 seconds
-            value = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        }
-    }
-
-    // React to hour changes if scheduled mode is active
-    LaunchedEffect(currentHour, glassSettings.wallpaperSwitchMode, glassSettings.dayStartHour, glassSettings.nightStartHour) {
-        // Hour change will trigger recomposition and recalculate isNightMode
-    }
-
     // Save config whenever it changes (with debounce)
     LaunchedEffect(launcherConfig) {
         if (isConfigLoaded) {
@@ -276,11 +260,9 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    val isNightMode = glassSettings.isNightModeActive(context)
-
     // Wallpaper painter (honour permission)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = if (isNightMode) launcherConfig.nightWallpaperUri ?: launcherConfig.wallpaperUri else launcherConfig.wallpaperUri,
+        customUri = launcherConfig.wallpaperUri,
         useSystem = launcherConfig.useSystemWallpaper,
         permissionGranted = hasWallpaperPermission
     )
@@ -497,12 +479,11 @@ private fun EditableLauncherScreen(
             }
 
             // 2. Subject Layer (Middle)
-            val activeSubjectUri = if (isNightMode) launcherConfig.nightWallpaperSubjectUri ?: launcherConfig.wallpaperSubjectUri else launcherConfig.wallpaperSubjectUri
-            if (activeSubjectUri != null) {
+            if (launcherConfig.wallpaperSubjectUri != null) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(activeSubjectUri)
+                            .data(launcherConfig.wallpaperSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -539,7 +520,7 @@ private fun EditableLauncherScreen(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(activeSubjectUri)
+                            .data(launcherConfig.wallpaperSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -838,22 +819,16 @@ private fun EditableLauncherScreen(
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
             currentWallpaperUri = launcherConfig.wallpaperUri,
-            nightWallpaperUri = launcherConfig.nightWallpaperUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
-            nightSubjectUri = launcherConfig.nightWallpaperSubjectUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
             subjectScale = launcherConfig.subjectScale,
             subjectOffsetX = launcherConfig.subjectOffsetX,
             subjectOffsetY = launcherConfig.subjectOffsetY,
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
-            onWallpaperSelected = { uri, isNight ->
+            onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
-                    if (isNight) {
-                        launcherConfig.copy(useSystemWallpaper = true, nightWallpaperUri = null)
-                    } else {
-                        launcherConfig.copy(useSystemWallpaper = true, wallpaperUri = null)
-                    }
+                    launcherConfig.copy(useSystemWallpaper = true, wallpaperUri = null)
                 } else {
                     // Check if LiquidGlassWallpaperService is active
                     val wallpaperManager = android.app.WallpaperManager.getInstance(context)
@@ -863,11 +838,7 @@ private fun EditableLauncherScreen(
                         wallpaperInfo.serviceName == com.quimodotcom.lqlauncher.services.LiquidGlassWallpaperService::class.java.name
 
                     // Persist chosen wallpaper for launcher
-                    val newConfig = if (isNight) {
-                        launcherConfig.copy(useSystemWallpaper = false, nightWallpaperUri = uri)
-                    } else {
-                        launcherConfig.copy(useSystemWallpaper = false, wallpaperUri = uri)
-                    }
+                    val newConfig = launcherConfig.copy(useSystemWallpaper = false, wallpaperUri = uri)
 
                     if (!isServiceActive) {
                         // Only set system wallpaper if our service is NOT active (fallback behavior)
@@ -971,12 +942,8 @@ private fun EditableLauncherScreen(
                     newConfig
                 }
             },
-            onSubjectSelected = { uri, isNight ->
-                launcherConfig = if (isNight) {
-                    launcherConfig.copy(nightWallpaperSubjectUri = uri)
-                } else {
-                    launcherConfig.copy(wallpaperSubjectUri = uri)
-                }
+            onSubjectSelected = { uri ->
+                launcherConfig = launcherConfig.copy(wallpaperSubjectUri = uri)
             },
             onSubjectConfigChanged = { match, scale, offX, offY ->
                 launcherConfig = launcherConfig.copy(
@@ -994,68 +961,6 @@ private fun EditableLauncherScreen(
         )
     }
 
-    // Schematic Export Launcher
-    val exportSchematicLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val metadata = AppMetadataRepository.loadAll(context)
-                val schematic = LauncherSchematic(
-                    config = launcherConfig,
-                    settings = glassSettings,
-                    metadata = metadata
-                )
-                val success = SchematicRepository.exportSchematic(context, uri, schematic)
-                if (success) {
-                    Toast.makeText(context, "Schematic exported successfully", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    // Schematic Import Launcher
-    val importSchematicLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val schematic = SchematicRepository.importSchematic(context, uri)
-                if (schematic != null) {
-                    // Check if icon pack is installed
-                    var finalSettings = schematic.settings
-                    if (finalSettings.iconPackPackageName.isNotEmpty()) {
-                        try {
-                            context.packageManager.getPackageInfo(finalSettings.iconPackPackageName, 0)
-                        } catch (e: PackageManager.NameNotFoundException) {
-                            // Icon pack not found, reset to default
-                            finalSettings = finalSettings.copy(iconPackPackageName = "")
-                            Toast.makeText(context, "Icon pack not found, using default icons", Toast.LENGTH_LONG).show()
-                        }
-                    }
-
-                    // Apply layout and settings
-                    launcherConfig = schematic.config
-                    glassSettings = finalSettings
-
-                    // Persist changes immediately
-                    LauncherConfigRepository.saveConfig(context, schematic.config)
-                    LiquidGlassSettingsRepository.saveSettings(context, finalSettings)
-
-                    // Apply metadata
-                    AppMetadataRepository.saveAllMetadata(context, schematic.metadata)
-
-                    Toast.makeText(context, "Schematic imported successfully", Toast.LENGTH_SHORT).show()
-                    showSettings = false // Close settings after import
-                } else {
-                    Toast.makeText(context, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
     // Liquid Glass Settings dialog
     if (showSettings) {
         LiquidGlassSettingsScreen(
@@ -1067,12 +972,6 @@ private fun EditableLauncherScreen(
                     gridColumns = newSettings.gridColumns,
                     gridRows = newSettings.gridRows
                 )
-            },
-            onExportSchematic = {
-                exportSchematicLauncher.launch("liquid_glass_layout.json")
-            },
-            onImportSchematic = {
-                importSchematicLauncher.launch(arrayOf("application/json", "application/octet-stream"))
             },
             onDismiss = { showSettings = false }
         )
@@ -1304,13 +1203,8 @@ private fun AppShortcutView(
     val iconDrawable = iconDrawableState.value
     val view = LocalView.current
 
-    val contentModifier = if (glassSettings.lowPerformanceMode) {
-        Modifier
-            .size(scaledSize)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(0.15f)))
-    } else {
-        Modifier
+    Column(
+        modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
             .drawBackdrop(
@@ -1329,10 +1223,6 @@ private fun AppShortcutView(
                     drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
                 }
             )
-    }
-
-    Column(
-        modifier = contentModifier
             .pointerInput(isEditMode) {
                 if (!isEditMode) {
                     detectTapGestures(
@@ -1397,39 +1287,29 @@ private fun GlassPanelBackground(
     val blurRadius = glassSettings.blurRadius.dp
     val cornerRadius = glassSettings.panelCornerRadius.dp
 
-    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-
-    if (glassSettings.lowPerformanceMode) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(cornerRadius))
-                .background(panelTintColor.copy(alpha = alpha.coerceAtLeast(0.2f)))
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(cornerRadius))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(cornerRadius) },
-                    effects = {
-                        if (glassSettings.vibrancyEnabled) vibrancy()
-                        if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                        if (glassSettings.lensEnabled) lens(
-                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                            chromaticAberration = glassSettings.chromaticAberration
-                        )
-                    },
-                    onDrawSurface = {
-                        // Lower alpha so grid shows through in edit mode
-                        drawRect(panelTintColor.copy(alpha = alpha))
-                    }
-                )
-        )
-    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(cornerRadius))
+            .drawBackdrop(
+                backdrop = backdrop,
+                shape = { RoundedRectangle(cornerRadius) },
+                effects = {
+                    if (glassSettings.vibrancyEnabled) vibrancy()
+                    if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                    if (glassSettings.lensEnabled) lens(
+                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                        chromaticAberration = glassSettings.chromaticAberration
+                    )
+                },
+                onDrawSurface = {
+                    // Lower alpha so grid shows through in edit mode
+                    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
+                    drawRect(panelTintColor.copy(alpha = alpha))
+                }
+            )
+    )
 }
 
 @Composable
@@ -2075,13 +1955,8 @@ private fun FolderView(
         }
     }
 
-    val contentModifier = if (glassSettings.lowPerformanceMode) {
-        Modifier
-            .size(scaledSize)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha.coerceAtLeast(0.15f)))
-    } else {
-        Modifier
+    Column(
+        modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
             .drawBackdrop(
@@ -2100,10 +1975,6 @@ private fun FolderView(
                     drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
                 }
             )
-    }
-
-    Column(
-        modifier = contentModifier
             .pointerInput(isEditMode) {
                 if (!isEditMode) {
                     detectTapGestures(
@@ -2242,28 +2113,22 @@ private fun OpenedFolderDialog(
             modifier = Modifier
                 .width(280.dp)
                 .clip(RoundedCornerShape(cornerRadius))
-                .let {
-                    if (glassSettings.lowPerformanceMode) {
-                        it.background(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha.coerceAtLeast(0.2f)))
-                    } else {
-                        it.drawBackdrop(
-                            backdrop = backdrop,
-                            shape = { RoundedRectangle(cornerRadius) },
-                            effects = {
-                                if (glassSettings.vibrancyEnabled) vibrancy()
-                                if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                                if (glassSettings.lensEnabled) lens(
-                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                                    chromaticAberration = glassSettings.chromaticAberration
-                                )
-                            },
-                            onDrawSurface = {
-                                drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
-                            }
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RoundedRectangle(cornerRadius) },
+                    effects = {
+                        if (glassSettings.vibrancyEnabled) vibrancy()
+                        if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                        if (glassSettings.lensEnabled) lens(
+                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                            chromaticAberration = glassSettings.chromaticAberration
                         )
+                    },
+                    onDrawSurface = {
+                        drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
                     }
-                }
+                )
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

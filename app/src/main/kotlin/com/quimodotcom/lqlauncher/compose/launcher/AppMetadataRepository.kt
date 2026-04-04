@@ -57,13 +57,6 @@ object AppMetadataRepository {
         _metadataUpdates.emit(Unit)
     }
 
-    suspend fun saveAllMetadata(context: Context, metadata: Map<String, AppMetadata>) {
-        metadataCache.clear()
-        metadataCache.putAll(metadata)
-        persist(context)
-        _metadataUpdates.emit(Unit)
-    }
-
     suspend fun removeMetadata(context: Context, packageName: String) {
         metadataCache.remove(packageName)
         persist(context)

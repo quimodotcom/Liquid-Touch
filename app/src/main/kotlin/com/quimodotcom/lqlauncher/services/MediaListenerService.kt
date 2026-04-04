@@ -50,7 +50,7 @@ class MediaListenerService : NotificationListenerService() {
              val sessions = mediaSessionManager?.getActiveSessions(componentName)
 
              if (sessions != null && sessions.isNotEmpty()) {
-                 updateMediaInfo(sessions[0].sessionToken)
+                 updateMediaInfo(sessions[0])
              } else {
                  MediaStateRepository.update(null)
              }
@@ -62,32 +62,12 @@ class MediaListenerService : NotificationListenerService() {
     private var currentFetchJob: Job? = null
     private var lastTitle: String? = null
     private var lastArtist: String? = null
+    private var lastIsPlaying: Boolean = false
 
-    private fun updateMediaInfo(token: MediaSession.Token) {
-        val controller = MediaController(this, token)
-
-        // Setup command handler
-        MediaStateRepository.setCommandHandler { command ->
-            try {
-                when (command) {
-                    MediaCommand.PLAY -> controller.transportControls.play()
-                    MediaCommand.PAUSE -> controller.transportControls.pause()
-                    MediaCommand.TOGGLE -> {
-                        if (controller.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) {
-                            controller.transportControls.pause()
-                        } else {
-                            controller.transportControls.play()
-                        }
-                    }
-                    MediaCommand.NEXT -> controller.transportControls.skipToNext()
-                    MediaCommand.PREVIOUS -> controller.transportControls.skipToPrevious()
-                }
-            } catch (e: Exception) {
-                Log.e("MediaListenerService", "Error sending media command", e)
-            }
-        }
-
+    private fun updateMediaInfo(controller: MediaController) {
         val metadata = controller.metadata ?: return
+        val playbackState = controller.playbackState
+        val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
 
         // Try to get album art
         val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -97,37 +77,25 @@ class MediaListenerService : NotificationListenerService() {
         val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
 
-        val playbackState = controller.playbackState
-        val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
-        val actions = playbackState?.actions ?: 0L
-        val canNext = (actions and android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT) != 0L
-        val canPrev = (actions and android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS) != 0L
-
-        // Check if song changed or playback status changed
-        if (title == lastTitle && artist == lastArtist) {
+        // Check if song or playback state changed
+        if (title == lastTitle && artist == lastArtist && isPlaying == lastIsPlaying) {
+            // Update bitmap if changed, but preserve current animated URL
             val currentState = MediaStateRepository.mediaState.value
-            if (currentState != null) {
-                val newState = currentState.copy(
-                    art = bitmap,
-                    isPlaying = isPlaying,
-                    canSkipNext = canNext,
-                    canSkipPrev = canPrev
-                )
-                if (newState != currentState) {
-                    MediaStateRepository.update(newState)
-                }
+            if (currentState != null && currentState.art != bitmap) {
+                MediaStateRepository.update(currentState.copy(art = bitmap), controller)
             }
             return
         }
 
         lastTitle = title
         lastArtist = artist
+        lastIsPlaying = isPlaying
 
         // 1. Cancel previous fetch to prevent race conditions
         currentFetchJob?.cancel()
 
         // 2. Immediate update for responsiveness (show static art first)
-        MediaStateRepository.update(MediaState(title, artist, bitmap, null, album, isPlaying, canNext, canPrev))
+        MediaStateRepository.update(MediaState(title, artist, bitmap, null, album, isPlaying), controller)
 
         // 3. Fetch animated cover asynchronously
         if (title.isNotBlank() && artist.isNotBlank()) {
@@ -136,9 +104,14 @@ class MediaListenerService : NotificationListenerService() {
 
                 // Only update if we found a URL and the job is still active
                 if (animatedUrl != null && isActive) {
-                    MediaStateRepository.update(MediaState(title, artist, bitmap, animatedUrl, album, isPlaying, canNext, canPrev))
+                    MediaStateRepository.update(MediaState(title, artist, bitmap, animatedUrl, album, isPlaying), controller)
                 }
             }
         }
+    }
+
+    private fun updateMediaInfo(token: MediaSession.Token) {
+        val controller = MediaController(this, token)
+        updateMediaInfo(controller)
     }
 }
