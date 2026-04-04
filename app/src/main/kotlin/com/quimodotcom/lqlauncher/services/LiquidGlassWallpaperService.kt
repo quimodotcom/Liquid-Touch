@@ -166,6 +166,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         updateLockState()
+                        if (isLocked && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
+                            val activityIntent = Intent(applicationContext, com.quimodotcom.lqlauncher.activities.LockScreenMediaActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            }
+                            startActivity(activityIntent)
+                        }
                         draw()
                     }
                     Intent.ACTION_SCREEN_OFF -> {

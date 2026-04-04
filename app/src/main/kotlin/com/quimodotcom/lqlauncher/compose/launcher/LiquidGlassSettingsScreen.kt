@@ -512,6 +512,17 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
+                    item {
+                        SwitchSetting(
+                            title = "Interactive Media Controls",
+                            subtitle = "Overlay interactive playback controls on the lock screen",
+                            checked = settings.enableLockScreenControls,
+                            onCheckedChange = { enabled ->
+                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
+                            }
+                        )
+                    }
+
                     // === DEBUG ===
                     item {
                         Spacer(Modifier.height(16.dp))
