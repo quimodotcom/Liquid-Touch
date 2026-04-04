@@ -24,14 +24,17 @@ class MediaListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         checkActiveSessions()
+        refreshNotifications()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         processNotification(sbn)
+        refreshNotifications()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         checkActiveSessions()
+        refreshNotifications()
     }
 
     private fun processNotification(sbn: StatusBarNotification) {
@@ -40,6 +43,32 @@ class MediaListenerService : NotificationListenerService() {
 
         if (token != null) {
             updateMediaInfo(token)
+        }
+    }
+
+    private fun refreshNotifications() {
+        try {
+            val activeNotifications = activeNotifications
+            val notificationItems = activeNotifications.filter { sbn ->
+                // Filter out non-clearable (ongoing) notifications and those without title/text
+                val isClearable = (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0 &&
+                                  (sbn.notification.flags and Notification.FLAG_NO_CLEAR) == 0
+                val hasTitle = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE) != null
+
+                isClearable && hasTitle
+            }.map { sbn ->
+                NotificationItem(
+                    key = sbn.key,
+                    title = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "",
+                    text = sbn.notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: "",
+                    packageName = sbn.packageName,
+                    postTime = sbn.postTime
+                )
+            }.sortedByDescending { it.postTime }
+
+            MediaStateRepository.updateNotifications(notificationItems)
+        } catch (e: Exception) {
+            Log.e("MediaListenerService", "Error refreshing notifications", e)
         }
     }
 
