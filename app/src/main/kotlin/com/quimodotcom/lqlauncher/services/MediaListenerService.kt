@@ -24,14 +24,17 @@ class MediaListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         checkActiveSessions()
+        refreshNotifications()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         processNotification(sbn)
+        refreshNotifications()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         checkActiveSessions()
+        refreshNotifications()
     }
 
     private fun processNotification(sbn: StatusBarNotification) {
@@ -40,6 +43,34 @@ class MediaListenerService : NotificationListenerService() {
 
         if (token != null) {
             updateMediaInfo(token)
+        }
+    }
+
+    private fun refreshNotifications() {
+        try {
+            val activeNotifications = activeNotifications
+            val notificationItems = activeNotifications.filter { sbn ->
+                // Show all notifications with a title (removed isClearable filter)
+                val hasTitle = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE) != null
+
+                // Filter out "Now Playing" notifications (those with a media session or transport category)
+                val isMediaNotification = sbn.notification.extras.get(Notification.EXTRA_MEDIA_SESSION) != null ||
+                                          sbn.notification.category == Notification.CATEGORY_TRANSPORT
+
+                hasTitle && !isMediaNotification
+            }.map { sbn ->
+                NotificationItem(
+                    key = sbn.key,
+                    title = sbn.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "",
+                    text = sbn.notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: "",
+                    packageName = sbn.packageName,
+                    postTime = sbn.postTime
+                )
+            }.sortedByDescending { it.postTime }
+
+            MediaStateRepository.updateNotifications(notificationItems)
+        } catch (e: Exception) {
+            Log.e("MediaListenerService", "Error refreshing notifications", e)
         }
     }
 

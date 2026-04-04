@@ -17,9 +17,20 @@ data class MediaState(
     val isPlaying: Boolean = false
 )
 
+data class NotificationItem(
+    val key: String,
+    val title: String,
+    val text: String,
+    val packageName: String,
+    val postTime: Long
+)
+
 object MediaStateRepository {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
+
+    private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
 
     private var currentController: MediaController? = null
 
@@ -46,5 +57,9 @@ object MediaStateRepository {
 
     fun skipPrevious() {
         currentController?.transportControls?.skipToPrevious()
+    }
+
+    fun updateNotifications(notifications: List<NotificationItem>) {
+        _notifications.value = notifications
     }
 }

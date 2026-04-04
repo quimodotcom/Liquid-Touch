@@ -1,17 +1,23 @@
 package com.quimodotcom.lqlauncher.activities
 
+import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.FractionalThreshold
@@ -47,11 +53,34 @@ class LockScreenMediaActivity : ComponentActivity() {
         }
     }
 
+    private fun dismissWithKeyguard() {
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissError() { finish() }
+                override fun onDismissSucceeded() { finish() }
+                override fun onDismissCancelled() { finish() }
+            })
+        } else {
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_NOT_EXPORTED)
@@ -60,8 +89,13 @@ class LockScreenMediaActivity : ComponentActivity() {
         }
 
         setContent {
-            LockScreenMediaOverlay(onDismiss = { finish() })
+            LockScreenMediaOverlay(onDismiss = { dismissWithKeyguard() })
         }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        dismissWithKeyguard()
     }
 
     override fun onDestroy() {
@@ -73,7 +107,11 @@ class LockScreenMediaActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
+    BackHandler {
+        onDismiss()
+    }
     val mediaState by MediaStateRepository.mediaState.collectAsState()
+    val notifications by MediaStateRepository.notifications.collectAsState()
 
     // Swipe to dismiss logic
     val swipeableState = rememberSwipeableState(0)
@@ -96,18 +134,60 @@ fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
                 orientation = Orientation.Vertical
             )
             .offset { IntOffset(0, swipeableState.offset.value.roundToInt()) }
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color.Black.copy(alpha = 0.2f), Color.Black.copy(alpha = 0.6f))
-                )
-            )
     ) {
+        // Notification List
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 160.dp, bottom = if (mediaState != null) 320.dp else 100.dp, start = 16.dp, end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(notifications, key = { it.key }) { notification ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                    color = Color.Black.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = notification.title,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (notification.text.isNotBlank()) {
+                            Text(
+                                text = notification.text,
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 14.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         if (mediaState != null) {
-            Column(
+            // Bottom Glass Card for Music Controls
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 100.dp, start = 24.dp, end = 24.dp),
+                    .padding(horizontal = 16.dp, vertical = 32.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+                color = Color.Black.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+            ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Track Info
@@ -181,6 +261,7 @@ fun LockScreenMediaOverlay(onDismiss: () -> Unit) {
                         )
                     }
                 }
+            }
             }
         } else {
              // If media stops, just dismiss

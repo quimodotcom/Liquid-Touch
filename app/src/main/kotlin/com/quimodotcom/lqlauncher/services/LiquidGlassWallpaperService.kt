@@ -167,10 +167,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         updateLockState()
-                        if (isLocked && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
+                        // Ensure keyguard is NOT just being dismissed and is still active
+                        // This prevents showing the overlay when an app (like camera) is already shown when locked
+                        val isKeyguardShowing = keyguardManager.isKeyguardLocked
+                        if (isLocked && isKeyguardShowing && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
                             val activityIntent = Intent(applicationContext, LockScreenMediaActivity::class.java).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             }
                             startActivity(activityIntent)
                         }
@@ -318,9 +322,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                         mediaArtBitmap = bitmap
                                         updateClockColor(mediaArtBitmap)
 
-                                        // Trigger video player update
+                        // Trigger video player update (only for Home Screen)
                                         withContext(Dispatchers.Main) {
-                                            if (isVisible && isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                            if (isVisible && !isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                                                 if (file.absolutePath != currentVideoPath) {
                                                     DebugLogger.log("WallpaperService", "Swapping video: ${file.name}, ${file.length()}b")
                                                     videoRenderer?.setVideoSource(file)
@@ -423,8 +427,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                // Resume video if file exists
-                if (isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
+                // Resume video if file exists (Home Screen only)
+                if (!isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 draw()
@@ -455,7 +459,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 videoRenderer?.stop()
             } else {
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
             }
@@ -478,7 +482,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 datePaint.alpha = 255
 
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 // Reset burn-in offset
