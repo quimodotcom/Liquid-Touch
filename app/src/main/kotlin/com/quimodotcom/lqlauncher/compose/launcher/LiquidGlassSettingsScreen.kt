@@ -192,9 +192,9 @@ fun LiquidGlassSettingsScreen(
                     item {
                         ColorPickerSetting(
                             title = "Panel Tint Color",
-                            currentColor = Color(settings.panelTintColor),
+                            currentColor = Color(settings.panelTintColor.toInt()),
                             onColorSelected = { 
-                                onSettingsChanged(settings.copy(panelTintColor = it.toArgb()))
+                                onSettingsChanged(settings.copy(panelTintColor = it.toArgb().toLong()))
                             }
                         )
                     }
@@ -779,9 +779,9 @@ fun LiquidGlassSettingsScreen(
                     item {
                         ColorPickerSetting(
                             title = "Dot Color",
-                            currentColor = Color(settings.notificationDotColor),
+                            currentColor = Color(settings.notificationDotColor.toInt()),
                             onColorSelected = {
-                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb()))
+                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb().toLong()))
                             },
                             enabled = !settings.liquidGlassNotificationDots
                         )

@@ -45,7 +45,7 @@ sealed class LauncherItem {
         override val spanY: Int = 2,
         val title: String = "",
         val blurRadius: Float = 20f,
-        val tintColor: Int = 0xFF6366F1.toInt(), // Default indigo
+        val tintColor: Long = 0xFF6366F1L, // Default indigo
         val backgroundAlpha: Float = 0.12f,
         val panelType: PanelType = PanelType.EMPTY
     ) : LauncherItem()
@@ -62,8 +62,34 @@ sealed class LauncherItem {
         override val spanY: Int = 1,
         val name: String,
         val apps: List<String> = emptyList(), // Package names
-        val tintColor: Int = 0xFF6366F1.toInt()
+        val tintColor: Long = 0xFF6366F1L
     ) : LauncherItem()
+
+    /**
+     * An invisible button that triggers actions
+     */
+    @Serializable
+    data class InvisibleButton(
+        override val id: String = UUID.randomUUID().toString(),
+        override val gridX: Int,
+        override val gridY: Int,
+        override val spanX: Int = 1,
+        override val spanY: Int = 1,
+        val action: LauncherAction = LauncherAction.NONE,
+        val targetPackageName: String? = null
+    ) : LauncherItem()
+}
+
+/**
+ * Actions that can be triggered by an invisible button
+ */
+@Serializable
+enum class LauncherAction {
+    NONE,
+    TOGGLE_SECRET_WALLPAPER,
+    OPEN_APP,
+    OPEN_APP_DRAWER,
+    OPEN_SETTINGS
 }
 
 /**
@@ -89,6 +115,8 @@ data class LauncherConfig(
     val gridRows: Int = 6,
     val items: List<LauncherItem> = emptyList(),
     val wallpaperUri: String? = null,
+    val wallpaperGifUri: String? = null,
+    val wallpaperVideoUri: String? = null,
     val wallpaperNightUri: String? = null,
     val wallpaperSecretUri: String? = null,
     val wallpaperSubjectUri: String? = null,

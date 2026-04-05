@@ -38,6 +38,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
@@ -52,6 +53,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private val engineScope = CoroutineScope(Dispatchers.Main + Job())
         private var wallpaperBitmap: Bitmap? = null
+        private var gifBitmap: Bitmap? = null
         private var subjectBitmap: Bitmap? = null
         private var mediaArtBitmap: Bitmap? = null
 
@@ -80,6 +82,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var isLocked = false // Cached lock state
         private var isInAmbientMode = false // AOD state
         private var isPowerSaveMode = false // Power Save Mode state
+
+        private var gifJob: Job? = null
+        private var imageLoader: ImageLoader? = null
 
         // Drawing objects
         private val BOTTOM_MARGIN_DP = 150f
@@ -169,12 +174,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         draw()
                     }
                     Intent.ACTION_SCREEN_OFF -> {
-                        updateLockState()
-                        draw()
+                        // When screen goes off, it's usually locked
+                        reloadSettings()
                     }
                     Intent.ACTION_USER_PRESENT -> {
-                        updateLockState()
-                        draw()
+                        // Fully unlocked
+                        reloadSettings()
                     }
                     Intent.ACTION_CONFIGURATION_CHANGED -> {
                         reloadSettings()
@@ -229,6 +234,17 @@ class LiquidGlassWallpaperService : WallpaperService() {
             datePaint.textSize = 40f * (density / 2.5f)
             debugPaint.textSize = 12f * density
             glassBorderPaint.strokeWidth = 2f * density
+
+            // Initialize Coil for GIFs
+            imageLoader = ImageLoader.Builder(applicationContext)
+                .components {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        add(coil.decode.ImageDecoderDecoder.Factory())
+                    } else {
+                        add(coil.decode.GifDecoder.Factory())
+                    }
+                }
+                .build()
 
             // Initial load
             reloadSettings()
@@ -388,6 +404,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         override fun onDestroy() {
             super.onDestroy()
+            gifJob?.cancel()
             DebugLogger.log("WallpaperService", "onDestroy")
             try {
                 unregisterReceiver(configReceiver)
@@ -419,12 +436,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                // Resume video if file exists
+                // Resume video/gif if file exists
                 if (isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
+                if (!isInAmbientMode && !isPowerSaveMode) {
+                    startGifJobIfNeeded()
+                }
                 draw()
             } else {
+                gifJob?.cancel()
                 handler.removeCallbacks(drawRunnable)
             }
         }
@@ -447,12 +468,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
             isPowerSaveMode = enabled
             DebugLogger.log("WallpaperService", "PowerSave: $enabled")
             if (enabled) {
-                // Stop video to save power
+                // Stop video/gif to save power
                 videoRenderer?.stop()
+                gifJob?.cancel()
             } else {
-                // Resume video if needed
+                // Resume video/gif if needed
                 if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
+                }
+                if (isVisible && !isInAmbientMode) {
+                    startGifJobIfNeeded()
                 }
             }
             draw()
@@ -460,8 +485,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun handleAmbientMode(inAmbientMode: Boolean) {
             if (inAmbientMode) {
-                // Stop video to save power
+                // Stop video/gif to save power
                 videoRenderer?.stop()
+                gifJob?.cancel()
 
                 // Switch to thinner font for AOD to save pixels/power
                 clockPaint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
@@ -473,9 +499,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 clockPaint.alpha = 255
                 datePaint.alpha = 255
 
-                // Resume video if needed
+                // Resume video/gif if needed
                 if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
+                }
+                if (isVisible && !isPowerSaveMode) {
+                    startGifJobIfNeeded()
                 }
                 // Reset burn-in offset
                 burnInOffsetX = 0f
@@ -534,6 +563,19 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
         }
 
+        private var currentGifUri: String? = null
+        private var currentVideoWallpaperPath: String? = null
+
+        private fun getMimeType(uri: String): String? {
+            return try {
+                contentResolver.getType(Uri.parse(uri)) ?: android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                    android.webkit.MimeTypeMap.getFileExtensionFromUrl(uri)
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+
         private suspend fun loadWallpapers() = withContext(Dispatchers.IO) {
             try {
                 val dm = resources.displayMetrics
@@ -542,20 +584,47 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
-
                 val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 
-                val uri = if (isLocked) {
+                val mainUri = if (isLocked) {
                     if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
                 } else {
-                    config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
+                    if (settings.secretWallpaperVisible) {
+                        config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
+                    } else {
+                        if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
+                    }
                 }
 
-                val subjectUri = config?.wallpaperSubjectUri
+                // Prioritize specialized URIs (GIF/Video) if set
+                val gifUri = config?.wallpaperGifUri
+                val videoUri = config?.wallpaperVideoUri
 
-                if (uri != null && config != null && (!config.useSystemWallpaper || (uri == config.wallpaperSecretUri))) {
-                    val parsedUri = Uri.parse(uri)
-                    wallpaperBitmap = loadBitmap(parsedUri, targetW, targetH)
+                // Determine effective wallpaper mode
+                // If isLocked, media art takes priority.
+                // Otherwise, check if user has a global GIF or Video.
+
+                var resolvedGif: String? = null
+                var resolvedVideo: String? = null
+                var resolvedImage: String? = mainUri
+
+                if (!isLocked) {
+                    if (videoUri != null) resolvedVideo = videoUri
+                    else if (gifUri != null) resolvedGif = gifUri
+                }
+
+                // Process resolveImage for Bitmaps
+                if (resolvedImage != null && config != null && (!config.useSystemWallpaper || (resolvedImage == config.wallpaperSecretUri))) {
+                    val type = getMimeType(resolvedImage)
+                    if (type?.startsWith("video/") == true) {
+                        resolvedVideo = resolvedImage
+                        wallpaperBitmap = null
+                    } else if (type?.contains("gif") == true) {
+                        resolvedGif = resolvedImage
+                        wallpaperBitmap = null
+                    } else {
+                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
+                    }
                 } else {
                     wallpaperBitmap = null
                 }
@@ -565,10 +634,27 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     updateClockColor(wallpaperBitmap)
                 }
 
+                val subjectUri = config?.wallpaperSubjectUri
                 if (subjectUri != null) {
                     subjectBitmap = loadBitmap(Uri.parse(subjectUri), targetW, targetH)
                 } else {
                     subjectBitmap = null
+                }
+
+                // Handle Video background (not media art)
+                if (resolvedVideo != currentVideoWallpaperPath) {
+                    currentVideoWallpaperPath = resolvedVideo
+                    withContext(Dispatchers.Main) {
+                        updateVideoBackground()
+                    }
+                }
+
+                // Handle GIF background
+                if (resolvedGif != currentGifUri) {
+                    currentGifUri = resolvedGif
+                    withContext(Dispatchers.Main) {
+                        startGifJobIfNeeded()
+                    }
                 }
 
                 // Update scaled versions immediately after loading
@@ -586,24 +672,32 @@ class LiquidGlassWallpaperService : WallpaperService() {
             if (width <= 0 || height <= 0) return@withContext
 
             // Scale Wallpaper
-            wallpaperBitmap?.let { src ->
-                if (!src.isRecycled) {
-                    val scaled = createCenterCropBitmap(src, width, height)
-                    synchronized(this) {
-                        scaledWallpaper?.recycle()
-                        scaledWallpaper = scaled
-                    }
+            val srcWp = wallpaperBitmap
+            if (srcWp != null && !srcWp.isRecycled) {
+                val scaled = createCenterCropBitmap(srcWp, width, height)
+                synchronized(this@LiquidGlassEngine) {
+                    scaledWallpaper?.recycle()
+                    scaledWallpaper = scaled
+                }
+            } else {
+                synchronized(this@LiquidGlassEngine) {
+                    scaledWallpaper?.recycle()
+                    scaledWallpaper = null
                 }
             }
 
             // Scale Subject
-            subjectBitmap?.let { src ->
-                if (!src.isRecycled) {
-                    val scaled = createCenterCropBitmap(src, width, height)
-                    synchronized(this) {
-                        scaledSubject?.recycle()
-                        scaledSubject = scaled
-                    }
+            val srcSub = subjectBitmap
+            if (srcSub != null && !srcSub.isRecycled) {
+                val scaled = createCenterCropBitmap(srcSub, width, height)
+                synchronized(this@LiquidGlassEngine) {
+                    scaledSubject?.recycle()
+                    scaledSubject = scaled
+                }
+            } else {
+                synchronized(this@LiquidGlassEngine) {
+                    scaledSubject?.recycle()
+                    scaledSubject = null
                 }
             }
         }
@@ -678,6 +772,82 @@ class LiquidGlassWallpaperService : WallpaperService() {
             return inSampleSize
         }
 
+        private fun updateVideoBackground() {
+            val path = currentVideoWallpaperPath
+            if (isLocked) {
+                // If locked, we don't show main video (Media Art has priority if playing)
+                // If path is null, it'll clear.
+                return
+            }
+
+            if (path != null) {
+                try {
+                    val uri = Uri.parse(path)
+                    // If it's a file path
+                    val file = if (path.startsWith("/")) java.io.File(path)
+                    else {
+                        // For content URIs, we might need to cache them?
+                        // VideoRenderer expects a File.
+                        // Let's assume for now user picked a local file or we enhance VideoRenderer later.
+                        null
+                    }
+                    if (file != null && file.exists()) {
+                         videoRenderer?.setVideoSource(file)
+                    }
+                } catch (e: Exception) {
+                    Log.e("LiquidGlassWallpaper", "Video bg error", e)
+                }
+            } else {
+                // videoRenderer?.reset() // Be careful not to stop media art video
+            }
+        }
+
+        private fun startGifJobIfNeeded() {
+            gifJob?.cancel()
+            val uri = currentGifUri ?: return
+            if (isInAmbientMode || isPowerSaveMode || !isVisible) return
+
+            gifJob = engineScope.launch {
+                try {
+                    val request = ImageRequest.Builder(applicationContext)
+                        .data(Uri.parse(uri))
+                        .build()
+
+                    val result = imageLoader?.execute(request)
+                    if (result is coil.request.SuccessResult) {
+                        val drawable = result.drawable
+                        if (drawable is android.graphics.drawable.Animatable) {
+                            drawable.start()
+                            while (isActive) {
+                                val bitmap = drawableToBitmap(drawable)
+                                if (bitmap != null) {
+                                    videoRenderer?.updateGifFrame(bitmap)
+                                }
+                                delay(33) // ~30fps
+                                draw()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("LiquidGlassWallpaper", "GIF error", e)
+                }
+            }
+        }
+
+        private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): Bitmap? {
+            try {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 512
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 512
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                return bitmap
+            } catch (e: Exception) {
+                return null
+            }
+        }
+
         private var cachedUiBitmap: Bitmap? = null
         private var lastMediaState: String = ""
         private var lastBgBitmap: Bitmap? = null
@@ -727,6 +897,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             // Unify everything to use GL Renderer (eliminates flickering between Canvas and GL)
             // Pass background and subject layers with dirty checking to avoid redundant GPU uploads
+
+            // Re-verify lock state immediately to prevent secret bleed
+            updateLockState()
+
             val currentBg = if (isLocked) (mediaArtBitmap ?: scaledWallpaper) else scaledWallpaper
             if (currentBg != lastBgBitmap) {
                 videoRenderer?.setBackground(currentBg)

@@ -28,7 +28,7 @@ data class LiquidGlassSettings(
     val vibrancyEnabled: Boolean = true,
     
     // Colors and transparency
-    val panelTintColor: Int = 0xFF6366F1.toInt(),
+    val panelTintColor: Long = 0xFF6366F1L,
     val panelBackgroundAlpha: Float = 0.12f,
     val iconBackgroundAlpha: Float = 0.1f,
     
@@ -85,8 +85,11 @@ data class LiquidGlassSettings(
 
     // Notifications
     val showNotificationDots: Boolean = false,
-    val notificationDotColor: Int = 0xFFEF4444.toInt(), // Default Red-500
-    val liquidGlassNotificationDots: Boolean = false
+    val notificationDotColor: Long = 0xFFEF4444L, // Default Red-500
+    val liquidGlassNotificationDots: Boolean = false,
+
+    // Runtime state (persisted for convenience)
+    val secretWallpaperVisible: Boolean = true
 )
 
 /**

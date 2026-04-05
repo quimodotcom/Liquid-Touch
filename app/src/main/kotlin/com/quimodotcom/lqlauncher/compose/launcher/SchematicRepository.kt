@@ -49,7 +49,7 @@ object SchematicRepository {
                     json.decodeFromString<LauncherSchematic>(jsonString)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("SchematicRepository", "Failed to import schematic from $uri", e)
                 null
             }
         }

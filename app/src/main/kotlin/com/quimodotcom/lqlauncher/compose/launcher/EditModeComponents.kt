@@ -276,6 +276,7 @@ fun EditModeToolbar(
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
+    onAddInvisibleButton: () -> Unit,
     onChangeWallpaper: () -> Unit,
     onOpenSettings: () -> Unit,
     onExitEditMode: () -> Unit,
@@ -309,6 +310,7 @@ fun EditModeToolbar(
         ToolbarButton(Icons.Rounded.Apps, "Add App", onClick = onAddApp)
         ToolbarButton(Icons.Rounded.Widgets, "Add Panel", onClick = onAddPanel)
         ToolbarButton(Icons.Rounded.Folder, "Add Folder", onClick = onAddFolder)
+        ToolbarButton(Icons.Rounded.RadioButtonUnchecked, "Hidden", onClick = onAddInvisibleButton)
         ToolbarButton(Icons.Rounded.Wallpaper, "Wallpaper", onClick = onChangeWallpaper)
         ToolbarButton(Icons.Rounded.Settings, "Settings", onClick = onOpenSettings)
         ToolbarButton(Icons.Rounded.Check, "Done", onClick = onExitEditMode, primary = true)

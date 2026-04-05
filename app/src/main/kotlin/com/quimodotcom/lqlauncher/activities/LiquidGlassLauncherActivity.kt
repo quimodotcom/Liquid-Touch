@@ -152,6 +152,7 @@ private fun EditableLauncherScreen(
     var openedFolder by remember { mutableStateOf<LauncherItem.Folder?>(null) }
     var showAppDrawer by remember { mutableStateOf(false) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
+    var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Liquid glass settings state
     var glassSettings by remember { mutableStateOf(LiquidGlassSettings()) }
@@ -623,14 +624,15 @@ private fun EditableLauncherScreen(
                         }
 
                         launcherConfig = launcherConfig.copy(
-                            items = launcherConfig.items.map {
-                                if (it.id == item.id) {
-                                    when (it) {
-                                        is LauncherItem.AppShortcut -> it.copy(gridX = newX, gridY = newY)
-                                        is LauncherItem.GlassPanel -> it.copy(gridX = newX, gridY = newY)
-                                        is LauncherItem.Folder -> it.copy(gridX = newX, gridY = newY)
+                            items = launcherConfig.items.map { existingItem ->
+                                if (existingItem.id == item.id) {
+                                    when (existingItem) {
+                                        is LauncherItem.AppShortcut -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.GlassPanel -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.Folder -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.InvisibleButton -> existingItem.copy(gridX = newX, gridY = newY)
                                     }
-                                } else it
+                                } else existingItem
                             }
                         )
                     },
@@ -686,6 +688,35 @@ private fun EditableLauncherScreen(
                                 cellWidth = cellWidth
                             )
                         }
+                        is LauncherItem.InvisibleButton -> {
+                            val view = LocalView.current
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable {
+                                        if (!editModeState.isEnabled) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                            when (item.action) {
+                                                LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
+                                                    glassSettings =
+                                                        glassSettings.copy(secretWallpaperVisible = !glassSettings.secretWallpaperVisible)
+                                                }
+                                                LauncherAction.OPEN_APP -> {
+                                                    item.targetPackageName?.let { launchApp(context, it) }
+                                                }
+                                                LauncherAction.OPEN_APP_DRAWER -> {
+                                                    showAppDrawer = true
+                                                }
+                                                LauncherAction.OPEN_SETTINGS -> {
+                                                    showSettings = true
+                                                }
+                                                else -> {}
+                                            }
+                                        }
+                                    }
+                            )
+                        }
+                        else -> {}
                     }
                 }
             }
@@ -738,6 +769,10 @@ private fun EditableLauncherScreen(
             onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
             onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
             onAddFolder = { showFolderNameDialog = true },
+            onAddInvisibleButton = {
+                val pos = findEmptyCell(launcherConfig)
+                showInvisibleButtonActionPicker = pos
+            },
             onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
             onOpenSettings = { showSettings = true },
             onExitEditMode = {
@@ -776,6 +811,10 @@ private fun EditableLauncherScreen(
             onAddFolder = {
                 showFolderNameDialog = true
             },
+            onAddInvisibleButton = {
+                showInvisibleButtonActionPicker = pendingGridPosition
+                pendingGridPosition = null
+            },
             onDismiss = { pendingGridPosition = null }
         )
     }
@@ -799,6 +838,25 @@ private fun EditableLauncherScreen(
             onDismiss = {
                 editModeState = editModeState.copy(showAppPicker = false)
                 pendingGridPosition = null
+            }
+        )
+    }
+
+    if (showInvisibleButtonActionPicker != null) {
+        val (x, y) = showInvisibleButtonActionPicker!!
+        InvisibleButtonActionPickerDialog(
+            onActionSelected = { action ->
+                launcherConfig = launcherConfig.copy(
+                    items = launcherConfig.items + LauncherItem.InvisibleButton(
+                        gridX = x,
+                        gridY = y,
+                        action = action
+                    )
+                )
+                showInvisibleButtonActionPicker = null
+            },
+            onDismiss = {
+                showInvisibleButtonActionPicker = null
             }
         )
     }
@@ -1227,6 +1285,49 @@ private fun LauncherItemView(
                     cellWidth = cellWidth
                 )
             }
+            is LauncherItem.InvisibleButton -> {
+                val view = LocalView.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (isEditMode) {
+                                Modifier
+                                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            } else Modifier
+                        )
+                        .clickable {
+                            if (!isEditMode) {
+                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                when (item.action) {
+                                    LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
+                                        // Interaction handled in parent screen
+                                    }
+                                    LauncherAction.OPEN_APP -> {
+                                        item.targetPackageName?.let { launchApp(context, it) }
+                                    }
+                                    else -> {}
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isEditMode) {
+                        Icon(
+                            imageVector = when (item.action) {
+                                LauncherAction.TOGGLE_SECRET_WALLPAPER -> Icons.Rounded.Visibility
+                                LauncherAction.OPEN_APP_DRAWER -> Icons.Rounded.Menu
+                                LauncherAction.OPEN_SETTINGS -> Icons.Rounded.Settings
+                                else -> Icons.Rounded.RadioButtonUnchecked
+                            },
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
             is LauncherItem.GlassPanel -> {
                 Box {
                     GlassPanelBackground(
@@ -1274,7 +1375,7 @@ private fun AppShortcutView(
     cellWidth: Float = 0f
 ) {
     val cornerRadius = glassSettings.iconCornerRadius.dp
-    val tintColor = Color(glassSettings.panelTintColor)
+    val tintColor = Color(glassSettings.panelTintColor.toInt())
     val density = LocalDensity.current
     val scaledSize = with(density) { (cellWidth * glassSettings.appTileScale).toDp() }
 
@@ -1429,7 +1530,7 @@ private fun AppShortcutView(
                 Box(
                     modifier = Modifier
                         .size(dotSize)
-                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .background(Color(glassSettings.notificationDotColor.toInt()), CircleShape)
                         .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
                 )
             }
@@ -1444,7 +1545,7 @@ private fun GlassPanelBackground(
     glassSettings: LiquidGlassSettings,
     isEditMode: Boolean
 ) {
-    val panelTintColor = Color(item.tintColor)
+    val panelTintColor = Color(item.tintColor.toInt())
     val blurRadius = glassSettings.blurRadius.dp
     val cornerRadius = glassSettings.panelCornerRadius.dp
 
@@ -2100,7 +2201,7 @@ private fun FolderView(
     onOpenFolder: () -> Unit,
     cellWidth: Float = 0f
 ) {
-    val tintColor = Color(item.tintColor)
+    val tintColor = Color(item.tintColor.toInt())
     val cornerRadius = glassSettings.iconCornerRadius.dp
     val density = LocalDensity.current
     val scaledSize = with(density) { (cellWidth * glassSettings.appTileScale).toDp() }
@@ -2272,7 +2373,7 @@ private fun FolderView(
                 Box(
                     modifier = Modifier
                         .size(dotSize)
-                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .background(Color(glassSettings.notificationDotColor.toInt()), CircleShape)
                         .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
                 )
             }
@@ -2292,7 +2393,7 @@ private fun OpenedFolderDialog(
     onSortApps: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val tintColor = Color(folder.tintColor)
+    val tintColor = Color(folder.tintColor.toInt())
     val cornerRadius = glassSettings.panelCornerRadius.dp
     val view = LocalView.current
 
@@ -2621,7 +2722,7 @@ private fun createDefaultItems(apps: List<AvailableApp>): List<LauncherItem> {
             spanY = 2,
             panelType = PanelType.CLOCK,
             blurRadius = 25f,
-            tintColor = 0xFF6366F1.toInt()
+            tintColor = 0xFF6366F1L
         )
     )
 

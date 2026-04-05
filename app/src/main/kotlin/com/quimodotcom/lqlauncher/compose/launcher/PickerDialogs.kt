@@ -407,6 +407,7 @@ fun AddItemMenu(
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
+    onAddInvisibleButton: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -462,8 +463,96 @@ fun AddItemMenu(
                     Spacer(Modifier.width(16.dp))
                     Text("Folder", color = Color.White)
                 }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onAddInvisibleButton)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.RadioButtonUnchecked, null, tint = Color(0xFF6366F1))
+                    Spacer(Modifier.width(16.dp))
+                    Text("Hidden Button", color = Color.White)
+                }
             }
         }
+    }
+}
+
+/**
+ * Picker for invisible button actions
+ */
+@Composable
+fun InvisibleButtonActionPickerDialog(
+    onActionSelected: (LauncherAction) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF1E1E2E)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    "Hidden Button Action",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                ActionOption(
+                    icon = Icons.Rounded.Visibility,
+                    title = "Toggle Secret Wallpaper",
+                    onClick = { onActionSelected(LauncherAction.TOGGLE_SECRET_WALLPAPER) }
+                )
+
+                ActionOption(
+                    icon = Icons.Rounded.Menu,
+                    title = "Open App Drawer",
+                    onClick = { onActionSelected(LauncherAction.OPEN_APP_DRAWER) }
+                )
+
+                ActionOption(
+                    icon = Icons.Rounded.Settings,
+                    title = "Open Settings",
+                    onClick = { onActionSelected(LauncherAction.OPEN_SETTINGS) }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Cancel", color = Color(0xFF6366F1))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFF6366F1))
+        Spacer(Modifier.width(16.dp))
+        Text(title, color = Color.White)
     }
 }
 

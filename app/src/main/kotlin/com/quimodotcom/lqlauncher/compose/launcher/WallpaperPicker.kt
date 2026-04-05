@@ -104,6 +104,27 @@ fun WallpaperPickerDialog(
         }
     }
 
+    // GIF picker launcher
+    val gifPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val persistedUri = persistWallpaperUri(context, it)
+            // Just use the standard setter for now, WallpaperService will detect GIF
+            onWallpaperSelected(persistedUri)
+        }
+    }
+
+    // Video picker launcher
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val persistedUri = persistWallpaperUri(context, it)
+            onWallpaperSelected(persistedUri)
+        }
+    }
+
     // Image picker launcher for Subject
     val subjectPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -212,7 +233,7 @@ fun WallpaperPickerDialog(
                         title = "Day Wallpaper",
                         description = "Wallpaper for light theme",
                         isSelected = !useSystemWallpaper && currentWallpaperUri != null,
-                        onClick = { backgroundPickerLauncher.launch("image/*") }
+                        onClick = { backgroundPickerLauncher.launch("*/*") }
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -223,7 +244,7 @@ fun WallpaperPickerDialog(
                         title = "Night Wallpaper",
                         description = "Wallpaper for dark theme",
                         isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
-                        onClick = { backgroundNightPickerLauncher.launch("image/*") }
+                        onClick = { backgroundNightPickerLauncher.launch("*/*") }
                     )
 
                     Spacer(Modifier.height(24.dp))

@@ -176,6 +176,7 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.gif)
 
     // WorkManager for background prewarm
     implementation("androidx.work:work-runtime-ktx:2.8.1")
