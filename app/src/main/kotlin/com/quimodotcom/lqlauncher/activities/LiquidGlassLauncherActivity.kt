@@ -712,8 +712,15 @@ private fun EditableLauncherScreen(
             )
         }
 
-        BackHandler(enabled = showAppDrawer) {
-            showAppDrawer = false
+        // Prevent accidental closing of the launcher on home screen
+        BackHandler(enabled = true) {
+            if (showAppDrawer) {
+                showAppDrawer = false
+            } else if (editModeState.isEnabled) {
+                editModeState = EditModeState()
+            } else {
+                // Do nothing: stay on home screen
+            }
         }
 
         // Edit mode toolbar
