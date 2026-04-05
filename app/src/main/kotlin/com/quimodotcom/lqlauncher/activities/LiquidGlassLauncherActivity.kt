@@ -260,12 +260,15 @@ private fun EditableLauncherScreen(
         if (gridSize.height > 0) gridSize.height.toFloat() / launcherConfig.gridRows else 0f
     }
 
+    // Theme state
+    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    // Wallpaper painter (honour permission)
+    // Wallpaper painter (honour permission and theme)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = launcherConfig.wallpaperUri,
+        customUri = if (isDarkTheme) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri,
         useSystem = launcherConfig.useSystemWallpaper,
         permissionGranted = hasWallpaperPermission
     )
@@ -822,6 +825,7 @@ private fun EditableLauncherScreen(
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
             currentWallpaperUri = launcherConfig.wallpaperUri,
+            currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
@@ -943,6 +947,13 @@ private fun EditableLauncherScreen(
                          }
                     }
                     newConfig
+                }
+            },
+            onWallpaperNightSelected = { uri ->
+                launcherConfig = if (uri == null) {
+                    launcherConfig.copy(wallpaperNightUri = null)
+                } else {
+                    launcherConfig.copy(useSystemWallpaper = false, wallpaperNightUri = uri)
                 }
             },
             onSubjectSelected = { uri ->

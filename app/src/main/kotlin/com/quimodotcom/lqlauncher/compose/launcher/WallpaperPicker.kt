@@ -47,8 +47,10 @@ private enum class InteractionType {
 @Composable
 fun WallpaperPickerDialog(
     currentWallpaperUri: String?,
+    currentWallpaperNightUri: String? = null,
     useSystemWallpaper: Boolean,
-    onWallpaperSelected: (String?) -> Unit, // null = use system wallpaper
+    onWallpaperSelected: (String?) -> Unit,
+    onWallpaperNightSelected: (String?) -> Unit,
     onWallpaperPermissionGranted: () -> Unit,
     currentSubjectUri: String? = null,
     subjectMatchWallpaper: Boolean = true,
@@ -82,13 +84,23 @@ fun WallpaperPickerDialog(
         }
     }
 
-    // Image picker launcher for Background
+    // Image picker launcher for Background (Day)
     val backgroundPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
             onWallpaperSelected(persistedUri)
+        }
+    }
+
+    // Image picker launcher for Background (Night)
+    val backgroundNightPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val persistedUri = persistWallpaperUri(context, it)
+            onWallpaperNightSelected(persistedUri)
         }
     }
 
@@ -177,59 +189,97 @@ fun WallpaperPickerDialog(
                 if (selectedTab == 0 && activeInteraction == InteractionType.None) {
                     // === BACKGROUND TAB ===
 
-                    // System wallpaper option
+                    // Reset wallpaper option
                     WallpaperOption(
-                        icon = Icons.Rounded.Smartphone,
-                        title = "System Wallpaper",
-                        description = "Use your device wallpaper",
+                        icon = Icons.Rounded.RestartAlt,
+                        title = "Reset Wallpaper",
+                        description = "Use device default wallpaper",
                         isSelected = useSystemWallpaper,
                         onClick = {
-                            if (useSystemWallpaper) {
-                                onWallpaperSelected(null)
-                            } else {
-                                permissionLauncher.launch(wallpaperPermission)
-                            }
+                            onWallpaperSelected(null)
+                            onWallpaperNightSelected(null)
                         }
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Custom Backgrounds", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+
+                    // Pick Day wallpaper
+                    WallpaperOption(
+                        icon = Icons.Rounded.WbSunny,
+                        title = "Day Wallpaper",
+                        description = "Wallpaper for light theme",
+                        isSelected = !useSystemWallpaper && currentWallpaperUri != null,
+                        onClick = { backgroundPickerLauncher.launch("image/*") }
                     )
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Pick from gallery option
+                    // Pick Night wallpaper
                     WallpaperOption(
-                        icon = Icons.Rounded.PhotoLibrary,
-                        title = "Choose from Gallery",
-                        description = "Select an image from your photos",
-                        isSelected = !useSystemWallpaper && currentWallpaperUri != null,
-                        onClick = { backgroundPickerLauncher.launch("image/*") }
+                        icon = Icons.Rounded.NightsStay,
+                        title = "Night Wallpaper",
+                        description = "Wallpaper for dark theme",
+                        isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
+                        onClick = { backgroundNightPickerLauncher.launch("image/*") }
                     )
 
                     Spacer(Modifier.height(24.dp))
 
                     // Preview section
-                    Text("Current Background", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Text("Previews", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                     Spacer(Modifier.height(8.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF2E2E3E)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(160.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (useSystemWallpaper) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Rounded.Smartphone, null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("Using system wallpaper", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                        // Day Preview
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF2E2E3E)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (useSystemWallpaper) {
+                                Icon(Icons.Rounded.Smartphone, null, tint = Color.Gray)
+                            } else if (currentWallpaperUri != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context).data(currentWallpaperUri).crossfade(true).build(),
+                                    contentDescription = "Day preview",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Rounded.WbSunny, null, tint = Color.Gray.copy(alpha = 0.5f))
                             }
-                        } else if (currentWallpaperUri != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context).data(currentWallpaperUri).crossfade(true).build(),
-                                contentDescription = "Current wallpaper",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                        }
+
+                        // Night Preview
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF2E2E3E)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (useSystemWallpaper) {
+                                Icon(Icons.Rounded.Smartphone, null, tint = Color.Gray)
+                            } else if (currentWallpaperNightUri != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context).data(currentWallpaperNightUri).crossfade(true).build(),
+                                    contentDescription = "Night preview",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(Icons.Rounded.NightsStay, null, tint = Color.Gray.copy(alpha = 0.5f))
+                            }
                         }
                     }
 

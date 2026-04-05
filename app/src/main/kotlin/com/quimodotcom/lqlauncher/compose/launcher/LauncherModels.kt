@@ -89,6 +89,7 @@ data class LauncherConfig(
     val gridRows: Int = 6,
     val items: List<LauncherItem> = emptyList(),
     val wallpaperUri: String? = null,
+    val wallpaperNightUri: String? = null,
     val wallpaperSubjectUri: String? = null,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
