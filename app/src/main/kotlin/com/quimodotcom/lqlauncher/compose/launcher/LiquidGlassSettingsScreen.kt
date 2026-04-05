@@ -518,6 +518,17 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
+                    item {
+                        SwitchSetting(
+                            title = "Interactive Media Controls",
+                            subtitle = "Overlay interactive playback controls on the lock screen",
+                            checked = settings.enableLockScreenControls,
+                            onCheckedChange = { enabled ->
+                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
+                            }
+                        )
+                    }
+
                     // === DEBUG ===
                     item {
                         Spacer(Modifier.height(16.dp))
@@ -781,7 +792,7 @@ fun LiquidGlassSettingsScreen(
                             title = "Dot Color",
                             currentColor = Color(settings.notificationDotColor),
                             onColorSelected = {
-                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb()))
+                                onSettingsChanged(settings.copy(notificationDotColor = it.value.toLong()))
                             },
                             enabled = !settings.liquidGlassNotificationDots
                         )

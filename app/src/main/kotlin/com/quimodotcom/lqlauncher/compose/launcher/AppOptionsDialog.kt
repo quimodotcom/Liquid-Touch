@@ -43,15 +43,22 @@ fun AppOptionsDialog(
             color = Color(0xFF1A1A24),
             modifier = Modifier.fillMaxWidth()
         ) {
+            val context = LocalContext.current
+            val iconBitmapState = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val loaded = com.quimodotcom.lqlauncher.helpers.AppIconCache.loadIcon(context, app.componentName, 96, app.customIconUri, null)
+                    value = loaded?.asImageBitmap()
+                }
+            }
+
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // App Header
-                val iconBitmap = remember(app.icon) { app.icon?.toBitmap(96, 96)?.asImageBitmap() }
-                if (iconBitmap != null) {
+                if (iconBitmapState.value != null) {
                     Image(
-                        bitmap = iconBitmap,
+                        bitmap = iconBitmapState.value!!,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp)
                     )
@@ -201,10 +208,16 @@ fun EditAppInfoDialog(
                         )
                     } else {
                         // Show current app icon
-                        val iconBitmap = remember(app.icon) { app.icon?.toBitmap(96, 96)?.asImageBitmap() }
-                        if (iconBitmap != null) {
+                        val context = LocalContext.current
+                        val iconBitmapState = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri) {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                val loaded = com.quimodotcom.lqlauncher.helpers.AppIconCache.loadIcon(context, app.componentName, 96, app.customIconUri, null)
+                                value = loaded?.asImageBitmap()
+                            }
+                        }
+                        if (iconBitmapState.value != null) {
                             Image(
-                                bitmap = iconBitmap,
+                                bitmap = iconBitmapState.value!!,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp)
                             )
