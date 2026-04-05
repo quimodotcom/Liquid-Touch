@@ -14,6 +14,8 @@ import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -21,17 +23,35 @@ class MediaListenerService : NotificationListenerService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
 
+    companion object {
+        private val _activeNotificationPackages = MutableStateFlow<Set<String>>(emptySet())
+        val activeNotificationPackages = _activeNotificationPackages.asStateFlow()
+    }
+
     override fun onListenerConnected() {
         super.onListenerConnected()
         checkActiveSessions()
+        updateActiveNotifications()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         processNotification(sbn)
+        updateActiveNotifications()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         checkActiveSessions()
+        updateActiveNotifications()
+    }
+
+    private fun updateActiveNotifications() {
+        try {
+            val activeNotifications = activeNotifications
+            val packages = activeNotifications.map { it.packageName }.toSet()
+            _activeNotificationPackages.value = packages
+        } catch (e: Exception) {
+            Log.e("MediaListenerService", "Error updating active notifications", e)
+        }
     }
 
     private fun processNotification(sbn: StatusBarNotification) {
