@@ -31,14 +31,7 @@ jobs:
           SIGNING_STORE_PASSWORD: dummy
           SIGNING_KEY_ALIAS: dummy
           SIGNING_KEY_PASSWORD: dummy
-        run: |
-          mkdir -p app/keystore
-          touch dummy.jks
-          echo "dummy" > app/keystore/storePassword.txt
-          echo "dummy" > app/keystore/keyAlias.txt
-          echo "dummy" > app/keystore/keyPassword.txt
-          touch app/keystore/myrelease.jks
-          ./gradlew assembleDebug --stacktrace
+        run: touch dummy.jks && ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

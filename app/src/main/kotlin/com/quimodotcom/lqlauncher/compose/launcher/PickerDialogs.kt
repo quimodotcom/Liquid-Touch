@@ -156,14 +156,6 @@ private fun AppPickerItem(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // App icon
-        val context = androidx.compose.ui.platform.LocalContext.current
-        val iconBitmap = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val loaded = com.quimodotcom.lqlauncher.helpers.AppIconCache.loadIcon(context, app.componentName, 96, app.customIconUri, null)
-                value = loaded?.asImageBitmap()
-            }
-        }
-
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -171,20 +163,21 @@ private fun AppPickerItem(
                 .background(Color(0xFF2E2E3E)),
             contentAlignment = Alignment.Center
         ) {
-            if (iconBitmap.value != null) {
+            app.icon?.let { drawable ->
+                val bitmap = remember(drawable) {
+                    drawable.toBitmap(96, 96).asImageBitmap()
+                }
                 Image(
-                    bitmap = iconBitmap.value!!,
+                    painter = BitmapPainter(bitmap),
                     contentDescription = app.label,
                     modifier = Modifier.size(40.dp)
                 )
-            } else {
-                Icon(
-                    Icons.Rounded.Android,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+            } ?: Icon(
+                Icons.Rounded.Android,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(32.dp)
+            )
         }
         
         Spacer(Modifier.height(4.dp))

@@ -32,7 +32,7 @@ class VideoWallpaperRenderer(private val context: Context) {
     private var videoTextureId = 0
     private var uiTextureId = 0
     private var bgTextureId = 0
-    private var subTextureId = 0
+    private var subjectTextureId = 0
     private var programId = 0
     private var uiProgramId = 0
 
@@ -67,8 +67,8 @@ class VideoWallpaperRenderer(private val context: Context) {
     private var bgDirty = false
 
     // Subject State
-    private var subBitmap: Bitmap? = null
-    private var subDirty = false
+    private var subjectBitmap: Bitmap? = null
+    private var subjectDirty = false
 
     init {
         triangleVertices = ByteBuffer.allocateDirect(triangleVerticesData.size * 4)
@@ -234,7 +234,7 @@ class VideoWallpaperRenderer(private val context: Context) {
         }
     }
 
-    fun updateUI(bitmap: Bitmap?) {
+    fun updateUI(bitmap: Bitmap) {
         uiBitmap = bitmap
         uiDirty = true
     }
@@ -245,8 +245,8 @@ class VideoWallpaperRenderer(private val context: Context) {
     }
 
     fun setSubject(bitmap: Bitmap?) {
-        subBitmap = bitmap
-        subDirty = true
+        subjectBitmap = bitmap
+        subjectDirty = true
     }
 
     fun draw() {
@@ -366,21 +366,21 @@ class VideoWallpaperRenderer(private val context: Context) {
             }
         }
 
-        // Draw Subject Layer (on top of background/video)
-        if (subBitmap != null && !subBitmap!!.isRecycled) {
-            if (subDirty) {
-                loadTexture(subTextureId, subBitmap!!)
-                subDirty = false
+        // Draw Subject Layer
+        if (subjectBitmap != null && !subjectBitmap!!.isRecycled) {
+            if (subjectDirty) {
+                loadTexture(subjectTextureId, subjectBitmap!!)
+                subjectDirty = false
             }
 
             useUiProgram()
-            GLES20.glEnable(GLES20.GL_BLEND)
-            GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
-            // Center Crop for Subject
+            GLES20.glEnable(GLES20.GL_BLEND)
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+
             Matrix.setIdentityM(mvpMatrix, 0)
-            val subW = subBitmap!!.width
-            val subH = subBitmap!!.height
+            val subW = subjectBitmap!!.width
+            val subH = subjectBitmap!!.height
             val subRatio = subW.toFloat() / subH
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
@@ -401,7 +401,7 @@ class VideoWallpaperRenderer(private val context: Context) {
             GLES20.glUniformMatrix4fv(uSTMatrixHandle, 1, false, flipMatrix, 0)
 
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, subTextureId)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, subjectTextureId)
 
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
             GLES20.glDisable(GLES20.GL_BLEND)
@@ -495,7 +495,7 @@ class VideoWallpaperRenderer(private val context: Context) {
         videoTextureId = textures[0]
         uiTextureId = textures[1]
         bgTextureId = textures[2]
-        subTextureId = textures[3]
+        subjectTextureId = textures[3]
 
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, videoTextureId)
         GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST.toFloat())
@@ -522,7 +522,7 @@ class VideoWallpaperRenderer(private val context: Context) {
     private fun destroyGL() {
         synchronized(this) {
             isSurfaceValid = false
-            GLES20.glDeleteTextures(4, intArrayOf(videoTextureId, uiTextureId, bgTextureId, subTextureId), 0)
+            GLES20.glDeleteTextures(4, intArrayOf(videoTextureId, uiTextureId, bgTextureId, subjectTextureId), 0)
             GLES20.glDeleteProgram(programId)
             GLES20.glDeleteProgram(uiProgramId)
             videoSurface?.release()

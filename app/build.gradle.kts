@@ -64,9 +64,12 @@ android {
             } else {
                 // 2️⃣ Fallback to local text‑file credentials
                 storeFile = file("keystore/myrelease.jks")
-                storePassword = readCredential("storePassword.txt") ?: "dummy"
-                keyAlias = readCredential("keyAlias.txt") ?: "dummy"
-                keyPassword = readCredential("keyPassword.txt") ?: "dummy"
+                storePassword = readCredential("storePassword.txt")
+                ?: throw GradleException("Missing storePassword.txt in app/keystore")
+                keyAlias = readCredential("keyAlias.txt")
+                ?: throw GradleException("Missing keyAlias.txt in app/keystore")
+                keyPassword = readCredential("keyPassword.txt")
+                ?: throw GradleException("Missing keyPassword.txt in app/keystore")
             }
 
             enableV1Signing = true

@@ -65,16 +65,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".activities.LockScreenMediaActivity"
-            android:exported="false"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:excludeFromRecents="true"
-            android:theme="@style/LockScreenOverlayTheme"
-            android:screenOrientation="portrait"
-            android:launchMode="singleInstance" />
-
         <service
             android:name=".services.LiquidGlassWallpaperService"
             android:enabled="true"
