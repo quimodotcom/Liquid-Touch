@@ -570,12 +570,14 @@ private fun EditableLauncherScreen(
                 val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
 
                 val width = with(density) {
-                    if (item is LauncherItem.AppShortcut) (item.spanX * cellWidth).toDp()
-                    else (item.spanX * cellWidth).toDp()
+                    (item.spanX * cellWidth).toDp()
                 }
                 val height = with(density) {
-                    if (item is LauncherItem.AppShortcut) (item.spanY * cellWidth).toDp()
-                    else (item.spanY * cellHeight).toDp()
+                    if (item is LauncherItem.AppShortcut || item is LauncherItem.InvisibleButton) {
+                        (item.spanY * cellWidth).toDp()  // Use cellWidth for 1:1 ratio
+                    } else {
+                        (item.spanY * cellHeight).toDp()  // Use cellHeight for panels/folders
+                    }
                 }
 
                 EditModeWrapper(
@@ -1225,17 +1227,13 @@ private fun LauncherItemView(
     // For apps: use 1:1 square cells (use cellWidth for both dimensions)
     // For panels/folders: use flexible rectangular cells
     val width = with(density) {
-        if (item is LauncherItem.AppShortcut) {
-            (item.spanX * cellWidth).toDp()
-        } else {
-            (item.spanX * cellWidth).toDp()
-        }
+        (item.spanX * cellWidth).toDp()
     }
     val height = with(density) {
-        if (item is LauncherItem.AppShortcut) {
+        if (item is LauncherItem.AppShortcut || item is LauncherItem.InvisibleButton) {
             (item.spanY * cellWidth).toDp()  // Use cellWidth for 1:1 ratio
         } else {
-            (item.spanY * cellHeight).toDp()  // Use cellHeight for panels
+            (item.spanY * cellHeight).toDp()  // Use cellHeight for panels/folders
         }
     }
 
