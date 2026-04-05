@@ -29,6 +29,7 @@ import coil.request.ImageRequest
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import com.quimodotcom.lqlauncher.helpers.StackBlur
 import com.quimodotcom.lqlauncher.helpers.DebugLogger
+import com.quimodotcom.lqlauncher.activities.LockScreenMediaActivity
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings
 import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettingsRepository
 import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfigRepository
@@ -166,6 +167,17 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         updateLockState()
+                        // Ensure keyguard is NOT just being dismissed and is still active
+                        // This prevents showing the overlay when an app (like camera) is already shown when locked
+                        val isKeyguardShowing = keyguardManager.isKeyguardLocked
+                        if (isLocked && isKeyguardShowing && settings.enableLockScreenControls && MediaStateRepository.mediaState.value != null) {
+                            val activityIntent = Intent(applicationContext, LockScreenMediaActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            }
+                            startActivity(activityIntent)
+                        }
                         draw()
                     }
                     Intent.ACTION_SCREEN_OFF -> {
@@ -314,9 +326,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                         mediaArtBitmap = bitmap
                                         updateClockColor(mediaArtBitmap)
 
-                                        // Trigger video player update
+                        // Trigger video player update (only for Home Screen)
                                         withContext(Dispatchers.Main) {
-                                            if (isVisible && isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                            if (isVisible && !isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                                                 if (file.absolutePath != currentVideoPath) {
                                                     DebugLogger.log("WallpaperService", "Swapping video: ${file.name}, ${file.length()}b")
                                                     videoRenderer?.setVideoSource(file)
@@ -419,8 +431,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                // Resume video if file exists
-                if (isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
+                // Resume video if file exists (Home Screen only)
+                if (!isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 draw()
@@ -451,7 +463,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 videoRenderer?.stop()
             } else {
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
             }
@@ -474,7 +486,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 datePaint.alpha = 255
 
                 // Resume video if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                if (isVisible && !isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 // Reset burn-in offset
@@ -675,8 +687,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private var cachedUiBitmap: Bitmap? = null
         private var lastMediaState: String = ""
-        private var lastBgBitmap: Bitmap? = null
-        private var lastSubBitmap: Bitmap? = null
 
         private fun draw() {
             // Ambient Mode Handling (Black screen + Simple Clock)
@@ -685,7 +695,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // or just clear GL to black and draw UI.
                 // Let's use the existing GL renderer but set background to black (null)
                 videoRenderer?.setBackground(null)
-                videoRenderer?.setSubject(null)
 
                 val calendar = Calendar.getInstance()
                 // Update burn-in protection offsets randomly every minute
@@ -720,54 +729,59 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 return
             }
 
-            // Unify everything to use GL Renderer (eliminates flickering between Canvas and GL)
-            // Pass background and subject layers with dirty checking to avoid redundant GPU uploads
-            val currentBg = if (isLocked) (mediaArtBitmap ?: scaledWallpaper) else scaledWallpaper
-            if (currentBg != lastBgBitmap) {
-                videoRenderer?.setBackground(currentBg)
-                lastBgBitmap = currentBg
-            }
+            // Unify everything to use GL Renderer
+            if (isLocked) {
+                // Pass static art to renderer (if not already set)
+                // If media art is null, fall back to the scaled wallpaper bitmap
+                videoRenderer?.setBackground(mediaArtBitmap ?: scaledWallpaper)
+                videoRenderer?.setSubject(null)
 
-            val currentSub = if (!isLocked) scaledSubject else null
-            if (currentSub != lastSubBitmap) {
-                videoRenderer?.setSubject(currentSub)
-                lastSubBitmap = currentSub
-            }
+                // Render UI to Bitmap, then pass to GL
+                // Check if UI needs update
+                val calendar = Calendar.getInstance()
+                val currentTime = timeFormat.format(calendar.time)
+                val currentDate = dateFormat.format(calendar.time)
 
-            // Render UI to Bitmap, then pass to GL
-            val calendar = Calendar.getInstance()
-            val currentTime = if (isLocked) timeFormat.format(calendar.time) else ""
-            val currentDate = if (isLocked) dateFormat.format(calendar.time) else ""
+                // Include time in state check to redraw every second
+                val currentState = "LOCKED|$mediaTitle|$mediaArtist|${surfaceHolder?.surfaceFrame?.width()}|$currentTime|$currentDate"
 
-            // Include time/lock state in check
-            val currentState = "$mediaTitle|$mediaArtist|${surfaceHolder?.surfaceFrame?.width()}|$currentTime|$currentDate|$isLocked"
-
-            if (currentState != lastMediaState) {
-                if (isLocked) {
+                if (cachedUiBitmap == null || currentState != lastMediaState) {
                     cachedUiBitmap?.recycle()
                     cachedUiBitmap = createUiBitmap(currentTime, currentDate)
+                    lastMediaState = currentState
                     if (cachedUiBitmap != null) {
                         videoRenderer?.updateUI(cachedUiBitmap!!)
                     }
-                } else if (lastMediaState.isEmpty() || lastMediaState.endsWith("true")) {
-                    // Just transitioned to unlocked, clear UI overlay once
-                    cachedUiBitmap?.recycle()
-                    cachedUiBitmap = null
-                    val empty = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-                    videoRenderer?.updateUI(empty)
                 }
-                lastMediaState = currentState
-            }
 
-            videoRenderer?.draw()
+                videoRenderer?.draw()
 
-            // Request next frame
-            if (isVisible) {
-                handler.removeCallbacks(drawRunnable)
-                if (isPowerSaveMode) {
-                    handler.postDelayed(drawRunnable, 1000)
-                } else {
-                    handler.postDelayed(drawRunnable, 33) // ~30fps
+                // Request next frame
+                if (isVisible) {
+                    handler.removeCallbacks(drawRunnable)
+                    if (isPowerSaveMode) {
+                        handler.postDelayed(drawRunnable, 1000)
+                    } else {
+                        handler.postDelayed(drawRunnable, 33) // ~30fps
+                    }
+                }
+            } else {
+                // Unlocked / Home Screen - Always use GL
+                videoRenderer?.setBackground(scaledWallpaper)
+                videoRenderer?.setSubject(scaledSubject)
+
+                val currentState = "UNLOCKED|${surfaceHolder?.surfaceFrame?.width()}"
+                if (currentState != lastMediaState) {
+                    videoRenderer?.updateUI(null)
+                    lastMediaState = currentState
+                }
+
+                videoRenderer?.draw()
+
+                // Request next frame even for home screen to keep GL engine alive and responsive
+                if (isVisible) {
+                    handler.removeCallbacks(drawRunnable)
+                    handler.postDelayed(drawRunnable, 33)
                 }
             }
         }
@@ -786,7 +800,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val gradientHeight = h * 0.4f
             cvs.drawRect(0f, h - gradientHeight, w.toFloat(), h.toFloat(), gradientPaint)
 
-            val centerX = (w / 2f) + burnInOffsetX
+            drawLockScreenUI(cvs, w.toFloat(), h.toFloat(), time, date)
+
+            return bmp
+        }
+
+
+        private fun drawLockScreenUI(canvas: Canvas, width: Float, height: Float, time: String, date: String) {
+            val centerX = (width / 2f) + burnInOffsetX
             val density = resources.displayMetrics.density
 
             // --- Draw Clock ---
@@ -798,75 +819,19 @@ class LiquidGlassWallpaperService : WallpaperService() {
             clockPaint.color = textColor
             datePaint.color = textColor
 
-            cvs.drawText(time, centerX, clockY, clockPaint)
+            canvas.drawText(time, centerX, clockY, clockPaint)
 
             val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density
-            cvs.drawText(date, centerX, dateY, datePaint)
+            canvas.drawText(date, centerX, dateY, datePaint)
 
             // Hide media info in Ambient Mode to reduce clutter/burn-in
-            if (isInAmbientMode) return bmp
-
-            // --- Draw Media Info ---
-            if (mediaTitle.isBlank() && mediaArtist.isBlank()) return bmp
-
-            // Position text near the bottom
-            val bottomMargin = BOTTOM_MARGIN_DP * density
-            var currentY = h - bottomMargin
-            val maxWidth = (w - (40f * density)).toInt() // 20dp padding each side
-
-            if (maxWidth > 0) {
-                // Let's re-do properly stacking upwards
-                var yPos = h - bottomMargin
-
-                // 1. Artist
-                if (mediaArtist.isNotBlank()) {
-                    val artistTextPaint = android.text.TextPaint(artistPaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val artistLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaArtist, 0, mediaArtist.length, artistTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= artistLayout.height
-                    cvs.save()
-                    cvs.translate(centerX - (maxWidth / 2), yPos)
-                    artistLayout.draw(cvs)
-                    cvs.restore()
-                }
-
-                // 2. Gap
-                yPos -= (TEXT_GAP_DP * density)
-
-                // 3. Title
-                if (mediaTitle.isNotBlank()) {
-                    val titleTextPaint = android.text.TextPaint(titlePaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val titleLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaTitle, 0, mediaTitle.length, titleTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= titleLayout.height
-                    cvs.save()
-                    cvs.translate(centerX - (maxWidth / 2), yPos)
-                    titleLayout.draw(cvs)
-                    cvs.restore()
-                }
-            }
+            if (isInAmbientMode) return
 
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {
                 val logX = DEBUG_LOG_X_OFFSET_DP * density
                 val logs = DebugLogger.getLogs()
-                val maxWidth = (w - (DEBUG_LOG_X_OFFSET_DP * DEBUG_LOG_MARGIN_MULTIPLIER * density)).toInt()
+                val maxWidth = (width - (DEBUG_LOG_X_OFFSET_DP * DEBUG_LOG_MARGIN_MULTIPLIER * density)).toInt()
 
                 if (maxWidth > 0) {
                     val textPaint = android.text.TextPaint(debugPaint)
@@ -888,9 +853,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                     // 2. Determine start Y position (scrolling logic)
                     val startY = DEBUG_LOG_Y_OFFSET_DP * density
-                    val availableHeight = h - startY - (DEBUG_LOG_BOTTOM_MARGIN_DP * density)
+                    val availableHeight = height - startY - (DEBUG_LOG_BOTTOM_MARGIN_DP * density)
 
-                    var curY = if (totalHeight > availableHeight) {
+                    var currentY = if (totalHeight > availableHeight) {
+                        // Align bottom of logs to bottom of available space
+                        // currentY should start at (startY + availableHeight) - totalHeight
+                        // This pushes top logs off-screen
                         startY + availableHeight - totalHeight
                     } else {
                         startY
@@ -898,18 +866,18 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                     // 3. Draw visible logs
                     for (layout in layouts) {
-                        if (curY + layout.height > startY && curY < h) {
-                            cvs.save()
-                            cvs.translate(logX, curY)
-                            layout.draw(cvs)
-                            cvs.restore()
+                        // Optimization: Only draw if potentially visible on screen (allowing partial visibility)
+                        // Ideally checking against the "window" of (startY) to (startY + availableHeight)
+                        if (currentY + layout.height > startY && currentY < height) {
+                            canvas.save()
+                            canvas.translate(logX, currentY)
+                            layout.draw(canvas)
+                            canvas.restore()
                         }
-                        curY += layout.height + DEBUG_LOG_LINE_SPACING
+                        currentY += layout.height + DEBUG_LOG_LINE_SPACING
                     }
                 }
             }
-
-            return bmp
         }
 
         private fun updateClockColor(bitmap: Bitmap?) {

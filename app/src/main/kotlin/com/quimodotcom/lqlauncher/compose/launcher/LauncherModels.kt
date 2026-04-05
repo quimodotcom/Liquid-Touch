@@ -153,7 +153,6 @@ sealed class EditAction {
 data class AvailableApp(
     val packageName: String,
     val label: String,
-    val icon: android.graphics.drawable.Drawable?,
     val componentName: ComponentName,
     val customIconUri: String? = null
 )

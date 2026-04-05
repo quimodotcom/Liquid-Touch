@@ -113,7 +113,7 @@ fun WallpaperPickerDialog(
             onSubjectSelected?.invoke(persistedUri)
         }
     }
-    
+
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Background, 1 = Subject
     var activeInteraction by remember { mutableStateOf(InteractionType.None) }
 
@@ -185,7 +185,7 @@ fun WallpaperPickerDialog(
 
                     Spacer(Modifier.height(24.dp))
                 }
-                
+
                 if (selectedTab == 0 && activeInteraction == InteractionType.None) {
                     // === BACKGROUND TAB ===
 
