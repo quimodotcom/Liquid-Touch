@@ -82,7 +82,12 @@ data class LiquidGlassSettings(
     val showDebugSettings: Boolean = false,
     val showDebugLogs: Boolean = false,
     val githubUpdateUrl: String = "",
-    val githubToken: String = ""
+    val githubToken: String = "",
+
+    // Notifications
+    val showNotificationDots: Boolean = false,
+    val notificationDotColor: Long = 0xFFEF4444, // Default Red-500
+    val liquidGlassNotificationDots: Boolean = false
 )
 
 /**

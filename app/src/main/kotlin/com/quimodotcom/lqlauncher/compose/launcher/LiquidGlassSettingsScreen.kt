@@ -723,6 +723,58 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
+                    // === NOTIFICATIONS ===
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Notifications", icon = Icons.Rounded.Notifications)
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Notification Dots",
+                            subtitle = "Show a dot on apps with active notifications",
+                            checked = settings.showNotificationDots,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Please grant Notification Access to enable this feature", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Cannot open settings", Toast.LENGTH_SHORT).show()
+                                        }
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(showNotificationDots = enabled))
+                            }
+                        )
+                    }
+
+                    item {
+                        ColorPickerSetting(
+                            title = "Dot Color",
+                            currentColor = Color(settings.notificationDotColor),
+                            onColorSelected = {
+                                onSettingsChanged(settings.copy(notificationDotColor = it.value.toLong()))
+                            },
+                            enabled = !settings.liquidGlassNotificationDots
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Liquid Glass Dots",
+                            subtitle = "Apply frosted glass effect to notification dots (disables color)",
+                            checked = settings.liquidGlassNotificationDots,
+                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassNotificationDots = it)) }
+                        )
+                    }
+
                     item {
                         Spacer(Modifier.height(32.dp))
                     }
@@ -873,7 +925,8 @@ private fun SliderSetting(
 private fun ColorPickerSetting(
     title: String,
     currentColor: Color,
-    onColorSelected: (Color) -> Unit
+    onColorSelected: (Color) -> Unit,
+    enabled: Boolean = true
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val view = LocalView.current
@@ -881,11 +934,11 @@ private fun ColorPickerSetting(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
+            .then(if (enabled) Modifier.clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 showPicker = true
-            },
-        color = Color(0xFF1A1A24),
+            } else Modifier),
+        color = if (enabled) Color(0xFF1A1A24) else Color(0xFF1A1A24).copy(alpha = 0.5f),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -895,13 +948,13 @@ private fun ColorPickerSetting(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, color = Color.White, fontSize = 16.sp)
+            Text(title, color = if (enabled) Color.White else Color.Gray, fontSize = 16.sp)
             Box(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(currentColor)
-                    .border(2.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                    .background(if (enabled) currentColor else Color.Gray)
+                    .border(2.dp, Color.White.copy(alpha = if (enabled) 0.3f else 0.1f), CircleShape)
             )
         }
     }

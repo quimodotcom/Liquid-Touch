@@ -16,6 +16,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -158,6 +159,9 @@ private fun EditableLauncherScreen(
 
     // Metadata version for icon updates
     var metadataVersion by remember { mutableIntStateOf(0) }
+
+    // Active notifications state
+    val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
 
     // Listen for metadata updates
     LaunchedEffect(Unit) {
@@ -651,6 +655,7 @@ private fun EditableLauncherScreen(
                             metadataVersion = metadataVersion,
                             context = context,
                             isEditMode = editModeState.isEnabled,
+                            hasNotification = activeNotifications.contains(item.packageName),
                             onLaunch = { launchApp(context, item.packageName) },
                             showLabel = glassSettings.showAppLabels,
                             cellWidth = cellWidth
@@ -660,15 +665,19 @@ private fun EditableLauncherScreen(
                             glassSettings = glassSettings,
                             isEditMode = editModeState.isEnabled
                         )
-                        is LauncherItem.Folder -> FolderView(
-                            item = item,
-                            backdrop = backdrop,
-                            glassSettings = glassSettings,
-                            context = context,
-                            isEditMode = editModeState.isEnabled,
-                            onOpenFolder = { openedFolder = item },
-                            cellWidth = cellWidth
-                        )
+                        is LauncherItem.Folder -> {
+                            val hasNotification = item.apps.any { activeNotifications.contains(it) }
+                            FolderView(
+                                item = item,
+                                backdrop = backdrop,
+                                glassSettings = glassSettings,
+                                context = context,
+                                isEditMode = editModeState.isEnabled,
+                                hasNotification = hasNotification,
+                                onOpenFolder = { openedFolder = item },
+                                cellWidth = cellWidth
+                            )
+                        }
                     }
                 }
             }
@@ -703,8 +712,15 @@ private fun EditableLauncherScreen(
             )
         }
 
-        BackHandler(enabled = showAppDrawer) {
-            showAppDrawer = false
+        // Prevent accidental closing of the launcher on home screen
+        BackHandler(enabled = true) {
+            if (showAppDrawer) {
+                showAppDrawer = false
+            } else if (editModeState.isEnabled) {
+                editModeState = EditModeState()
+            } else {
+                // Do nothing: stay on home screen
+            }
         }
 
         // Edit mode toolbar
@@ -1182,17 +1198,21 @@ private fun LauncherItemView(
             .padding(4.dp)
     ) {
         when (item) {
-            is LauncherItem.AppShortcut -> AppShortcutView(
-                item = item,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                metadataVersion = metadataVersion,
-                context = context,
-                isEditMode = isEditMode,
-                onLaunch = onLaunch,
-                showLabel = glassSettings.showAppLabels,
-                cellWidth = cellWidth
-            )
+            is LauncherItem.AppShortcut -> {
+                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
+                AppShortcutView(
+                    item = item,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    metadataVersion = metadataVersion,
+                    context = context,
+                    isEditMode = isEditMode,
+                    hasNotification = activeNotifications.contains(item.packageName),
+                    onLaunch = onLaunch,
+                    showLabel = glassSettings.showAppLabels,
+                    cellWidth = cellWidth
+                )
+            }
             is LauncherItem.GlassPanel -> {
                 Box {
                     GlassPanelBackground(
@@ -1208,15 +1228,20 @@ private fun LauncherItemView(
                     )
                 }
             }
-            is LauncherItem.Folder -> FolderView(
-                item = item,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                context = context,
-                isEditMode = isEditMode,
-                onOpenFolder = { onOpenFolder(item) },
-                cellWidth = cellWidth
-            )
+            is LauncherItem.Folder -> {
+                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
+                val hasNotification = item.apps.any { activeNotifications.contains(it) }
+                FolderView(
+                    item = item,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    context = context,
+                    isEditMode = isEditMode,
+                    hasNotification = hasNotification,
+                    onOpenFolder = { onOpenFolder(item) },
+                    cellWidth = cellWidth
+                )
+            }
         }
     }
 }
@@ -1229,6 +1254,7 @@ private fun AppShortcutView(
     metadataVersion: Int,
     context: Context,
     isEditMode: Boolean,
+    hasNotification: Boolean = false,
     onLaunch: (String) -> Unit,
     showLabel: Boolean = true,
     cellWidth: Float = 0f
@@ -1354,6 +1380,45 @@ private fun AppShortcutView(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+
+    // Notification Dot Overlay
+    if (hasNotification && glassSettings.showNotificationDots) {
+        val dotSize = 12.dp
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .size(scaledSize)
+                .padding(4.dp), // Adjust padding to position dot
+            contentAlignment = Alignment.TopEnd
+        ) {
+            if (glassSettings.liquidGlassNotificationDots) {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { com.kyant.shapes.RoundedRectangle(with(density) { (dotSize / 2).toPx() }) },
+                            effects = {
+                                vibrancy()
+                                blur(with(density) { 4.dp.toPx() })
+                            },
+                            onDrawSurface = {
+                                drawRect(Color.White.copy(alpha = 0.4f))
+                            }
+                        )
+                        .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.4f), shape = CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
+                )
+            }
         }
     }
 }
@@ -2017,6 +2082,7 @@ private fun FolderView(
     glassSettings: LiquidGlassSettings,
     context: Context,
     isEditMode: Boolean,
+    hasNotification: Boolean = false,
     onOpenFolder: () -> Unit,
     cellWidth: Float = 0f
 ) {
@@ -2158,6 +2224,45 @@ private fun FolderView(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
+    }
+
+    // Notification Dot Overlay for Folders
+    if (hasNotification && glassSettings.showNotificationDots) {
+        val dotSize = 12.dp
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .size(scaledSize)
+                .padding(4.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            if (glassSettings.liquidGlassNotificationDots) {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { com.kyant.shapes.RoundedRectangle(with(density) { (dotSize / 2).toPx() }) },
+                            effects = {
+                                vibrancy()
+                                blur(with(density) { 4.dp.toPx() })
+                            },
+                            onDrawSurface = {
+                                drawRect(Color.White.copy(alpha = 0.4f))
+                            }
+                        )
+                        .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.4f), shape = CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
+                )
+            }
+        }
     }
 }
 
