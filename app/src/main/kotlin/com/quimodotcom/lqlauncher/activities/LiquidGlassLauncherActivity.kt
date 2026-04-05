@@ -3,16 +3,20 @@ package com.quimodotcom.lqlauncher.activities
 import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -156,6 +160,9 @@ private fun EditableLauncherScreen(
     // Metadata version for icon updates
     var metadataVersion by remember { mutableIntStateOf(0) }
 
+    // Active notifications state
+    val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
+
     // Listen for metadata updates
     LaunchedEffect(Unit) {
         AppMetadataRepository.metadataUpdates.collect {
@@ -257,12 +264,15 @@ private fun EditableLauncherScreen(
         if (gridSize.height > 0) gridSize.height.toFloat() / launcherConfig.gridRows else 0f
     }
 
+    // Theme state
+    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    // Wallpaper painter (honour permission)
+    // Wallpaper painter (honour permission and theme)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = launcherConfig.wallpaperUri,
+        customUri = if (isDarkTheme) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri,
         useSystem = launcherConfig.useSystemWallpaper,
         permissionGranted = hasWallpaperPermission
     )
@@ -645,6 +655,7 @@ private fun EditableLauncherScreen(
                             metadataVersion = metadataVersion,
                             context = context,
                             isEditMode = editModeState.isEnabled,
+                            hasNotification = activeNotifications.contains(item.packageName),
                             onLaunch = { launchApp(context, item.packageName) },
                             showLabel = glassSettings.showAppLabels,
                             cellWidth = cellWidth
@@ -654,15 +665,19 @@ private fun EditableLauncherScreen(
                             glassSettings = glassSettings,
                             isEditMode = editModeState.isEnabled
                         )
-                        is LauncherItem.Folder -> FolderView(
-                            item = item,
-                            backdrop = backdrop,
-                            glassSettings = glassSettings,
-                            context = context,
-                            isEditMode = editModeState.isEnabled,
-                            onOpenFolder = { openedFolder = item },
-                            cellWidth = cellWidth
-                        )
+                        is LauncherItem.Folder -> {
+                            val hasNotification = item.apps.any { activeNotifications.contains(it) }
+                            FolderView(
+                                item = item,
+                                backdrop = backdrop,
+                                glassSettings = glassSettings,
+                                context = context,
+                                isEditMode = editModeState.isEnabled,
+                                hasNotification = hasNotification,
+                                onOpenFolder = { openedFolder = item },
+                                cellWidth = cellWidth
+                            )
+                        }
                     }
                 }
             }
@@ -819,6 +834,7 @@ private fun EditableLauncherScreen(
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
             currentWallpaperUri = launcherConfig.wallpaperUri,
+            currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
@@ -942,6 +958,13 @@ private fun EditableLauncherScreen(
                     newConfig
                 }
             },
+            onWallpaperNightSelected = { uri ->
+                launcherConfig = if (uri == null) {
+                    launcherConfig.copy(wallpaperNightUri = null)
+                } else {
+                    launcherConfig.copy(useSystemWallpaper = false, wallpaperNightUri = uri)
+                }
+            },
             onSubjectSelected = { uri ->
                 launcherConfig = launcherConfig.copy(wallpaperSubjectUri = uri)
             },
@@ -961,6 +984,68 @@ private fun EditableLauncherScreen(
         )
     }
 
+    // Schematic Export Launcher
+    val exportSchematicLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val metadata = AppMetadataRepository.loadAll(context)
+                val schematic = LauncherSchematic(
+                    config = launcherConfig,
+                    settings = glassSettings,
+                    metadata = metadata
+                )
+                val success = SchematicRepository.exportSchematic(context, uri, schematic)
+                if (success) {
+                    Toast.makeText(context, "Schematic exported successfully", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // Schematic Import Launcher
+    val importSchematicLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val schematic = SchematicRepository.importSchematic(context, uri)
+                if (schematic != null) {
+                    // Check if icon pack is installed
+                    var finalSettings = schematic.settings
+                    if (finalSettings.iconPackPackageName.isNotEmpty()) {
+                        try {
+                            context.packageManager.getPackageInfo(finalSettings.iconPackPackageName, 0)
+                        } catch (e: PackageManager.NameNotFoundException) {
+                            // Icon pack not found, reset to default
+                            finalSettings = finalSettings.copy(iconPackPackageName = "")
+                            Toast.makeText(context, "Icon pack not found, using default icons", Toast.LENGTH_LONG).show()
+                        }
+                    }
+
+                    // Apply layout and settings
+                    launcherConfig = schematic.config
+                    glassSettings = finalSettings
+
+                    // Persist changes immediately
+                    LauncherConfigRepository.saveConfig(context, schematic.config)
+                    LiquidGlassSettingsRepository.saveSettings(context, finalSettings)
+
+                    // Apply metadata
+                    AppMetadataRepository.saveAllMetadata(context, schematic.metadata)
+
+                    Toast.makeText(context, "Schematic imported successfully", Toast.LENGTH_SHORT).show()
+                    showSettings = false // Close settings after import
+                } else {
+                    Toast.makeText(context, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     // Liquid Glass Settings dialog
     if (showSettings) {
         LiquidGlassSettingsScreen(
@@ -972,6 +1057,12 @@ private fun EditableLauncherScreen(
                     gridColumns = newSettings.gridColumns,
                     gridRows = newSettings.gridRows
                 )
+            },
+            onExportSchematic = {
+                exportSchematicLauncher.launch("liquid_glass_layout.json")
+            },
+            onImportSchematic = {
+                importSchematicLauncher.launch(arrayOf("application/json", "application/octet-stream"))
             },
             onDismiss = { showSettings = false }
         )
@@ -1100,17 +1191,21 @@ private fun LauncherItemView(
             .padding(4.dp)
     ) {
         when (item) {
-            is LauncherItem.AppShortcut -> AppShortcutView(
-                item = item,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                metadataVersion = metadataVersion,
-                context = context,
-                isEditMode = isEditMode,
-                onLaunch = onLaunch,
-                showLabel = glassSettings.showAppLabels,
-                cellWidth = cellWidth
-            )
+            is LauncherItem.AppShortcut -> {
+                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
+                AppShortcutView(
+                    item = item,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    metadataVersion = metadataVersion,
+                    context = context,
+                    isEditMode = isEditMode,
+                    hasNotification = activeNotifications.contains(item.packageName),
+                    onLaunch = onLaunch,
+                    showLabel = glassSettings.showAppLabels,
+                    cellWidth = cellWidth
+                )
+            }
             is LauncherItem.GlassPanel -> {
                 Box {
                     GlassPanelBackground(
@@ -1126,15 +1221,20 @@ private fun LauncherItemView(
                     )
                 }
             }
-            is LauncherItem.Folder -> FolderView(
-                item = item,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                context = context,
-                isEditMode = isEditMode,
-                onOpenFolder = { onOpenFolder(item) },
-                cellWidth = cellWidth
-            )
+            is LauncherItem.Folder -> {
+                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
+                val hasNotification = item.apps.any { activeNotifications.contains(it) }
+                FolderView(
+                    item = item,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    context = context,
+                    isEditMode = isEditMode,
+                    hasNotification = hasNotification,
+                    onOpenFolder = { onOpenFolder(item) },
+                    cellWidth = cellWidth
+                )
+            }
         }
     }
 }
@@ -1147,6 +1247,7 @@ private fun AppShortcutView(
     metadataVersion: Int,
     context: Context,
     isEditMode: Boolean,
+    hasNotification: Boolean = false,
     onLaunch: (String) -> Unit,
     showLabel: Boolean = true,
     cellWidth: Float = 0f
@@ -1272,6 +1373,45 @@ private fun AppShortcutView(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+
+    // Notification Dot Overlay
+    if (hasNotification && glassSettings.showNotificationDots) {
+        val dotSize = 12.dp
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .size(scaledSize)
+                .padding(4.dp), // Adjust padding to position dot
+            contentAlignment = Alignment.TopEnd
+        ) {
+            if (glassSettings.liquidGlassNotificationDots) {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { com.kyant.shapes.RoundedRectangle(with(density) { (dotSize / 2).toPx() }) },
+                            effects = {
+                                vibrancy()
+                                blur(with(density) { 4.dp.toPx() })
+                            },
+                            onDrawSurface = {
+                                drawRect(Color.White.copy(alpha = 0.4f))
+                            }
+                        )
+                        .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.4f), shape = CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
+                )
+            }
         }
     }
 }
@@ -1935,6 +2075,7 @@ private fun FolderView(
     glassSettings: LiquidGlassSettings,
     context: Context,
     isEditMode: Boolean,
+    hasNotification: Boolean = false,
     onOpenFolder: () -> Unit,
     cellWidth: Float = 0f
 ) {
@@ -2076,6 +2217,45 @@ private fun FolderView(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
         )
+    }
+
+    // Notification Dot Overlay for Folders
+    if (hasNotification && glassSettings.showNotificationDots) {
+        val dotSize = 12.dp
+        val density = LocalDensity.current
+        Box(
+            modifier = Modifier
+                .size(scaledSize)
+                .padding(4.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            if (glassSettings.liquidGlassNotificationDots) {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { com.kyant.shapes.RoundedRectangle(with(density) { (dotSize / 2).toPx() }) },
+                            effects = {
+                                vibrancy()
+                                blur(with(density) { 4.dp.toPx() })
+                            },
+                            onDrawSurface = {
+                                drawRect(Color.White.copy(alpha = 0.4f))
+                            }
+                        )
+                        .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.4f), shape = CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
+                )
+            }
+        }
     }
 }
 
