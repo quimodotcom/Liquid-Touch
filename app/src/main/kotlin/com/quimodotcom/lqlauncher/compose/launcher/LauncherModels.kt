@@ -45,7 +45,7 @@ sealed class LauncherItem {
         override val spanY: Int = 2,
         val title: String = "",
         val blurRadius: Float = 20f,
-        val tintColor: Long = 0xFF6366F1, // Default indigo
+        val tintColor: Int = 0xFF6366F1.toInt(), // Default indigo
         val backgroundAlpha: Float = 0.12f,
         val panelType: PanelType = PanelType.EMPTY
     ) : LauncherItem()
@@ -62,7 +62,7 @@ sealed class LauncherItem {
         override val spanY: Int = 1,
         val name: String,
         val apps: List<String> = emptyList(), // Package names
-        val tintColor: Long = 0xFF6366F1
+        val tintColor: Int = 0xFF6366F1.toInt()
     ) : LauncherItem()
 }
 

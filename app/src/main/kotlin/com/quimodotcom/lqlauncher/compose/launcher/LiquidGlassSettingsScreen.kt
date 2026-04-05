@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -193,7 +194,7 @@ fun LiquidGlassSettingsScreen(
                             title = "Panel Tint Color",
                             currentColor = Color(settings.panelTintColor),
                             onColorSelected = { 
-                                onSettingsChanged(settings.copy(panelTintColor = it.value.toLong())) 
+                                onSettingsChanged(settings.copy(panelTintColor = it.toArgb()))
                             }
                         )
                     }
@@ -780,7 +781,7 @@ fun LiquidGlassSettingsScreen(
                             title = "Dot Color",
                             currentColor = Color(settings.notificationDotColor),
                             onColorSelected = {
-                                onSettingsChanged(settings.copy(notificationDotColor = it.value.toLong()))
+                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb()))
                             },
                             enabled = !settings.liquidGlassNotificationDots
                         )

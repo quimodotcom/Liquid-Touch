@@ -2621,7 +2621,7 @@ private fun createDefaultItems(apps: List<AvailableApp>): List<LauncherItem> {
             spanY = 2,
             panelType = PanelType.CLOCK,
             blurRadius = 25f,
-            tintColor = 0xFF6366F1
+            tintColor = 0xFF6366F1.toInt()
         )
     )
 
