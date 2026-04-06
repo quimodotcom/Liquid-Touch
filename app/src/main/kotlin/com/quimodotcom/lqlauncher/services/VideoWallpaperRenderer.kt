@@ -407,7 +407,22 @@ class VideoWallpaperRenderer(private val context: Context) {
 
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
             } else {
-                GLES20.glClearColor(0f, 0f, 0f, 1f)
+                // Draw Fallback Gradient Quad
+                useUiProgram()
+                Matrix.setIdentityM(mvpMatrix, 0)
+                val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")
+                val uSTMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uSTMatrix")
+                val identity = FloatArray(16)
+                Matrix.setIdentityM(identity, 0)
+
+                GLES20.glUniformMatrix4fv(uMVPMatrixHandle, 1, false, mvpMatrix, 0)
+                GLES20.glUniformMatrix4fv(uSTMatrixHandle, 1, false, identity, 0)
+
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0) // Unbind
+
+                // Just clear to a nice dark color if no bitmap
+                GLES20.glClearColor(0.06f, 0.05f, 0.16f, 1f) // Indigo-ish
                 GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
             }
         }

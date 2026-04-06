@@ -6,8 +6,10 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +31,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.quimodotcom.lqlauncher.services.MediaStateRepository
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
 
 class LockScreenOverlayActivity : ComponentActivity() {
@@ -44,21 +50,88 @@ class LockScreenOverlayActivity : ComponentActivity() {
         window.attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
 
         setContent {
-            LockScreenOverlayContent(onDismiss = { finish() })
+            LockScreenOverlayContent(
+                onUnlock = {
+                    val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                    keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                        override fun onDismissSucceeded() {
+                            super.onDismissSucceeded()
+                            finish()
+                        }
+                        override fun onDismissCancelled() {
+                            super.onDismissCancelled()
+                            finish()
+                        }
+                    })
+                },
+                onDismiss = { finish() }
+            )
         }
     }
 }
 
 @Composable
-fun LockScreenOverlayContent(onDismiss: () -> Unit) {
+fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
     val mediaState by MediaStateRepository.mediaState.collectAsState()
     val context = LocalContext.current
+
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while(true) {
+            currentTime = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    val timeStr = remember(currentTime) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(currentTime)) }
+    val dateStr = remember(currentTime) { SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date(currentTime)) }
+
+    // Backup unlock method
+    BackHandler {
+        onUnlock()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.3f))
+            .background(Color.Black.copy(alpha = 0.01f)) // Almost transparent but receives touch
+            .pointerInput(Unit) {
+                var totalDragY = 0f
+                detectDragGestures(
+                    onDragStart = { totalDragY = 0f },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        totalDragY += dragAmount.y
+                    },
+                    onDragEnd = {
+                        if (totalDragY < -150f) {
+                            onUnlock()
+                        }
+                        totalDragY = 0f
+                    }
+                )
+            }
     ) {
+        // Clock
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 100.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = timeStr,
+                color = Color.White,
+                fontSize = 80.sp,
+                fontWeight = FontWeight.Light
+            )
+            Text(
+                text = dateStr,
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 18.sp
+            )
+        }
+
         if (mediaState != null) {
             Column(
                 modifier = Modifier
@@ -137,14 +210,27 @@ fun LockScreenOverlayContent(onDismiss: () -> Unit) {
         }
 
         // Swipe up to unlock hint or button
-        Text(
-            text = "Swipe up to unlock",
-            color = Color.White.copy(alpha = 0.5f),
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 48.dp),
-            fontSize = 14.sp
-        )
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconButton(
+                onClick = onUnlock,
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
+            ) {
+                Icon(Icons.Rounded.KeyboardArrowUp, null, tint = Color.White)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Swipe up or tap to unlock",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp
+            )
+        }
     }
 
     // Auto-dismiss if unlocked

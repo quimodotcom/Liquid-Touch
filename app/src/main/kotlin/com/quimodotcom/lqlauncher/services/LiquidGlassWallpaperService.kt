@@ -439,7 +439,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 reloadSettings()
 
                 // Launch interactive controls if enabled and locked
-                if (isLocked && settings.enableLockScreenControls && !isInAmbientMode) {
+                // Check if media is actually playing/active to avoid blank overlay
+                val mediaActive = MediaStateRepository.mediaState.value != null
+                if (isLocked && settings.enableLockScreenControls && !isInAmbientMode && mediaActive) {
                     val intent = Intent(this@LiquidGlassWallpaperService, com.quimodotcom.lqlauncher.activities.LockScreenOverlayActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -637,6 +639,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     } else {
                         wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
                     }
+                } else if (config == null || config.useSystemWallpaper) {
+                    wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
                 } else {
                     wallpaperBitmap = null
                 }
@@ -744,6 +748,23 @@ class LiquidGlassWallpaperService : WallpaperService() {
             scaledMediaArt = null
             blurredMediaArt = null
             animatedMediaArt = null
+        }
+
+        private fun loadSystemWallpaper(context: Context, reqW: Int, reqH: Int): Bitmap? {
+            return try {
+                val wm = android.app.WallpaperManager.getInstance(context)
+                val drawable = wm.drawable
+                if (drawable != null) {
+                    val bitmap = android.graphics.Bitmap.createBitmap(reqW, reqH, android.graphics.Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bitmap)
+                    drawable.setBounds(0, 0, reqW, reqH)
+                    drawable.draw(canvas)
+                    bitmap
+                } else null
+            } catch (e: Exception) {
+                Log.e("LiquidGlassWallpaper", "Error loading system wallpaper", e)
+                null
+            }
         }
 
         private fun loadBitmap(uri: Uri, reqW: Int, reqH: Int): Bitmap? {
@@ -914,7 +935,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Re-verify lock state immediately to prevent secret bleed
             updateLockState()
 
-            val currentBg = if (isLocked) (mediaArtBitmap ?: scaledWallpaper) else scaledWallpaper
+            val currentBg = if (isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null) {
+                mediaArtBitmap
+            } else {
+                scaledWallpaper
+            }
+
             if (currentBg != lastBgBitmap) {
                 videoRenderer?.setBackground(currentBg)
                 lastBgBitmap = currentBg
