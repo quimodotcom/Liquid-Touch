@@ -442,12 +442,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Check if media is actually playing/active to avoid blank overlay
                 val mediaActive = MediaStateRepository.mediaState.value != null
                 if (isLocked && settings.enableLockScreenControls && !isInAmbientMode && mediaActive) {
-                    val intent = Intent(this@LiquidGlassWallpaperService, com.quimodotcom.lqlauncher.activities.LockScreenOverlayActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    try {
+                        val intent = Intent(this@LiquidGlassWallpaperService, com.quimodotcom.lqlauncher.activities.LockScreenOverlayActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.e("LiquidGlassWallpaper", "Failed to launch overlay", e)
                     }
-                    startActivity(intent)
                 }
 
                 // Resume video/gif if file exists

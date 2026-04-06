@@ -37,7 +37,11 @@ class MediaListenerService : NotificationListenerService() {
         updateActiveNotifications()
 
         val filter = IntentFilter("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION")
-        registerReceiver(cancelReceiver, filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(cancelReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(cancelReceiver, filter)
+        }
     }
 
     override fun onDestroy() {
@@ -132,11 +136,33 @@ class MediaListenerService : NotificationListenerService() {
     private var currentFetchJob: Job? = null
     private var lastTitle: String? = null
     private var lastArtist: String? = null
+    private var activeController: MediaController? = null
+
+    private val mediaCallback = object : MediaController.Callback() {
+        override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
+            val playing = state?.state == android.media.session.PlaybackState.STATE_PLAYING
+            val current = MediaStateRepository.mediaState.value
+            if (current != null && current.isPlaying != playing) {
+                MediaStateRepository.update(current.copy(isPlaying = playing))
+            }
+        }
+
+        override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+            checkActiveSessions()
+        }
+    }
 
     private fun updateMediaInfo(token: MediaSession.Token) {
         val controller = MediaController(this, token)
         val metadata = controller.metadata ?: return
         val playbackState = controller.playbackState
+
+        // Handle Controller Callbacks to avoid leaks and recursion
+        if (activeController?.sessionToken != token) {
+            activeController?.unregisterCallback(mediaCallback)
+            activeController = controller
+            activeController?.registerCallback(mediaCallback)
+        }
 
         // Try to get album art
         val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -179,19 +205,5 @@ class MediaListenerService : NotificationListenerService() {
             }
         }
 
-        // Register callback for playback state changes
-        controller.registerCallback(object : MediaController.Callback() {
-            override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
-                val playing = state?.state == android.media.session.PlaybackState.STATE_PLAYING
-                val current = MediaStateRepository.mediaState.value
-                if (current != null && current.isPlaying != playing) {
-                    MediaStateRepository.update(current.copy(isPlaying = playing), controller)
-                }
-            }
-
-            override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
-                checkActiveSessions()
-            }
-        })
     }
 }
