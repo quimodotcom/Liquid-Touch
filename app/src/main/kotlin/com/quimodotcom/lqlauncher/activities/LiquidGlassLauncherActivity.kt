@@ -273,8 +273,8 @@ private fun EditableLauncherScreen(
 
     // Wallpaper painter (honour permission, theme and secret)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = remember(isDarkTheme, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
-            if (launcherConfig.wallpaperSecretUri != null) {
+        customUri = remember(isDarkTheme, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
+            if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
                 launcherConfig.wallpaperSecretUri
             } else if (isDarkTheme) {
                 launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
@@ -282,7 +282,7 @@ private fun EditableLauncherScreen(
                 launcherConfig.wallpaperUri
             }
         },
-        useSystem = launcherConfig.useSystemWallpaper && launcherConfig.wallpaperSecretUri == null,
+        useSystem = launcherConfig.useSystemWallpaper && (!glassSettings.secretWallpaperVisible || launcherConfig.wallpaperSecretUri == null),
         permissionGranted = hasWallpaperPermission
     )
 
@@ -602,19 +602,23 @@ private fun EditableLauncherScreen(
                         editModeState = editModeState.copy(selectedItemId = item.id)
                     },
                     onMove = { newX, newY ->
-                        // Folder drop logic
+                        // 1. Folder drop logic (Apps only)
                         if (item is LauncherItem.AppShortcut) {
+                            // Find folder at the drop position
                             val targetFolder = launcherConfig.items.filterIsInstance<LauncherItem.Folder>().find { folder ->
                                 newX >= folder.gridX && newX < folder.gridX + folder.spanX &&
                                 newY >= folder.gridY && newY < folder.gridY + folder.spanY
                             }
+
                             if (targetFolder != null) {
                                 launcherConfig = launcherConfig.copy(
                                     items = launcherConfig.items.mapNotNull { existingItem ->
                                         when {
+                                            // Add app to target folder
                                             existingItem.id == targetFolder.id && existingItem is LauncherItem.Folder -> {
                                                 existingItem.copy(apps = existingItem.apps + item.packageName)
                                             }
+                                            // Remove app from home screen
                                             existingItem.id == item.id -> null
                                             else -> existingItem
                                         }
@@ -623,8 +627,35 @@ private fun EditableLauncherScreen(
                                 editModeState = editModeState.copy(selectedItemId = null)
                                 return@EditModeWrapper
                             }
+
+                            // 2. Folder creation logic (dropping App on App)
+                            val targetApp = launcherConfig.items.filterIsInstance<LauncherItem.AppShortcut>().find { otherApp ->
+                                otherApp.id != item.id &&
+                                newX == otherApp.gridX && newY == otherApp.gridY
+                            }
+
+                            if (targetApp != null) {
+                                // Create new folder at target location
+                                val newFolder = LauncherItem.Folder(
+                                    gridX = targetApp.gridX,
+                                    gridY = targetApp.gridY,
+                                    name = "New Folder",
+                                    apps = listOf(targetApp.packageName, item.packageName)
+                                )
+
+                                launcherConfig = launcherConfig.copy(
+                                    items = launcherConfig.items.mapNotNull { existingItem ->
+                                        if (existingItem.id == targetApp.id) newFolder
+                                        else if (existingItem.id == item.id) null
+                                        else existingItem
+                                    }
+                                )
+                                editModeState = editModeState.copy(selectedItemId = null)
+                                return@EditModeWrapper
+                            }
                         }
 
+                        // 3. Regular move logic
                         launcherConfig = launcherConfig.copy(
                             items = launcherConfig.items.map { existingItem ->
                                 if (existingItem.id == item.id) {
@@ -1180,6 +1211,9 @@ private fun EditableLauncherScreen(
                 scope.launch {
                     LauncherConfigRepository.saveConfig(context, newConfig)
                 }
+            },
+            onOpenWallpaperPicker = {
+                editModeState = editModeState.copy(showWallpaperPicker = true)
             },
             onExportSchematic = {
                 exportSchematicLauncher.launch("liquid_glass_layout.json")
