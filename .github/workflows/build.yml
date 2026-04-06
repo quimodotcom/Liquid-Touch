@@ -27,16 +27,15 @@ jobs:
 
       - name: Build Debug APK
         env:
-          SIGNING_STORE_FILE: dummy.jks
-          SIGNING_STORE_PASSWORD: dummy
-          SIGNING_KEY_ALIAS: dummy
-          SIGNING_KEY_PASSWORD: dummy
+             SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+             SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+             SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          keytool -genkey -v -keystore dummy.jks -alias dummy -keyalg RSA -keysize 2048 -validity 10000 -storepass dummy -keypass dummy -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
-          ./gradlew assembleDebug --stacktrace
-
+           echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 --decode > debug.jks
+           ./gradlew assembleDebug --stacktrace
+      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/foss/debug/*.apk
+            name: app-debug
+            path: app/build/outputs/apk/foss/debug/*.apk
