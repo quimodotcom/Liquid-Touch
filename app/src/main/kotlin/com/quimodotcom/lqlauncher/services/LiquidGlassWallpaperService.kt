@@ -1047,36 +1047,33 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val h = surfaceHolder?.surfaceFrame?.height() ?: 0
             if (w <= 0 || h <= 0) return null
 
-            // Re-use or create bitmap (TODO: Optimize reuse to avoid GC)
+            // Re-use or create bitmap
             val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val cvs = Canvas(bmp)
 
-            // Draw Gradient & Text Overlay (No background image, transparency needed)
-            // Gradient
-            val gradientHeight = h * 0.4f
-            cvs.drawRect(0f, h - gradientHeight, w.toFloat(), h.toFloat(), gradientPaint)
+            // No Background Rendering here - just overlay content
 
             val centerX = (w / 2f) + burnInOffsetX
             val density = resources.displayMetrics.density
 
-            // --- Draw Clock ---
-            val clockY = (CLOCK_TOP_MARGIN_DP * density + clockPaint.textSize) + burnInOffsetY
+            // --- Draw Clock & UI (Only if NOT showing interactive overlay) ---
+            if (isInAmbientMode) {
+                 // Clock
+                 val clockY = (CLOCK_TOP_MARGIN_DP * density + clockPaint.textSize) + burnInOffsetY
+                 val textColor = Color.LTGRAY // Dim for OLED AOD
 
-            // In Ambient Mode, always use White/Gray (Color.BLACK is invisible on OLED black background)
-            val textColor = if (isInAmbientMode) Color.LTGRAY else clockColor
+                 clockPaint.color = textColor
+                 datePaint.color = textColor
 
-            clockPaint.color = textColor
-            datePaint.color = textColor
+                 cvs.drawText(time, centerX, clockY, clockPaint)
+                 val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density
+                 cvs.drawText(date, centerX, dateY, datePaint)
+                 return bmp
+            }
 
-            cvs.drawText(time, centerX, clockY, clockPaint)
-
-            val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density
-            cvs.drawText(date, centerX, dateY, datePaint)
-
-            // Hide media info in Ambient Mode to reduce clutter/burn-in
-            if (isInAmbientMode) return bmp
-
-            // Media Info is now handled by the interactive overlay
+            // Standard Lockscreen UI (Redundant with overlay - keep empty for now)
+            // Or only draw if overlay launch failed?
+            // Let's keep it clean as requested.
 
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {

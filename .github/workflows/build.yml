@@ -25,17 +25,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Decode and Prepare Keystore
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+        run: |
+          mkdir -p app/keystore
+          if [ ! -z "$SIGNING_KEY_STORE_BASE64" ]; then
+            echo "$SIGNING_KEY_STORE_BASE64" | base64 --decode > app/keystore/myrelease.jks
+          else
+            # Generate deterministic dummy keystore if no secret provided
+            keytool -genkey -v -keystore app/keystore/myrelease.jks -alias dummy -keyalg RSA -keysize 2048 -validity 10000 -storepass dummy -keypass dummy -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
+          fi
+          # Ensure credentials files exist for local-fallback logic in build.gradle
+          echo "${{ secrets.SIGNING_STORE_PASSWORD || 'dummy' }}" > app/keystore/storePassword.txt
+          echo "${{ secrets.SIGNING_KEY_ALIAS || 'dummy' }}" > app/keystore/keyAlias.txt
+          echo "${{ secrets.SIGNING_KEY_PASSWORD || 'dummy' }}" > app/keystore/keyPassword.txt
+
       - name: Build Debug APK
         env:
-             SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-             SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-             SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: |
-           echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 --decode > debug.jks
-           ./gradlew assembleDebug --stacktrace
-      
+          # Prefer ENV vars for signingConfig in build.gradle
+          SIGNING_STORE_FILE: keystore/myrelease.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'dummy' }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS || 'dummy' }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || 'dummy' }}
+        run: ./gradlew assembleDebug --stacktrace
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-            name: app-debug
-            path: app/build/outputs/apk/foss/debug/*.apk
+          name: app-debug
+          path: app/build/outputs/apk/foss/debug/*.apk
