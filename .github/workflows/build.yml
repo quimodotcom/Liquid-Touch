@@ -31,7 +31,9 @@ jobs:
           SIGNING_STORE_PASSWORD: dummy
           SIGNING_KEY_ALIAS: dummy
           SIGNING_KEY_PASSWORD: dummy
-        run: touch dummy.jks && ./gradlew assembleDebug --stacktrace
+        run: |
+          keytool -genkey -v -keystore dummy.jks -alias dummy -keyalg RSA -keysize 2048 -validity 10000 -storepass dummy -keypass dummy -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

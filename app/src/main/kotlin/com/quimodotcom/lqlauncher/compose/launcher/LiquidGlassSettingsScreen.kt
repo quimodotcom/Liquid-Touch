@@ -130,6 +130,48 @@ fun LiquidGlassSettingsScreen(
                         }
                     }
 
+                    item {
+                        var showDayTimePicker by remember { mutableStateOf(false) }
+                        var showNightTimePicker by remember { mutableStateOf(false) }
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SettingItem(
+                                title = "Day Starts",
+                                description = String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute),
+                                onClick = { showDayTimePicker = true }
+                            )
+                            SettingItem(
+                                title = "Night Starts",
+                                description = String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute),
+                                onClick = { showNightTimePicker = true }
+                            )
+                        }
+
+                        if (showDayTimePicker) {
+                            TimePickerDialog(
+                                initialHour = settings.dayStartHour,
+                                initialMinute = settings.dayStartMinute,
+                                onTimeSelected = { h, m ->
+                                    onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
+                                    showDayTimePicker = false
+                                },
+                                onDismiss = { showDayTimePicker = false }
+                            )
+                        }
+
+                        if (showNightTimePicker) {
+                            TimePickerDialog(
+                                initialHour = settings.nightStartHour,
+                                initialMinute = settings.nightStartMinute,
+                                onTimeSelected = { h, m ->
+                                    onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
+                                    showNightTimePicker = false
+                                },
+                                onDismiss = { showNightTimePicker = false }
+                            )
+                        }
+                    }
+
                     // === 2. VISUAL EFFECTS ===
                     item {
                         Spacer(Modifier.height(16.dp))
@@ -1215,6 +1257,32 @@ private fun SecretWallpaperPickerDialog(
         titleContentColor = Color.White,
         textContentColor = Color.White.copy(alpha = 0.8f)
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onTimeSelected: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1A1A24)) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Select Time", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(24.dp))
+                TimePicker(state = state)
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onTimeSelected(state.hour, state.minute) }) { Text("OK") }
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -602,7 +602,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
-                val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+                // Determine if it's currently "night" based on custom settings or system theme
+                val calendar = Calendar.getInstance()
+                val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+
+                val nightStartMinutes = settings.nightStartHour * 60 + settings.nightStartMinute
+                val dayStartMinutes = settings.dayStartHour * 60 + settings.dayStartMinute
+
+                val isCustomNight = if (nightStartMinutes > dayStartMinutes) {
+                    currentMinutes >= nightStartMinutes || currentMinutes < dayStartMinutes
+                } else {
+                    currentMinutes >= nightStartMinutes && currentMinutes < dayStartMinutes
+                }
+
+                val isSystemNight = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val isDark = isCustomNight || isSystemNight
 
                 val mainUri = if (isLocked) {
                     if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
@@ -757,14 +772,18 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private fun loadSystemWallpaper(context: Context, reqW: Int, reqH: Int): Bitmap? {
             return try {
                 val wm = android.app.WallpaperManager.getInstance(context)
-                val drawable = wm.drawable
+                // Use peekDrawable first as it's often more reliable for background services
+                val drawable = wm.peekDrawable() ?: wm.drawable
                 if (drawable != null) {
                     val bitmap = android.graphics.Bitmap.createBitmap(reqW, reqH, android.graphics.Bitmap.Config.ARGB_8888)
                     val canvas = android.graphics.Canvas(bitmap)
                     drawable.setBounds(0, 0, reqW, reqH)
                     drawable.draw(canvas)
                     bitmap
-                } else null
+                } else {
+                    DebugLogger.log("WallpaperService", "System wallpaper drawable is null")
+                    null
+                }
             } catch (e: Exception) {
                 Log.e("LiquidGlassWallpaper", "Error loading system wallpaper", e)
                 null

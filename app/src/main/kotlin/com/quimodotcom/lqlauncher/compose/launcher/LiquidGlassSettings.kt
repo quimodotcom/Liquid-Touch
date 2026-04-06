@@ -89,6 +89,12 @@ data class LiquidGlassSettings(
     val notificationDotColor: Long = 0xFFEF4444L, // Default Red-500
     val liquidGlassNotificationDots: Boolean = false,
 
+    // Wallpaper Schedule
+    val dayStartHour: Int = 7,
+    val dayStartMinute: Int = 0,
+    val nightStartHour: Int = 20,
+    val nightStartMinute: Int = 0,
+
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
 )
