@@ -76,6 +76,7 @@ data class LiquidGlassSettings(
 
     // Lock Screen
     val enableLockScreenMediaArt: Boolean = false,
+    val enableLockScreenControls: Boolean = false,
 
     // Debug & Updates
     val showDebugSettings: Boolean = false,

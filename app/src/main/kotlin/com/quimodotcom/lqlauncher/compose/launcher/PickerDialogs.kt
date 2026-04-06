@@ -259,6 +259,13 @@ fun PanelPickerDialog(
                     description = "One-row search bar (opens default browser)",
                     onClick = { onPanelTypeSelected(PanelType.SEARCH) }
                 )
+
+                PanelOption(
+                    icon = Icons.Rounded.MusicNote,
+                    title = "Media Controls",
+                    description = "Interactive playback buttons",
+                    onClick = { onPanelTypeSelected(PanelType.MEDIA_CONTROL) }
+                )
                 
                 Spacer(Modifier.height(16.dp))
                 

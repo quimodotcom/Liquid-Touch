@@ -1505,6 +1505,7 @@ private fun GlassPanelContent(
             PanelType.QUICK_SETTINGS -> QuickSettingsPanelContent()
             PanelType.BATTERY -> BatteryPanelContent(glassSettings)
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
+            PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1997,6 +1998,81 @@ private fun CompactQuickSettingToggle(
             contentDescription = null,
             tint = if (enabled) Color.White else Color.White.copy(alpha = 0.5f),
             modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+private fun MediaControlPanelContent() {
+    val mediaState by com.quimodotcom.lqlauncher.services.MediaStateRepository.mediaState.collectAsState()
+    val view = LocalView.current
+
+    if (mediaState == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No Media Playing", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            IconButton(onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToPrevious()
+            }) {
+                Icon(Icons.Rounded.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+
+            Surface(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    com.quimodotcom.lqlauncher.services.MediaStateRepository.playPause()
+                },
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.size(56.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (mediaState?.isPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            IconButton(onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToNext()
+            }) {
+                Icon(Icons.Rounded.SkipNext, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = mediaState?.title ?: "",
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = mediaState?.artist ?: "",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

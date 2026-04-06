@@ -216,6 +216,30 @@ fun LiquidGlassSettingsScreen(
                     }
 
                     item {
+                        SwitchSetting(
+                            title = "Interactive Lock Controls",
+                            subtitle = "Show playback buttons over the lock screen",
+                            checked = settings.enableLockScreenControls,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
+                            }
+                        )
+                    }
+
+                    item {
                         SliderSetting(
                             title = "Panel Transparency",
                             value = settings.panelBackgroundAlpha,

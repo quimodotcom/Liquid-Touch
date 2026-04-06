@@ -103,6 +103,7 @@ enum class PanelType {
     QUICK_SETTINGS, // Quick toggles
     BATTERY,    // Battery level and percentage
     SEARCH,     // One-row browser search
+    MEDIA_CONTROL, // Interactive media controls
     CUSTOM      // User-defined content
 }
 
