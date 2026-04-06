@@ -94,7 +94,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.01f)) // Almost transparent but receives touch
+            .background(Color.Transparent) // Receives touch via pointerInput
             .pointerInput(Unit) {
                 var totalDragY = 0f
                 detectDragGestures(
@@ -140,7 +140,8 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     .padding(bottom = 120.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Album Art (Small preview)
+                // Album Art (Small preview) - removed to allow full screen art to be seen better
+                /*
                 mediaState?.art?.let {
                     Surface(
                         modifier = Modifier
@@ -156,26 +157,28 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     }
                     Spacer(Modifier.height(16.dp))
                 }
+                */
 
                 Text(
                     text = mediaState?.title ?: "Unknown Title",
                     color = Color.White,
-                    fontSize = 22.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 32.sp
                 )
                 Text(
                     text = mediaState?.artist ?: "Unknown Artist",
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 16.sp,
+                    fontSize = 18.sp,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(32.dp))
 
                 // Controls
                 Row(

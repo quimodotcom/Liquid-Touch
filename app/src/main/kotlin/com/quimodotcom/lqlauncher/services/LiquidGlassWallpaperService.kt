@@ -935,7 +935,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Re-verify lock state immediately to prevent secret bleed
             updateLockState()
 
-            val currentBg = if (isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null) {
+            val isShowingMediaArt = isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null
+            val currentBg = if (isShowingMediaArt) {
                 mediaArtBitmap
             } else {
                 scaledWallpaper
@@ -950,6 +951,31 @@ class LiquidGlassWallpaperService : WallpaperService() {
             if (currentSub != lastSubBitmap) {
                 videoRenderer?.setSubject(currentSub)
                 lastSubBitmap = currentSub
+            }
+
+            // Update Video Renderer state for Animated Art
+            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
+                // Ensure video renderer is playing our animated cover
+                if (currentVideoPath != animatedMediaFile?.absolutePath) {
+                    videoRenderer?.setVideoSource(animatedMediaFile!!)
+                    currentVideoPath = animatedMediaFile?.absolutePath
+                }
+            } else if (!isLocked && currentVideoWallpaperPath != null && !isPowerSaveMode) {
+                 // Home Screen Video Background
+                 if (currentVideoPath != currentVideoWallpaperPath) {
+                     val file = java.io.File(currentVideoWallpaperPath!!)
+                     if (file.exists()) {
+                         videoRenderer?.setVideoSource(file)
+                         currentVideoPath = currentVideoWallpaperPath
+                     }
+                 }
+            } else {
+                 // No video should be playing if we are not showing media art on lock screen
+                 // or if no home screen video is set.
+                 if (currentVideoPath != null) {
+                     videoRenderer?.reset()
+                     currentVideoPath = null
+                 }
             }
 
             // Render UI to Bitmap, then pass to GL
