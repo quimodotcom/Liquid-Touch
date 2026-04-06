@@ -130,6 +130,64 @@ fun LiquidGlassSettingsScreen(
                         }
                     }
 
+                    item {
+                        var showDayTimePicker by remember { mutableStateOf(false) }
+                        var showNightTimePicker by remember { mutableStateOf(false) }
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            color = Color(0xFF1A1A24),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Wallpaper Schedule", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column(
+                                        modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
+                                        Text("Day", color = Color.Gray, fontSize = 12.sp)
+                                        Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Column(
+                                        modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
+                                        Text("Night", color = Color.Gray, fontSize = 12.sp)
+                                        Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+
+                        if (showDayTimePicker) {
+                            TimePickerDialog(
+                                initialHour = settings.dayStartHour,
+                                initialMinute = settings.dayStartMinute,
+                                onTimeSelected = { h, m ->
+                                    onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
+                                    showDayTimePicker = false
+                                },
+                                onDismiss = { showDayTimePicker = false }
+                            )
+                        }
+
+                        if (showNightTimePicker) {
+                            TimePickerDialog(
+                                initialHour = settings.nightStartHour,
+                                initialMinute = settings.nightStartMinute,
+                                onTimeSelected = { h, m ->
+                                    onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
+                                    showNightTimePicker = false
+                                },
+                                onDismiss = { showNightTimePicker = false }
+                            )
+                        }
+                    }
+
 
                     // === 2. VISUAL EFFECTS ===
                     item {
@@ -594,64 +652,6 @@ fun LiquidGlassSettingsScreen(
                             description = "Save layout and settings to file",
                             onClick = onExportSchematic
                         )
-                    }
-
-                    item {
-                        var showDayTimePicker by remember { mutableStateOf(false) }
-                        var showNightTimePicker by remember { mutableStateOf(false) }
-
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            color = Color(0xFF1A1A24),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Wallpaper Schedule", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.height(8.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Column(
-                                        modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
-                                        Text("Day", color = Color.Gray, fontSize = 12.sp)
-                                        Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                    Column(
-                                        modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
-                                        Text("Night", color = Color.Gray, fontSize = 12.sp)
-                                        Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-
-                        if (showDayTimePicker) {
-                            TimePickerDialog(
-                                initialHour = settings.dayStartHour,
-                                initialMinute = settings.dayStartMinute,
-                                onTimeSelected = { h, m ->
-                                    onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
-                                    showDayTimePicker = false
-                                },
-                                onDismiss = { showDayTimePicker = false }
-                            )
-                        }
-
-                        if (showNightTimePicker) {
-                            TimePickerDialog(
-                                initialHour = settings.nightStartHour,
-                                initialMinute = settings.nightStartMinute,
-                                onTimeSelected = { h, m ->
-                                    onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
-                                    showNightTimePicker = false
-                                },
-                                onDismiss = { showNightTimePicker = false }
-                            )
-                        }
                     }
 
                     item {
