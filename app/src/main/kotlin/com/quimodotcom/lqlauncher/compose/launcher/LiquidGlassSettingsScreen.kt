@@ -30,6 +30,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import android.view.HapticFeedbackConstants
 import kotlinx.coroutines.launch
 import android.widget.Toast
@@ -1222,13 +1224,17 @@ private fun SecretWallpaperPickerDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pickerLauncher = rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: android.net.Uri? ->
         if (uri != null) {
             // Take persistable permission
             try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) {}
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+            }
 
             onConfigChanged(currentConfig.copy(wallpaperSecretUri = uri.toString()))
             Toast.makeText(context, "Secret wallpaper set!", Toast.LENGTH_SHORT).show()
@@ -1241,8 +1247,14 @@ private fun SecretWallpaperPickerDialog(
         title = { Text("Secret Wallpaper") },
         text = { Text("Choose an image that will only be shown on your home screen after unlocking.") },
         confirmButton = {
-            TextButton(onClick = { pickerLauncher.launch("image/*") }) {
-                Text("Pick Image")
+            TextButton(onClick = {
+                pickerLauncher.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                    )
+                )
+            }) {
+                Text("Pick Image/Video")
             }
         },
         dismissButton = {

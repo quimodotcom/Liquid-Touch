@@ -695,28 +695,68 @@ private fun EditableLauncherScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clickable {
+                                    .then(
+                                        if (editModeState.isEnabled) {
+                                            Modifier
+                                                .background(
+                                                    Color.White.copy(alpha = 0.1f),
+                                                    RoundedCornerShape(12.dp)
+                                                )
+                                                .border(
+                                                    1.dp,
+                                                    Color.White.copy(alpha = 0.2f),
+                                                    RoundedCornerShape(12.dp)
+                                                )
+                                        } else Modifier
+                                    )
+                                    .pointerInput(editModeState.isEnabled) {
                                         if (!editModeState.isEnabled) {
-                                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                            when (item.action) {
-                                                LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
-                                                    glassSettings =
-                                                        glassSettings.copy(secretWallpaperVisible = !glassSettings.secretWallpaperVisible)
+                                            detectTapGestures(onTap = {
+                                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                                when (item.action) {
+                                                    LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
+                                                        val newState = !glassSettings.secretWallpaperVisible
+                                                        glassSettings = glassSettings.copy(secretWallpaperVisible = newState)
+                                                        // Ensure immediate reload for wallpaper service when visibility changes
+                                                        scope.launch {
+                                                            LiquidGlassSettingsRepository.saveSettings(context, glassSettings.copy(secretWallpaperVisible = newState))
+                                                        }
+                                                    }
+                                                    LauncherAction.OPEN_APP -> {
+                                                        item.targetPackageName?.let {
+                                                            launchApp(
+                                                                context,
+                                                                it
+                                                            )
+                                                        }
+                                                    }
+                                                    LauncherAction.OPEN_APP_DRAWER -> {
+                                                        showAppDrawer = true
+                                                    }
+                                                    LauncherAction.OPEN_SETTINGS -> {
+                                                        showSettings = true
+                                                    }
+                                                    else -> {}
                                                 }
-                                                LauncherAction.OPEN_APP -> {
-                                                    item.targetPackageName?.let { launchApp(context, it) }
-                                                }
-                                                LauncherAction.OPEN_APP_DRAWER -> {
-                                                    showAppDrawer = true
-                                                }
-                                                LauncherAction.OPEN_SETTINGS -> {
-                                                    showSettings = true
-                                                }
-                                                else -> {}
-                                            }
+                                            })
                                         }
-                                    }
-                            )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (editModeState.isEnabled) {
+                                    Icon(
+                                        imageVector = when (item.action) {
+                                            LauncherAction.TOGGLE_SECRET_WALLPAPER -> Icons.Rounded.Visibility
+                                            LauncherAction.OPEN_APP_DRAWER -> Icons.Rounded.Menu
+                                            LauncherAction.OPEN_SETTINGS -> Icons.Rounded.Settings
+                                            else -> Icons.Rounded.RadioButtonUnchecked
+                                        },
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
                         else -> {}
                     }
@@ -1136,8 +1176,10 @@ private fun EditableLauncherScreen(
             launcherConfig = launcherConfig,
             onConfigChanged = { newConfig ->
                 launcherConfig = newConfig
-                // Trigger wallpaper reload in service
-                context.sendBroadcast(Intent("com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED"))
+                // Explicitly save to trigger repository persistence and service broadcast
+                scope.launch {
+                    LauncherConfigRepository.saveConfig(context, newConfig)
+                }
             },
             onExportSchematic = {
                 exportSchematicLauncher.launch("liquid_glass_layout.json")
@@ -1197,167 +1239,6 @@ private fun EditableLauncherScreen(
     }
 }
 
-@Composable
-private fun LauncherItemView(
-    item: LauncherItem,
-    isEditMode: Boolean,
-    isSelected: Boolean,
-    backdrop: LayerBackdrop,
-    glassSettings: LiquidGlassSettings,
-    metadataVersion: Int,
-    cellWidth: Float,
-    cellHeight: Float,
-    gridColumns: Int,
-    gridRows: Int,
-    allItems: List<LauncherItem>,
-    context: Context,
-    onSelect: () -> Unit,
-    onMove: (Int, Int) -> Unit,
-    onResize: (Int, Int) -> Unit,
-    onDelete: () -> Unit,
-    onAddToFolder: (folderId: String, packageName: String) -> Unit,
-    onOpenFolder: (LauncherItem.Folder) -> Unit,
-    onLaunch: (String) -> Unit
-) {
-    val density = LocalDensity.current
-
-    val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
-    val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
-
-    // For apps: use 1:1 square cells (use cellWidth for both dimensions)
-    // For panels/folders: use flexible rectangular cells
-    val width = with(density) {
-        (item.spanX * cellWidth).toDp()
-    }
-    val height = with(density) {
-        if (item is LauncherItem.AppShortcut || item is LauncherItem.InvisibleButton) {
-            (item.spanY * cellWidth).toDp()  // Use cellWidth for 1:1 ratio
-        } else {
-            (item.spanY * cellHeight).toDp()  // Use cellHeight for panels/folders
-        }
-    }
-
-    EditModeWrapper(
-        item = item,
-        isSelected = isSelected,
-        isEditMode = isEditMode,
-        cellWidth = cellWidth,
-        cellHeight = cellHeight,
-        gridColumns = gridColumns,
-        gridRows = gridRows,
-        onSelect = onSelect,
-        onMove = { newX, newY ->
-            // Check if dropping onto a folder
-            if (item is LauncherItem.AppShortcut) {
-                val targetFolder = allItems.filterIsInstance<LauncherItem.Folder>().find { folder ->
-                    newX >= folder.gridX && newX < folder.gridX + folder.spanX &&
-                    newY >= folder.gridY && newY < folder.gridY + folder.spanY
-                }
-                if (targetFolder != null) {
-                    onAddToFolder(targetFolder.id, item.packageName)
-                    return@EditModeWrapper
-                }
-            }
-            onMove(newX, newY)
-        },
-        onResize = onResize,
-        onDelete = onDelete,
-        modifier = Modifier
-            .offset(x = offsetX, y = offsetY)
-            .size(width = width, height = height)
-            .padding(4.dp)
-    ) {
-        when (item) {
-            is LauncherItem.AppShortcut -> {
-                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
-                AppShortcutView(
-                    item = item,
-                    backdrop = backdrop,
-                    glassSettings = glassSettings,
-                    metadataVersion = metadataVersion,
-                    context = context,
-                    isEditMode = isEditMode,
-                    hasNotification = activeNotifications.contains(item.packageName),
-                    onLaunch = onLaunch,
-                    showLabel = glassSettings.showAppLabels,
-                    cellWidth = cellWidth
-                )
-            }
-            is LauncherItem.InvisibleButton -> {
-                val view = LocalView.current
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (isEditMode) {
-                                Modifier
-                                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                            } else Modifier
-                        )
-                        .clickable {
-                            if (!isEditMode) {
-                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                when (item.action) {
-                                    LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
-                                        // Interaction handled in parent screen
-                                    }
-                                    LauncherAction.OPEN_APP -> {
-                                        item.targetPackageName?.let { launchApp(context, it) }
-                                    }
-                                    else -> {}
-                                }
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isEditMode) {
-                        Icon(
-                            imageVector = when (item.action) {
-                                LauncherAction.TOGGLE_SECRET_WALLPAPER -> Icons.Rounded.Visibility
-                                LauncherAction.OPEN_APP_DRAWER -> Icons.Rounded.Menu
-                                LauncherAction.OPEN_SETTINGS -> Icons.Rounded.Settings
-                                else -> Icons.Rounded.RadioButtonUnchecked
-                            },
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-            is LauncherItem.GlassPanel -> {
-                Box {
-                    GlassPanelBackground(
-                        item = item,
-                        backdrop = backdrop,
-                        glassSettings = glassSettings,
-                        isEditMode = isEditMode
-                    )
-                    GlassPanelContent(
-                        item = item,
-                        glassSettings = glassSettings,
-                        isEditMode = isEditMode
-                    )
-                }
-            }
-            is LauncherItem.Folder -> {
-                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
-                val hasNotification = item.apps.any { activeNotifications.contains(it) }
-                FolderView(
-                    item = item,
-                    backdrop = backdrop,
-                    glassSettings = glassSettings,
-                    context = context,
-                    isEditMode = isEditMode,
-                    hasNotification = hasNotification,
-                    onOpenFolder = { onOpenFolder(item) },
-                    cellWidth = cellWidth
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun AppShortcutView(

@@ -84,9 +84,9 @@ fun WallpaperPickerDialog(
         }
     }
 
-    // Image picker launcher for Background (Day)
+    // Photo Picker launcher for Background (Image & Video)
     val backgroundPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
@@ -94,9 +94,9 @@ fun WallpaperPickerDialog(
         }
     }
 
-    // Image picker launcher for Background (Night)
+    // Photo Picker launcher for Background (Night)
     val backgroundNightPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
@@ -104,30 +104,9 @@ fun WallpaperPickerDialog(
         }
     }
 
-    // GIF picker launcher
-    val gifPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val persistedUri = persistWallpaperUri(context, it)
-            // Just use the standard setter for now, WallpaperService will detect GIF
-            onWallpaperSelected(persistedUri)
-        }
-    }
-
-    // Video picker launcher
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val persistedUri = persistWallpaperUri(context, it)
-            onWallpaperSelected(persistedUri)
-        }
-    }
-
-    // Image picker launcher for Subject
+    // Photo Picker launcher for Subject (Image only)
     val subjectPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
@@ -233,7 +212,13 @@ fun WallpaperPickerDialog(
                         title = "Day Wallpaper",
                         description = "Wallpaper for light theme",
                         isSelected = !useSystemWallpaper && currentWallpaperUri != null,
-                        onClick = { backgroundPickerLauncher.launch("*/*") }
+                        onClick = {
+                            backgroundPickerLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                )
+                            )
+                        }
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -244,7 +229,13 @@ fun WallpaperPickerDialog(
                         title = "Night Wallpaper",
                         description = "Wallpaper for dark theme",
                         isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
-                        onClick = { backgroundNightPickerLauncher.launch("*/*") }
+                        onClick = {
+                            backgroundNightPickerLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                )
+                            )
+                        }
                     )
 
                     Spacer(Modifier.height(24.dp))
@@ -321,7 +312,13 @@ fun WallpaperPickerDialog(
                             title = "Select Subject Image",
                             description = "Pick a transparent PNG",
                             isSelected = currentSubjectUri != null,
-                            onClick = { subjectPickerLauncher.launch("image/*") }
+                            onClick = {
+                                subjectPickerLauncher.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            }
                         )
 
                         if (currentSubjectUri != null) {

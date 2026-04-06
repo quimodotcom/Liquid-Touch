@@ -84,6 +84,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var isPowerSaveMode = false // Power Save Mode state
 
         private var gifJob: Job? = null
+        private var gifFrameBitmap: Bitmap? = null
         private var imageLoader: ImageLoader? = null
 
         // Drawing objects
@@ -818,11 +819,26 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         val drawable = result.drawable
                         if (drawable is android.graphics.drawable.Animatable) {
                             drawable.start()
+
+                            val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 512
+                            val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 512
+
+                            // Re-use frame bitmap to prevent memory leak
+                            if (gifFrameBitmap == null || gifFrameBitmap!!.width != width || gifFrameBitmap!!.height != height) {
+                                gifFrameBitmap?.recycle()
+                                gifFrameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            }
+
+                            val canvas = Canvas(gifFrameBitmap!!)
+
                             while (isActive) {
-                                val bitmap = drawableToBitmap(drawable)
-                                if (bitmap != null) {
-                                    videoRenderer?.updateGifFrame(bitmap)
-                                }
+                                // Clear previous frame
+                                gifFrameBitmap!!.eraseColor(Color.TRANSPARENT)
+                                drawable.setBounds(0, 0, width, height)
+                                drawable.draw(canvas)
+
+                                videoRenderer?.updateGifFrame(gifFrameBitmap!!)
+
                                 delay(33) // ~30fps
                                 draw()
                             }
@@ -831,20 +847,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 } catch (e: Exception) {
                     Log.e("LiquidGlassWallpaper", "GIF error", e)
                 }
-            }
-        }
-
-        private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): Bitmap? {
-            try {
-                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 512
-                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 512
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(bitmap)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                return bitmap
-            } catch (e: Exception) {
-                return null
             }
         }
 
