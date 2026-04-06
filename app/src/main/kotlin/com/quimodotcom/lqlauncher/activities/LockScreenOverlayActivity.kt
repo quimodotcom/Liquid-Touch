@@ -30,7 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import com.quimodotcom.lqlauncher.services.MediaStateRepository
+import com.quimodotcom.lqlauncher.services.NotificationItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,8 +74,106 @@ class LockScreenOverlayActivity : ComponentActivity() {
 }
 
 @Composable
+fun NotificationList(
+    notifications: List<NotificationItem>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    LazyColumn(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(notifications, key = { it.key }) { item ->
+            NotificationCard(
+                item = item,
+                onDismiss = {
+                    val service = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                    // NotificationListenerService.cancelNotification is usually needed,
+                    // but we can try to send broadcast to our service
+                    val intent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION")
+                    intent.putExtra("key", item.key)
+                    context.sendBroadcast(intent)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun NotificationCard(
+    item: NotificationItem,
+    onDismiss: () -> Unit
+) {
+    var offsetX by remember { mutableStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(x = (offsetX / 3).dp) // Visual feedback
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        offsetX += dragAmount.x
+                    },
+                    onDragEnd = {
+                        if (kotlin.math.abs(offsetX) > 300f) {
+                            onDismiss()
+                        } else {
+                            offsetX = 0f
+                        }
+                    }
+                )
+            }
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.15f))
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Icon Placeholder (Simplified)
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Rounded.Notifications,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = item.title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = item.text,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
     val mediaState by MediaStateRepository.mediaState.collectAsState()
+    val notifications by MediaStateRepository.activeNotifications.collectAsState()
     val context = LocalContext.current
 
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -131,6 +232,14 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                 fontSize = 18.sp
             )
         }
+
+        // Notifications List
+        NotificationList(
+            notifications = notifications,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 220.dp, bottom = 260.dp)
+        )
 
         if (mediaState != null) {
             Column(

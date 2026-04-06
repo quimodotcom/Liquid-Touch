@@ -3,12 +3,15 @@ package com.quimodotcom.lqlauncher.services
 import android.app.Notification
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSession
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.util.Log
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +35,26 @@ class MediaListenerService : NotificationListenerService() {
         super.onListenerConnected()
         checkActiveSessions()
         updateActiveNotifications()
+
+        val filter = IntentFilter("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION")
+        registerReceiver(cancelReceiver, filter)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(cancelReceiver)
+        } catch (e: Exception) {}
+    }
+
+    private val cancelReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val key = intent?.getStringExtra("key")
+            if (key != null) {
+                cancelNotification(key)
+                updateActiveNotifications()
+            }
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -46,9 +69,36 @@ class MediaListenerService : NotificationListenerService() {
 
     private fun updateActiveNotifications() {
         try {
-            val activeNotifications = activeNotifications
-            val packages = activeNotifications.map { it.packageName }.toSet()
+            val active = activeNotifications
+            val packages = active.map { it.packageName }.toSet()
             _activeNotificationPackages.value = packages
+
+            // Build List for Repository (Filtering Media/Self)
+            val items = active.mapNotNull { sbn ->
+                val extras = sbn.notification.extras
+                val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
+                val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+
+                // Ignore media notifications (Now Playing) and self
+                val isMedia = extras.containsKey(Notification.EXTRA_MEDIA_SESSION) ||
+                               sbn.notification.category == Notification.CATEGORY_TRANSPORT
+                val isSelf = sbn.packageName == packageName
+
+                if (title.isNotBlank() && !isMedia && !isSelf) {
+                    NotificationItem(
+                        id = sbn.id,
+                        key = sbn.key,
+                        packageName = sbn.packageName,
+                        title = title,
+                        text = text,
+                        icon = sbn.notification.smallIcon,
+                        timestamp = sbn.postTime
+                    )
+                } else null
+            }.sortedByDescending { it.timestamp }
+
+            MediaStateRepository.updateNotifications(items)
+
         } catch (e: Exception) {
             Log.e("MediaListenerService", "Error updating active notifications", e)
         }

@@ -1,6 +1,7 @@
 package com.quimodotcom.lqlauncher.services
 
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.media.session.MediaController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,9 +16,22 @@ data class MediaState(
     val isPlaying: Boolean = false
 )
 
+data class NotificationItem(
+    val id: Int,
+    val key: String,
+    val packageName: String,
+    val title: String,
+    val text: String,
+    val icon: Icon?,
+    val timestamp: Long
+)
+
 object MediaStateRepository {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
+
+    private val _activeNotifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val activeNotifications: StateFlow<List<NotificationItem>> = _activeNotifications.asStateFlow()
 
     private var activeController: MediaController? = null
 
@@ -26,6 +40,10 @@ object MediaStateRepository {
         if (controller != null) {
             activeController = controller
         }
+    }
+
+    fun updateNotifications(notifications: List<NotificationItem>) {
+        _activeNotifications.value = notifications
     }
 
     fun playPause() {

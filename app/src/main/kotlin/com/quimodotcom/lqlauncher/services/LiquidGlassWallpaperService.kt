@@ -936,6 +936,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
             updateLockState()
 
             val isShowingMediaArt = isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null
+
+            // Media Art is now ONLY static background on lockscreen to avoid overlaps with animated overlay
             val currentBg = if (isShowingMediaArt) {
                 mediaArtBitmap
             } else {
@@ -954,7 +956,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
 
             // Update Video Renderer state for Animated Art
-            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
+            // Disabled on lock screen to avoid overlapping with interactive overlay
+            if (false && isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
                 // Ensure video renderer is playing our animated cover
                 if (currentVideoPath != animatedMediaFile?.absolutePath) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
@@ -1050,61 +1053,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Hide media info in Ambient Mode to reduce clutter/burn-in
             if (isInAmbientMode) return bmp
 
-            // --- Draw Media Info ---
-            if (mediaTitle.isBlank() && mediaArtist.isBlank()) return bmp
-
-            // Position text near the bottom
-            val bottomMargin = BOTTOM_MARGIN_DP * density
-            var currentY = h - bottomMargin
-            val maxWidth = (w - (40f * density)).toInt() // 20dp padding each side
-
-            if (maxWidth > 0) {
-                // Let's re-do properly stacking upwards
-                var yPos = h - bottomMargin
-
-                // 1. Artist
-                if (mediaArtist.isNotBlank()) {
-                    val artistTextPaint = android.text.TextPaint(artistPaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val artistLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaArtist, 0, mediaArtist.length, artistTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= artistLayout.height
-                    cvs.save()
-                    cvs.translate(centerX - (maxWidth / 2), yPos)
-                    artistLayout.draw(cvs)
-                    cvs.restore()
-                }
-
-                // 2. Gap
-                yPos -= (TEXT_GAP_DP * density)
-
-                // 3. Title
-                if (mediaTitle.isNotBlank()) {
-                    val titleTextPaint = android.text.TextPaint(titlePaint).apply {
-                        textAlign = Paint.Align.LEFT
-                    }
-                    val titleLayout = android.text.StaticLayout.Builder.obtain(
-                        mediaTitle, 0, mediaTitle.length, titleTextPaint, maxWidth
-                    )
-                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER)
-                        .setLineSpacing(0f, 1.0f)
-                        .setIncludePad(false)
-                        .build()
-
-                    yPos -= titleLayout.height
-                    cvs.save()
-                    cvs.translate(centerX - (maxWidth / 2), yPos)
-                    titleLayout.draw(cvs)
-                    cvs.restore()
-                }
-            }
+            // Media Info is now handled by the interactive overlay
 
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {
