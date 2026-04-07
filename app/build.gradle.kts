@@ -87,6 +87,8 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            // Use consistent signing for debug builds to allow OTA updates from CI
+            signingConfig = signingConfigs.getByName("release")
         }
         release {
             isMinifyEnabled = true

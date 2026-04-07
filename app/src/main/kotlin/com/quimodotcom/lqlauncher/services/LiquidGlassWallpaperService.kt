@@ -979,8 +979,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
 
             // Update Video Renderer state for Animated Art
-            // Disabled on lock screen to avoid overlapping with interactive overlay
-            if (false && isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
+            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
                 // Ensure video renderer is playing our animated cover
                 if (currentVideoPath != animatedMediaFile?.absolutePath) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)

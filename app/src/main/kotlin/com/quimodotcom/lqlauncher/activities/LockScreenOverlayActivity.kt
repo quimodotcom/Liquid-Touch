@@ -249,8 +249,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     .padding(bottom = 120.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Album Art (Small preview) - removed to allow full screen art to be seen better
-                /*
+                // Album Art (Small preview)
                 mediaState?.art?.let {
                     Surface(
                         modifier = Modifier
@@ -266,7 +265,6 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     }
                     Spacer(Modifier.height(16.dp))
                 }
-                */
 
                 Text(
                     text = mediaState?.title ?: "Unknown Title",
