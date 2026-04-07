@@ -285,7 +285,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         }
 
                         // Handle Animated Art (load high-res frame from video URL)
-                        if (state.animatedArtUrl != null) {
+                        if (settings.enableLockScreenMediaArt && state.animatedArtUrl != null) {
                             DebugLogger.log("WallpaperService", "Loading Animated Art: ${state.animatedArtUrl}")
                             try {
                                 val dm = resources.displayMetrics

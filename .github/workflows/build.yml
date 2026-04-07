@@ -37,17 +37,17 @@ jobs:
             keytool -genkey -v -keystore app/keystore/myrelease.jks -alias dummy -keyalg RSA -keysize 2048 -validity 10000 -storepass dummy -keypass dummy -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
           fi
           # Ensure credentials files exist for local-fallback logic in build.gradle
-          echo "${{ secrets.SIGNING_STORE_PASSWORD || 'dummy' }}" > app/keystore/storePassword.txt
+          echo "${{ secrets.SIGNING_STORE_PASSWORD || 'dummydefault' }}" > app/keystore/storePassword.txt
           echo "${{ secrets.SIGNING_KEY_ALIAS || 'dummy' }}" > app/keystore/keyAlias.txt
-          echo "${{ secrets.SIGNING_KEY_PASSWORD || 'dummy' }}" > app/keystore/keyPassword.txt
+          echo "${{ secrets.SIGNING_KEY_PASSWORD || 'dummydefault' }}" > app/keystore/keyPassword.txt
 
       - name: Build Debug APK
         env:
           # Prefer ENV vars for signingConfig in build.gradle
           SIGNING_STORE_FILE: keystore/myrelease.jks
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'dummy' }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'dummydefault' }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS || 'dummy' }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || 'dummy' }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || 'dummydefault' }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK

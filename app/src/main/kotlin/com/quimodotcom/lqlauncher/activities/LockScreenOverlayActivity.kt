@@ -30,6 +30,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.quimodotcom.lqlauncher.services.MediaStateRepository
@@ -105,23 +112,41 @@ fun NotificationCard(
     item: NotificationItem,
     onDismiss: () -> Unit
 ) {
-    var offsetX by remember { mutableStateOf(0f) }
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .offset(x = (offsetX / 3).dp) // Visual feedback
-            .pointerInput(Unit) {
+            .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+            .pointerInput(item.key) {
                 detectDragGestures(
+                    onDragStart = { },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        offsetX += dragAmount.x
+                        scope.launch {
+                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                        }
                     },
                     onDragEnd = {
-                        if (kotlin.math.abs(offsetX) > 300f) {
-                            onDismiss()
+                        val threshold = 150f * density.density
+                        if (kotlin.math.abs(offsetX.value) > threshold) {
+                            scope.launch {
+                                // Animate off screen
+                                val target = if (offsetX.value > 0) size.width.toFloat() else -size.width.toFloat()
+                                offsetX.animateTo(target, tween(200))
+                                onDismiss()
+                            }
                         } else {
-                            offsetX = 0f
+                            scope.launch {
+                                offsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            offsetX.animateTo(0f)
                         }
                     }
                 )
