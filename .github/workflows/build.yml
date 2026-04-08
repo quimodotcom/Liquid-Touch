@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
-      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD || 'dummydefault' }}
-      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS || 'dummy' }}
-      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD || 'dummydefault' }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -32,22 +32,27 @@ jobs:
 
       - name: Decode and Prepare Keystore
         run: |
-          mkdir -p app/keystore
-          if [[ -n "$SIGNING_KEY_STORE_BASE64" ]]; then
-            echo "Using provided signing secret..."
-            echo "$SIGNING_KEY_STORE_BASE64" | base64 --decode > app/keystore/myrelease.jks
-          else
-            echo "Generating deterministic dummy keystore..."
-            keytool -genkey -v -keystore app/keystore/myrelease.jks -alias "$SIGNING_KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SIGNING_STORE_PASSWORD" -keypass "$SIGNING_KEY_PASSWORD" -dname "CN=Unknown, OU=Unknown, O=Unknown, L=Unknown, ST=Unknown, C=Unknown"
+          if [[ -z "$SIGNING_KEY_STORE_BASE64" ]]; then
+            echo "Error: SIGNING_KEY_STORE_BASE64 secret is missing!"
+            exit 1
           fi
-          # Ensure credentials files exist for local-fallback logic in build.gradle
+          if [[ -z "$SIGNING_STORE_PASSWORD" || -z "$SIGNING_KEY_ALIAS" || -z "$SIGNING_KEY_PASSWORD" ]]; then
+            echo "Error: One or more signing secrets are missing!"
+            exit 1
+          fi
+
+          mkdir -p app/keystore
+          echo "Decoding keystore..."
+          echo "$SIGNING_KEY_STORE_BASE64" | base64 --decode > app/keystore/myrelease.jks
+
+          # Populate credential files for Gradle local fallback logic
           echo "$SIGNING_STORE_PASSWORD" > app/keystore/storePassword.txt
           echo "$SIGNING_KEY_ALIAS" > app/keystore/keyAlias.txt
           echo "$SIGNING_KEY_PASSWORD" > app/keystore/keyPassword.txt
 
-          # Verify keystore
+          # Final validation
           if [[ ! -s app/keystore/myrelease.jks ]]; then
-            echo "Keystore file is empty or missing!"
+            echo "Error: Decoded keystore file is empty!"
             exit 1
           fi
 
