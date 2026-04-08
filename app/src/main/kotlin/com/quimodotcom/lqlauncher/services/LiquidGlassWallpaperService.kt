@@ -602,6 +602,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
+                DebugLogger.log("WallpaperService", "Loading wallpapers... target: ${targetW}x${targetH}, config: ${config != null}")
 
                 // Determine if it's currently "night" based on custom settings or system theme
                 val calendar = Calendar.getInstance()
@@ -620,7 +621,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val isDark = isCustomNight || isSystemNight
 
                 val mainUri = if (isLocked) {
-                    if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
+                    val uri = if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
+                    DebugLogger.log("WallpaperService", "Locked mode. Night: $isDark, Uri: $uri")
+                    uri
                 } else {
                     if (settings.secretWallpaperVisible) {
                         config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
