@@ -602,7 +602,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
-                DebugLogger.log("WallpaperService", "Loading wallpapers... target: ${targetW}x${targetH}, config: ${config != null}")
 
                 // Determine if it's currently "night" based on custom settings or system theme
                 val calendar = Calendar.getInstance()
@@ -621,9 +620,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val isDark = isCustomNight || isSystemNight
 
                 val mainUri = if (isLocked) {
-                    val uri = if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
-                    DebugLogger.log("WallpaperService", "Locked mode. Night: $isDark, Uri: $uri")
-                    uri
+                    if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
                 } else {
                     if (settings.secretWallpaperVisible) {
                         config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
@@ -708,6 +705,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private suspend fun updateScaledBitmaps(width: Int, height: Int) = withContext(Dispatchers.Default) {
             if (width <= 0 || height <= 0) return@withContext
+            DebugLogger.log("WallpaperService", "Scaling bitmaps to ${width}x${height}")
 
             // Scale Wallpaper
             val srcWp = wallpaperBitmap
@@ -717,11 +715,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     scaledWallpaper?.recycle()
                     scaledWallpaper = scaled
                 }
+                DebugLogger.log("WallpaperService", "Wallpaper scaled successfully")
             } else {
                 synchronized(this@LiquidGlassEngine) {
                     scaledWallpaper?.recycle()
                     scaledWallpaper = null
                 }
+                DebugLogger.log("WallpaperService", "Wallpaper bitmap null or recycled, scaled version cleared")
             }
 
             // Scale Subject
@@ -970,6 +970,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 scaledWallpaper
             }
 
+            if (isLocked) {
+                DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, currentBg=${currentBg != null}")
+            }
+
             if (currentBg != lastBgBitmap) {
                 videoRenderer?.setBackground(currentBg)
                 lastBgBitmap = currentBg
@@ -1076,6 +1080,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Standard Lockscreen UI (Redundant with overlay - keep empty for now)
             // Or only draw if overlay launch failed?
             // Let's keep it clean as requested.
+            // However, we MUST render a subtle shadow/gradient if media info is NOT playing to prevent blank looks
+            if (!isLocked) {
+                 // Unlocked: drawing nothing here is fine, the launcher handles UI
+            } else {
+                 // Locked: overlay is active, keep this bitmap nearly empty (only debug logs)
+            }
 
             // --- Draw Debug Logs ---
             if (settings.showDebugLogs) {

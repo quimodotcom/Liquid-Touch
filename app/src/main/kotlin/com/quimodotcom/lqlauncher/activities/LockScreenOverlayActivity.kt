@@ -220,7 +220,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent) // Receives touch via pointerInput
+            .background(Color.Black.copy(alpha = 0.01f)) // Almost transparent but receives touch
             .pointerInput(Unit) {
                 var totalDragY = 0f
                 detectDragGestures(
