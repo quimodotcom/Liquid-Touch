@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
       SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
       SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
       SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
@@ -32,8 +32,8 @@ jobs:
 
       - name: Decode and Prepare Keystore
         run: |
-          if [[ -z "$SIGNING_KEY_STORE_BASE64" ]]; then
-            echo "Error: SIGNING_KEY_STORE_BASE64 secret is missing!"
+          if [[ -z "$SIGNING_KEYSTORE_BASE64" ]]; then
+            echo "Error: SIGNING_KEYSTORE_BASE64 secret is missing!"
             exit 1
           fi
           if [[ -z "$SIGNING_STORE_PASSWORD" || -z "$SIGNING_KEY_ALIAS" || -z "$SIGNING_KEY_PASSWORD" ]]; then
