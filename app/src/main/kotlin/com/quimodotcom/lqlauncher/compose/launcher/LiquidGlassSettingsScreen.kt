@@ -130,63 +130,6 @@ fun LiquidGlassSettingsScreen(
                         }
                     }
 
-                    item {
-                        var showDayTimePicker by remember { mutableStateOf(false) }
-                        var showNightTimePicker by remember { mutableStateOf(false) }
-
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            color = Color(0xFF1A1A24),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Wallpaper Schedule", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.height(8.dp))
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Column(
-                                        modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
-                                        Text("Day", color = Color.Gray, fontSize = 12.sp)
-                                        Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                    Column(
-                                        modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
-                                        Text("Night", color = Color.Gray, fontSize = 12.sp)
-                                        Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-
-                        if (showDayTimePicker) {
-                            TimePickerDialog(
-                                initialHour = settings.dayStartHour,
-                                initialMinute = settings.dayStartMinute,
-                                onTimeSelected = { h, m ->
-                                    onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
-                                    showDayTimePicker = false
-                                },
-                                onDismiss = { showDayTimePicker = false }
-                            )
-                        }
-
-                        if (showNightTimePicker) {
-                            TimePickerDialog(
-                                initialHour = settings.nightStartHour,
-                                initialMinute = settings.nightStartMinute,
-                                onTimeSelected = { h, m ->
-                                    onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
-                                    showNightTimePicker = false
-                                },
-                                onDismiss = { showNightTimePicker = false }
-                            )
-                        }
-                    }
 
 
                     // === 2. VISUAL EFFECTS ===
@@ -1276,31 +1219,6 @@ private fun SecretWallpaperPickerDialog(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimePickerDialog(
-    initialHour: Int,
-    initialMinute: Int,
-    onTimeSelected: (Int, Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute)
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1A1A24)) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Select Time", color = Color.White, style = MaterialTheme.typography.headlineSmall)
-                Spacer(Modifier.height(24.dp))
-                TimePicker(state = state)
-                Spacer(Modifier.height(24.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    TextButton(onClick = { onTimeSelected(state.hour, state.minute) }) { Text("OK") }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun SettingItem(

@@ -979,6 +979,8 @@ private fun EditableLauncherScreen(
 
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
+            settings = glassSettings,
+            onSettingsChanged = { glassSettings = it },
             currentWallpaperUri = launcherConfig.wallpaperUri,
             currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,

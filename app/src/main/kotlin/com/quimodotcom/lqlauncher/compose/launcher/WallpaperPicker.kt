@@ -30,7 +30,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalView
@@ -44,8 +46,39 @@ private enum class InteractionType {
 /**
  * Wallpaper picker dialog with support for Background and Foreground (Subject) layers
  */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onTimeSelected: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute)
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFF1A1A24)) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Select Time", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(24.dp))
+                TimePicker(state = state)
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onTimeSelected(state.hour, state.minute) }) { Text("OK") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Wallpaper picker dialog with support for Background and Foreground (Subject) layers
+ */
 @Composable
 fun WallpaperPickerDialog(
+    settings: LiquidGlassSettings,
+    onSettingsChanged: (LiquidGlassSettings) -> Unit,
     currentWallpaperUri: String?,
     currentWallpaperNightUri: String? = null,
     useSystemWallpaper: Boolean,
@@ -63,6 +96,8 @@ fun WallpaperPickerDialog(
     onInteractionEnd: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    var showDayTimePicker by remember { mutableStateOf(false) }
+    var showNightTimePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val view = LocalView.current
 
@@ -237,6 +272,62 @@ fun WallpaperPickerDialog(
                             )
                         }
                     )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Text("Schedule", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        color = Color(0xFF2E2E3E),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(
+                                    modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
+                                    Text("Day", color = Color.Gray, fontSize = 12.sp)
+                                    Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
+                                    Text("Night", color = Color.Gray, fontSize = 12.sp)
+                                    Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    if (showDayTimePicker) {
+                        TimePickerDialog(
+                            initialHour = settings.dayStartHour,
+                            initialMinute = settings.dayStartMinute,
+                            onTimeSelected = { h, m ->
+                                onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
+                                showDayTimePicker = false
+                            },
+                            onDismiss = { showDayTimePicker = false }
+                        )
+                    }
+
+                    if (showNightTimePicker) {
+                        TimePickerDialog(
+                            initialHour = settings.nightStartHour,
+                            initialMinute = settings.nightStartMinute,
+                            onTimeSelected = { h, m ->
+                                onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
+                                showNightTimePicker = false
+                            },
+                            onDismiss = { showNightTimePicker = false }
+                        )
+                    }
 
                     Spacer(Modifier.height(24.dp))
 
