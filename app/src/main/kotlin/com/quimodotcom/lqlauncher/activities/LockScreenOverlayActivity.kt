@@ -274,23 +274,6 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     .padding(bottom = 120.dp, start = 24.dp, end = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Album Art (Small preview)
-                mediaState?.art?.let {
-                    Surface(
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                        color = Color.DarkGray
-                    ) {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
-
                 Text(
                     text = mediaState?.title ?: "Unknown Title",
                     color = Color.White,
