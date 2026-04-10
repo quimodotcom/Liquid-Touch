@@ -510,7 +510,7 @@ fun LiquidGlassSettingsScreen(
                     item {
                         SwitchSetting(
                             title = "Lock Screen Media Art",
-                            subtitle = "Show full screen album art when music plays",
+                            subtitle = "Show full screen album art on lock screen",
                             checked = settings.enableLockScreenMediaArt,
                             onCheckedChange = { enabled ->
                                 if (enabled) {
@@ -527,6 +527,30 @@ fun LiquidGlassSettingsScreen(
                                     }
                                 }
                                 onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
+                            }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Home Screen Media Art",
+                            subtitle = "Show full screen album art on home screen",
+                            checked = settings.enableHomeMediaArt,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(enableHomeMediaArt = enabled))
                             }
                         )
                     }

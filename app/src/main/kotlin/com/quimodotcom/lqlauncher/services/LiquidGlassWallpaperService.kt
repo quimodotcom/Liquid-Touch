@@ -961,20 +961,18 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Re-verify lock state immediately to prevent secret bleed
             updateLockState()
 
-            val isShowingMediaArt = isLocked && settings.enableLockScreenMediaArt && mediaArtBitmap != null
+            val isShowingMediaArt = (isLocked && settings.enableLockScreenMediaArt) || settings.enableHomeMediaArt
+            val artToDisplay = if (isShowingMediaArt) mediaArtBitmap else null
 
             // Media Art is now ONLY static background on lockscreen to avoid overlaps with animated overlay
-            val currentBg = if (isShowingMediaArt) {
-                mediaArtBitmap
-            } else {
-                scaledWallpaper
-            }
+            val currentBg = artToDisplay ?: scaledWallpaper
 
             if (isLocked) {
                 DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, currentBg=${currentBg != null}")
             }
 
-            if (currentBg != lastBgBitmap) {
+            // Identity check to avoid redundant texture uploads
+            if (currentBg !== lastBgBitmap) {
                 videoRenderer?.setBackground(currentBg)
                 lastBgBitmap = currentBg
             }

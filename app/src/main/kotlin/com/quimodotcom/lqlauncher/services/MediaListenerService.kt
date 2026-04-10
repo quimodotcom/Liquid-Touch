@@ -13,6 +13,8 @@ import android.service.notification.StatusBarNotification
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.util.Log
+import coil.imageLoader
+import coil.request.ImageRequest
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -164,9 +166,15 @@ class MediaListenerService : NotificationListenerService() {
             activeController?.registerCallback(mediaCallback)
         }
 
-        // Try to get album art
-        val bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+        // Try to get album art bitmap directly
+        var bitmap = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                     ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                    ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+
+        // Fallback: Try to get artwork URI if bitmap is null
+        val artUri = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+                    ?: metadata.getString(MediaMetadata.METADATA_KEY_ART_URI)
+                    ?: metadata.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
 
         val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
         val artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
@@ -175,10 +183,13 @@ class MediaListenerService : NotificationListenerService() {
 
         // Check if song changed
         if (title == lastTitle && artist == lastArtist) {
-            // Update state if changed, but preserve current animated URL
+            // Update state if changed, but preserve current art if metadata bitmap is null (e.g. URI-loaded art)
             val currentState = MediaStateRepository.mediaState.value
-            if (currentState != null && (currentState.art != bitmap || currentState.isPlaying != isPlaying)) {
-                MediaStateRepository.update(currentState.copy(art = bitmap, isPlaying = isPlaying), controller)
+            if (currentState != null) {
+                val nextArt = bitmap ?: currentState.art
+                if (nextArt != currentState.art || currentState.isPlaying != isPlaying) {
+                    MediaStateRepository.update(currentState.copy(art = nextArt, isPlaying = isPlaying), controller)
+                }
             }
             return
         }
@@ -192,9 +203,31 @@ class MediaListenerService : NotificationListenerService() {
         // 2. Immediate update for responsiveness (show static art first)
         MediaStateRepository.update(MediaState(title, artist, bitmap, null, album, isPlaying), controller)
 
-        // 3. Fetch animated cover asynchronously
-        if (title.isNotBlank() && artist.isNotBlank()) {
-            currentFetchJob = serviceScope.launch {
+        // 3. Fetch animated cover and URI-based art asynchronously
+        currentFetchJob = serviceScope.launch {
+            // A. Fetch URI-based art if bitmap is missing
+            if (bitmap == null && artUri != null) {
+                try {
+                    val loader = this@MediaListenerService.imageLoader
+                    val request = ImageRequest.Builder(this@MediaListenerService)
+                        .data(artUri)
+                        .allowHardware(false) // Need software bitmap for wallpaper processing
+                        .build()
+                    val result = loader.execute(request)
+                    if (result is coil.request.SuccessResult) {
+                        bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        if (bitmap != null && isActive) {
+                            val currentState = MediaStateRepository.mediaState.value
+                            MediaStateRepository.update(currentState?.copy(art = bitmap) ?: MediaState(title, artist, bitmap, null, album, isPlaying), controller)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("MediaListenerService", "Error loading art URI: $artUri", e)
+                }
+            }
+
+            // B. Fetch animated cover
+            if (title.isNotBlank() && artist.isNotBlank()) {
                 val animatedUrl = AppleMusicIntegration.searchAndGetAnimatedCover(title, artist, album)
 
                 // Only update if we found a URL and the job is still active
@@ -204,6 +237,5 @@ class MediaListenerService : NotificationListenerService() {
                 }
             }
         }
-
     }
 }

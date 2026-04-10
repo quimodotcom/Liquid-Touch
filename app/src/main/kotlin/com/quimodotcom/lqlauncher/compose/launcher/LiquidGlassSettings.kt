@@ -75,7 +75,8 @@ data class LiquidGlassSettings(
     val parallaxIntensity: Float = 0.2f,
 
     // Lock Screen
-    val enableLockScreenMediaArt: Boolean = false,
+    val enableLockScreenMediaArt: Boolean = true,
+    val enableHomeMediaArt: Boolean = false,
     val enableLockScreenControls: Boolean = false,
 
     // Debug & Updates
