@@ -95,11 +95,10 @@ fun NotificationList(
             NotificationCard(
                 item = item,
                 onDismiss = {
-                    val service = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
-                    // NotificationListenerService.cancelNotification is usually needed,
-                    // but we can try to send broadcast to our service
-                    val intent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION")
-                    intent.putExtra("key", item.key)
+                    val intent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION").apply {
+                        setPackage(context.packageName)
+                        putExtra("key", item.key)
+                    }
                     context.sendBroadcast(intent)
                 }
             )

@@ -57,8 +57,14 @@ class MediaListenerService : NotificationListenerService() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val key = intent?.getStringExtra("key")
             if (key != null) {
-                cancelNotification(key)
-                updateActiveNotifications()
+                try {
+                    cancelNotification(key)
+                    // Notification removed event will trigger updateActiveNotifications automatically,
+                    // but we call it here too for immediate UI feedback.
+                    updateActiveNotifications()
+                } catch (e: Exception) {
+                    Log.e("MediaListenerService", "Failed to cancel notification: $key", e)
+                }
             }
         }
     }
