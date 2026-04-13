@@ -69,57 +69,82 @@ object AppleMusicIntegration {
             }
 
             // 2. Search iTunes to get Apple Music ID
-            // Include album in query if available for better accuracy
-            val queryTerm = if (!album.isNullOrBlank()) {
-                 "$title $artist $album"
-            } else {
-                 "$title $artist"
-            }
-            val query = queryTerm.replace(" ", "+")
-            val searchUrl = "https://itunes.apple.com/search?term=$query&entity=album&limit=1"
+            val queryTerm = "$title $artist"
+            val query = java.net.URLEncoder.encode(queryTerm, "UTF-8")
+            val searchUrl = "https://itunes.apple.com/search?term=$query&entity=song&limit=5"
             val searchReq = Request.Builder().url(searchUrl).build()
 
             val searchResp = runInterruptible { client.newCall(searchReq).execute() }
             val searchBody = searchResp.body?.string() ?: return@withContext null
 
             val searchObj = JSONObject(searchBody)
-            if (searchObj.optInt("resultCount") == 0) return@withContext null
-
-            val result = searchObj.getJSONArray("results").getJSONObject(0)
-            val collectionId = result.optString("collectionId")
-
-            if (collectionId.isEmpty()) return@withContext null
-
-            // 3. Fetch Album Details from AMP API
-            // Use 'us' as default store front
-            val country = "us"
-            val ampUrl = "https://amp-api.music.apple.com/v1/catalog/$country/albums/$collectionId?extend=editorialVideo"
-
-            // Authorization handled by interceptor
-            val ampReq = Request.Builder()
-                .url(ampUrl)
-                .build()
-
-            val ampResp = runInterruptible { client.newCall(ampReq).execute() }
-
-            if (ampResp.code == 401) {
-                // Token expired, refresh and retry once
-                if (refreshCredentials()) {
-                    // Interceptor will pick up the new token automatically
-                    val retryReq = ampReq.newBuilder().build()
-                    val retryResp = runInterruptible { client.newCall(retryReq).execute() }
-                    if (retryResp.isSuccessful) {
-                        val videoUrl = parseAmpResponse(retryResp.body?.string())
-                        return@withContext resolveMasterPlaylist(videoUrl, 0, 0)
-                    }
-                }
+            val results = searchObj.optJSONArray("results")
+            if (results == null || results.length() == 0) {
+                DebugLogger.log(TAG, "No iTunes results for $queryTerm")
                 return@withContext null
             }
 
-            if (!ampResp.isSuccessful) return@withContext null
+            // Find best result matching title/artist
+            var collectionId = ""
+            var trackId = ""
+            for (i in 0 until results.length()) {
+                val res = results.getJSONObject(i)
+                val trackName = res.optString("trackName")
 
-            val videoUrl = parseAmpResponse(ampResp.body?.string())
-            return@withContext resolveMasterPlaylist(videoUrl, 0, 0)
+                if (trackName.contains(title, ignoreCase = true) || title.contains(trackName, ignoreCase = true)) {
+                    collectionId = res.optString("collectionId")
+                    trackId = res.optString("trackId")
+                    break
+                }
+            }
+
+            if (collectionId.isEmpty()) {
+                collectionId = results.getJSONObject(0).optString("collectionId")
+                trackId = results.getJSONObject(0).optString("trackId")
+            }
+
+            if (collectionId.isEmpty()) return@withContext null
+
+            // 3. Fetch Details from AMP API (Try Song first, then Album)
+            val country = "us"
+            var videoUrl: String? = null
+
+            // A. Try Song level editorial video
+            if (trackId.isNotEmpty()) {
+                // Using both snake_case and camelCase extensions to be safe
+                val songUrl = "https://amp-api.music.apple.com/v1/catalog/$country/songs/$trackId?extend=editorialVideo,editorial-video&views=editorial-video,editorialVideo"
+                val songReq = Request.Builder().url(songUrl).build()
+                val songResp = runInterruptible { client.newCall(songReq).execute() }
+                if (songResp.isSuccessful) {
+                    videoUrl = parseAmpResponse(songResp.body?.string())
+                }
+            }
+
+            // B. Try Album level if song level failed
+            if (videoUrl.isNullOrBlank()) {
+                val albumUrl = "https://amp-api.music.apple.com/v1/catalog/$country/albums/$collectionId?extend=editorialVideo,editorial-video&views=editorial-video,editorialVideo"
+                val albumReq = Request.Builder().url(albumUrl).build()
+                val albumResp = runInterruptible { client.newCall(albumReq).execute() }
+
+                if (albumResp.code == 401) {
+                    if (refreshCredentials()) {
+                        val retryReq = albumReq.newBuilder().build()
+                        val retryResp = runInterruptible { client.newCall(retryReq).execute() }
+                        if (retryResp.isSuccessful) {
+                            videoUrl = parseAmpResponse(retryResp.body?.string())
+                        }
+                    }
+                } else if (albumResp.isSuccessful) {
+                    videoUrl = parseAmpResponse(albumResp.body?.string())
+                }
+            }
+
+            if (videoUrl.isNullOrBlank()) {
+                DebugLogger.log(TAG, "No video URL found for $title")
+                return@withContext null
+            }
+
+            return@withContext videoUrl // Return raw URL, resolveMasterPlaylist will be called in getAnimatedArtworkFile
 
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Apple Music cover", e)
@@ -129,19 +154,50 @@ object AppleMusicIntegration {
 
     private fun parseAmpResponse(json: String?): String? {
         if (json == null) return null
-        val ampObj = JSONObject(json)
-        val data = ampObj.optJSONArray("data")
-        if (data == null || data.length() == 0) return null
+        try {
+            val ampObj = JSONObject(json)
+            val data = ampObj.optJSONArray("data")
+            if (data == null || data.length() == 0) return null
 
-        val attributes = data.getJSONObject(0).optJSONObject("attributes") ?: return null
-        val editorialVideo = attributes.optJSONObject("editorialVideo") ?: return null
+            val albumObj = data.getJSONObject(0)
+            val attributes = albumObj.optJSONObject("attributes") ?: return null
 
-        // Prioritize Tall > Square > 1x1
-        val motion = editorialVideo.optJSONObject("motionDetailTall")
-            ?: editorialVideo.optJSONObject("motionDetailSquare")
-            ?: editorialVideo.optJSONObject("motionSquareVideo1x1")
+            // 1. Check in attributes.editorialVideo (standard)
+            val editorialVideo = attributes.optJSONObject("editorialVideo")
+            if (editorialVideo != null) {
+                val video = findVideoInEditorialObject(editorialVideo)
+                if (video != null) return video
+            }
 
-        return motion?.optString("video")
+            // 2. Check in views.editorial-video (newer API format)
+            val views = albumObj.optJSONObject("views")
+            val evView = views?.optJSONObject("editorial-video") ?: views?.optJSONObject("editorialVideo")
+            val evData = evView?.optJSONArray("data")
+            if (evData != null && evData.length() > 0) {
+                val viewAttr = evData.getJSONObject(0).optJSONObject("attributes")
+                if (viewAttr != null) {
+                    val video = findVideoInEditorialObject(viewAttr)
+                    if (video != null) return video
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Parse error", e)
+        }
+        return null
+    }
+
+    private fun findVideoInEditorialObject(obj: JSONObject): String? {
+        // Prioritize Motion Video formats
+        val motion = obj.optJSONObject("motionDetailTall")
+            ?: obj.optJSONObject("motionDetailSquare")
+            ?: obj.optJSONObject("motionSquareVideo1x1")
+            ?: obj.optJSONObject("motionDetailSquare1x1")
+
+        val video = motion?.optString("video")
+        if (!video.isNullOrBlank()) return video
+
+        // Fallback to static editorial video if present
+        return obj.optString("video")
     }
 
     /**
@@ -150,7 +206,7 @@ object AppleMusicIntegration {
      */
     private suspend fun resolveMasterPlaylist(url: String?, targetW: Int, targetH: Int): String? {
         if (url == null) return null
-        if (!url.endsWith(".m3u8")) return url
+        if (!url.contains(".m3u8")) return url // Use contains for URLs with params
 
         return try {
             val req = Request.Builder().url(url).build()
@@ -393,47 +449,69 @@ object AppleMusicIntegration {
     private fun refreshCredentials(): Boolean {
         try {
             // Step A: Hit a generic page to initialize cookies
-            // The Python script uses a specific album, let's replicate that to be safe
             val albumUrl = "https://music.apple.com/us/album/positions-deluxe-edition/1553944254"
             val pageReq = Request.Builder()
                 .url(albumUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .build()
 
             val pageResp = client.newCall(pageReq).execute()
             val html = pageResp.body?.string() ?: return false
 
-            // Step B: Find index.js
-            val jsPattern = Pattern.compile("crossorigin src=\"(/assets/index.+?\\.js)\"")
-            val jsMatcher = jsPattern.matcher(html)
-            if (!jsMatcher.find()) {
-                Log.e(TAG, "Could not find index.js path")
+            // Step B: Find index.js path
+            // Apple changes this frequently, using multiple patterns
+            val jsPatterns = listOf(
+                Pattern.compile("crossorigin src=\"(/assets/index.+?\\.js)\""),
+                Pattern.compile("src=\"(/assets/index.+?\\.js)\""),
+                Pattern.compile("src=\"(https://music.apple.com/assets/index.+?\\.js)\""),
+                Pattern.compile("(/assets/index.+?\\.js)")
+            )
+
+            var jsPath = ""
+            for (pattern in jsPatterns) {
+                val matcher = pattern.matcher(html)
+                if (matcher.find()) {
+                    jsPath = matcher.group(1) ?: ""
+                    break
+                }
+            }
+
+            if (jsPath.isEmpty()) {
+                Log.e(TAG, "Could not find index.js path in HTML")
                 return false
             }
-            val jsUrl = "https://music.apple.com${jsMatcher.group(1)}"
+
+            val jsUrl = if (jsPath.startsWith("http")) jsPath else "https://music.apple.com$jsPath"
 
             // Step C: Fetch JS (cookies included automatically by CookieJar)
             val jsReq = Request.Builder()
                 .url(jsUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .build()
 
             val jsResp = client.newCall(jsReq).execute()
             val jsContent = jsResp.body?.string() ?: return false
 
             // Step D: Extract Token
-            // Pattern from user script: (eyJhbGc.+?)"
-            val tokenPattern = Pattern.compile("(\"eyJhbGc.+?)\"")
-            val tokenMatcher = tokenPattern.matcher(jsContent)
+            // Pattern: eyJhbGc... followed by more chars and ending in a quote
+            val tokenPatterns = listOf(
+                Pattern.compile("(eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\\.[a-zA-Z0-9._-]+)"),
+                Pattern.compile("token\":\"(eyJhbG.+?)\""),
+                Pattern.compile("\"(eyJhbG.+?)\"")
+            )
 
-            if (tokenMatcher.find()) {
-                val token = tokenMatcher.group(1)?.replace("\"", "")
-                if (token != null) {
-                    cachedToken = token
-                    Log.d(TAG, "Refreshed Apple Music Token")
-                    return true
+            for (pattern in tokenPatterns) {
+                val matcher = pattern.matcher(jsContent)
+                if (matcher.find()) {
+                    val token = matcher.group(1)?.replace("\"", "")
+                    if (token != null && token.length > 50) {
+                        cachedToken = token
+                        DebugLogger.log(TAG, "Refreshed Token (${token.take(10)}...)")
+                        return true
+                    }
                 }
             }
+            Log.e(TAG, "Token not found in JS content")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error refreshing credentials", e)
