@@ -1345,20 +1345,29 @@ private fun AppShortcutView(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
             .pointerInput(isEditMode) {
@@ -1468,22 +1477,32 @@ private fun GlassPanelBackground(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            // Lower alpha so grid shows through in edit mode
+                            val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
+                            drawRect(panelTintColor.copy(alpha = alpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    // Lower alpha so grid shows through in edit mode
-                    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-                    drawRect(panelTintColor.copy(alpha = alpha))
+                } else {
+                    val alpha = if (isEditMode) 0.05f else 0.15f
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = alpha),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
     )
@@ -2213,20 +2232,29 @@ private fun FolderView(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
             .pointerInput(isEditMode) {
@@ -2406,20 +2434,29 @@ private fun OpenedFolderDialog(
             modifier = Modifier
                 .width(280.dp)
                 .clip(RoundedCornerShape(cornerRadius))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(cornerRadius) },
-                    effects = {
-                        if (glassSettings.vibrancyEnabled) vibrancy()
-                        if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                        if (glassSettings.lensEnabled) lens(
-                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                            chromaticAberration = glassSettings.chromaticAberration
+                .then(
+                    if (glassSettings.liquidGlassEnabled) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(cornerRadius) },
+                            effects = {
+                                if (glassSettings.vibrancyEnabled) vibrancy()
+                                if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                                if (glassSettings.lensEnabled) lens(
+                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                    chromaticAberration = glassSettings.chromaticAberration
+                                )
+                            },
+                            onDrawSurface = {
+                                drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
+                            }
                         )
-                    },
-                    onDrawSurface = {
-                        drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
+                    } else {
+                        Modifier.background(
+                            color = Color.Black.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(cornerRadius)
+                        )
                     }
                 )
                 .padding(16.dp),

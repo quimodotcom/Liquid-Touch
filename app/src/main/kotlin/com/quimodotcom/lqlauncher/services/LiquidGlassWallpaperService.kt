@@ -75,6 +75,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var videoRenderer: VideoWallpaperRenderer? = null
         private val handler = android.os.Handler(android.os.Looper.getMainLooper())
         private val drawRunnable = Runnable { draw() }
+        private val frameCallback = object : android.view.Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (isVisible && !isInAmbientMode && !isPowerSaveMode) {
+                    draw()
+                    android.view.Choreographer.getInstance().postFrameCallback(this)
+                }
+            }
+        }
 
         // Lock screen state
         private val keyguardManager by lazy { getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager }
@@ -460,9 +468,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (!isInAmbientMode && !isPowerSaveMode) {
                     startGifJobIfNeeded()
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
                 draw()
             } else {
+                android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                 gifJob?.cancel()
                 handler.removeCallbacks(drawRunnable)
             }
@@ -489,6 +500,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Stop video/gif to save power
                 videoRenderer?.stop()
                 gifJob?.cancel()
+                android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
             } else {
                 // Resume video/gif if needed
                 if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
@@ -496,6 +508,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isInAmbientMode) {
                     startGifJobIfNeeded()
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
             }
             draw()
@@ -506,6 +520,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Stop video/gif to save power
                 videoRenderer?.stop()
                 gifJob?.cancel()
+                android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
 
                 // Switch to thinner font for AOD to save pixels/power
                 clockPaint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
@@ -523,6 +538,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isPowerSaveMode) {
                     startGifJobIfNeeded()
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
                 // Reset burn-in offset
                 burnInOffsetX = 0f
@@ -897,7 +914,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                                 videoRenderer?.updateGifFrame(gifFrameBitmap!!)
 
-                                delay(33) // ~30fps
+                                delay(16) // ~60fps
                                 draw()
                             }
                         }
@@ -1040,8 +1057,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 handler.removeCallbacks(drawRunnable)
                 if (isPowerSaveMode) {
                     handler.postDelayed(drawRunnable, 1000)
-                } else {
-                    handler.postDelayed(drawRunnable, 33) // ~30fps
+                } else if (!isInAmbientMode) {
+                    // Choreographer loop is managed independently in frameCallback.doFrame
+                    // No need to post here or it will grow exponentially.
                 }
             }
         }

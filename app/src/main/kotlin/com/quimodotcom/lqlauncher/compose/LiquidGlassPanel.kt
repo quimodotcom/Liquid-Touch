@@ -1,5 +1,6 @@
 package com.quimodotcom.lqlauncher.compose
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
@@ -35,27 +36,37 @@ fun LiquidGlassPanel(
     cornerRadius: Float = 0.3f,
     backgroundColor: Color = Color.White.copy(alpha = 0.15f),
     tint: Color = Color.Unspecified,
+    glassSettings: com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings = com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings(),
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
         modifier = modifier
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(16.dp) },
-                effects = {
-                    vibrancy()
-                    blur(blurRadius.toPx())
-                    lens(
-                        refractionHeight = 12f.dp.toPx(),
-                        refractionAmount = 16f.dp.toPx(),
-                        chromaticAberration = true
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(16.dp) },
+                        effects = {
+                            vibrancy()
+                            blur(blurRadius.toPx())
+                            lens(
+                                refractionHeight = 12f.dp.toPx(),
+                                refractionAmount = 16f.dp.toPx(),
+                                chromaticAberration = true
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(backgroundColor)
+                            if (tint != Color.Unspecified) {
+                                drawRect(tint.copy(alpha = 0.2f))
+                            }
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(backgroundColor)
-                    if (tint != Color.Unspecified) {
-                        drawRect(tint.copy(alpha = 0.2f))
-                    }
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                    )
                 }
             )
             .padding(16.dp),

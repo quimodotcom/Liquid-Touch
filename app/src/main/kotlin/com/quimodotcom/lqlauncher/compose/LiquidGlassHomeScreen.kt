@@ -143,7 +143,8 @@ fun LiquidGlassHomeScreen(
                     backdrop = backdrop,
                     blurRadius = panelConfig.blurRadius,
                     backgroundColor = panelConfig.backgroundColor,
-                    tint = panelConfig.tint
+                    tint = panelConfig.tint,
+                    glassSettings = glassSettings
                 ) {
                     panelConfig.content()
                 }
@@ -156,7 +157,8 @@ fun LiquidGlassHomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     backdrop = backdrop,
                     blurRadius = 22.dp,
-                    backgroundColor = Color.White.copy(alpha = 0.12f)
+                    backgroundColor = Color.White.copy(alpha = 0.12f),
+                    glassSettings = glassSettings
                 ) {
                     Column {
                         Text(
@@ -203,7 +205,8 @@ fun LiquidGlassHomeScreen(
                     .weight(1f),
                 backdrop = backdrop,
                 blurRadius = 20.dp,
-                backgroundColor = Color.White.copy(alpha = 0.1f)
+                backgroundColor = Color.White.copy(alpha = 0.1f),
+                glassSettings = glassSettings
             ) {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),

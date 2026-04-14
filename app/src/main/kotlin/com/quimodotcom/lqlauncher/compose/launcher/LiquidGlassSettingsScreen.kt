@@ -137,6 +137,15 @@ fun LiquidGlassSettingsScreen(
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Visual Effects", icon = Icons.Rounded.AutoAwesome)
                     }
+
+                    item {
+                        SwitchSetting(
+                            title = "Liquid Glass Effects",
+                            subtitle = "Master switch for all glass visual effects",
+                            checked = settings.liquidGlassEnabled,
+                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassEnabled = it)) }
+                        )
+                    }
                     
                     item {
                         SwitchSetting(

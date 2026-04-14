@@ -151,22 +151,31 @@ fun AppDrawer(
                 .fillMaxWidth()
                 .fillMaxHeight(0.95f)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
-                    effects = {
-                         // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
-                         // causes RenderEffect crashes on custom ROMs like LineageOS.
-                         if (glassSettings.vibrancyEnabled) vibrancy()
-                         if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                         if (glassSettings.lensEnabled) lens(
-                             refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                             refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                             chromaticAberration = glassSettings.chromaticAberration
-                         )
-                    },
-                    onDrawSurface = {
-                         drawRect(panelColor.copy(alpha = panelAlpha))
+                .then(
+                    if (glassSettings.liquidGlassEnabled) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
+                            effects = {
+                                 // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
+                                 // causes RenderEffect crashes on custom ROMs like LineageOS.
+                                 if (glassSettings.vibrancyEnabled) vibrancy()
+                                 if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                                 if (glassSettings.lensEnabled) lens(
+                                     refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                     refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                     chromaticAberration = glassSettings.chromaticAberration
+                                 )
+                            },
+                            onDrawSurface = {
+                                 drawRect(panelColor.copy(alpha = panelAlpha))
+                            }
+                        )
+                    } else {
+                        Modifier.background(
+                            color = Color.Black.copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
                     }
                 )
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
