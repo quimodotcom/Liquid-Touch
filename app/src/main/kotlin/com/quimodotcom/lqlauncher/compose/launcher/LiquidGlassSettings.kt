@@ -84,6 +84,7 @@ data class LiquidGlassSettings(
     val showDebugLogs: Boolean = false,
     val githubUpdateUrl: String = "",
     val githubToken: String = "",
+    val autoUpdateEnabled: Boolean = false,
 
     // Notifications
     val showNotificationDots: Boolean = false,

@@ -744,6 +744,15 @@ fun LiquidGlassSettingsScreen(
                         }
 
                         item {
+                            SwitchSetting(
+                                title = "Automatic Updates",
+                                subtitle = "Check and install updates from GitHub",
+                                checked = settings.autoUpdateEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(autoUpdateEnabled = it)) }
+                            )
+                        }
+
+                        item {
                             SettingItem(
                                 title = "Check for Updates",
                                 description = "Manually check for updates from GitHub",
@@ -753,7 +762,12 @@ fun LiquidGlassSettingsScreen(
                                     } else {
                                         Toast.makeText(context, "Checking for updates...", Toast.LENGTH_SHORT).show()
                                         scope.launch {
-                                            com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(context, settings.githubUpdateUrl, settings.githubToken)
+                                            com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(
+                                                context = context,
+                                                url = settings.githubUpdateUrl,
+                                                token = settings.githubToken,
+                                                isManual = true
+                                            )
                                         }
                                     }
                                 }
