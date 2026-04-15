@@ -357,20 +357,13 @@ private fun EditableLauncherScreen(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                var total = 0f
                 detectDragGestures(
-                    onDragStart = { total = 0f },
                     onDrag = { change, dragAmount ->
-                        change.consume()
-                        total += dragAmount.y
-                        if (total < -200f) {
-                            // App Drawer: upward-swipe gesture
+                        if (dragAmount.y < -15f) { // Threshold for upward swipe
                             showAppDrawer = true
-                            total = 0f
+                            change.consume()
                         }
-                    },
-                    onDragEnd = { total = 0f },
-                    onDragCancel = { total = 0f }
+                    }
                 )
             }
             .background(Color.Black)
