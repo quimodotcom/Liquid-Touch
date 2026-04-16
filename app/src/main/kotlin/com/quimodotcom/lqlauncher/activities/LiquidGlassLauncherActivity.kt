@@ -22,6 +22,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
@@ -357,18 +358,16 @@ private fun EditableLauncherScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDrag = { change, dragAmount ->
-                        if (dragAmount.y < -15f) { // Threshold for upward swipe
-                            if (!showAppDrawer) {
-                                drawerTrigger++
-                                showAppDrawer = true
-                            }
+            .pointerInput(showAppDrawer) {
+                if (!showAppDrawer) {
+                    detectVerticalDragGestures { change, dragAmount ->
+                        if (dragAmount < -10f) { // Sensitive upward flick
+                            drawerTrigger++
+                            showAppDrawer = true
                             change.consume()
                         }
                     }
-                )
+                }
             }
             .background(Color.Black)
     ) {

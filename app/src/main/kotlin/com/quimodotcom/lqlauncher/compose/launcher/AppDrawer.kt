@@ -119,16 +119,8 @@ fun AppDrawer(
         var isInitialized by remember { mutableStateOf(false) }
 
         // Start animation to "Open" state
-        LaunchedEffect(Unit) {
-            if (screenHeightPx > 0) {
-                swipeableState.animateTo(1)
-                isInitialized = true
-            }
-        }
-
-        // Handle late initialization if screenHeightPx was 0
         LaunchedEffect(screenHeightPx) {
-            if (screenHeightPx > 0 && !isInitialized && swipeableState.currentValue == 0) {
+            if (screenHeightPx > 0 && !isInitialized) {
                 swipeableState.animateTo(1)
                 isInitialized = true
             }
