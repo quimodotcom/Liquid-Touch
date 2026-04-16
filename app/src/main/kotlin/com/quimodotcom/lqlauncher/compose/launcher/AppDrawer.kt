@@ -114,28 +114,38 @@ fun AppDrawer(
 
         // Physics-based swipe-to-dismiss
         // 1 = Open (offset 0), 0 = Closed (offset screenHeightPx)
-        val swipeableState = rememberSwipeableState(initialValue = 1)
+        val swipeableState = rememberSwipeableState(initialValue = 0)
         val anchors = mapOf(0f to 1, screenHeightPx to 0)
+        var isInitialized by remember { mutableStateOf(false) }
 
-        // Ensure it's open when first shown (handling potential state reuse)
+        // Start animation to "Open" state
         LaunchedEffect(Unit) {
-            if (swipeableState.currentValue == 0) {
-                swipeableState.snapTo(1)
+            if (screenHeightPx > 0) {
+                swipeableState.animateTo(1)
+                isInitialized = true
             }
         }
 
-        // Detect if closed by swipe
+        // Handle late initialization if screenHeightPx was 0
+        LaunchedEffect(screenHeightPx) {
+            if (screenHeightPx > 0 && !isInitialized && swipeableState.currentValue == 0) {
+                swipeableState.animateTo(1)
+                isInitialized = true
+            }
+        }
+
+        // Detect if closed by swipe (only after initialization)
         LaunchedEffect(swipeableState.currentValue) {
-            if (swipeableState.currentValue == 0) {
+            if (isInitialized && swipeableState.currentValue == 0) {
                 onClose()
             }
         }
 
         // Fail-safe: Detect if visually closed (offset at bottom) to ensure state sync
-        LaunchedEffect(swipeableState, screenHeightPx) {
+        LaunchedEffect(swipeableState, screenHeightPx, isInitialized) {
             snapshotFlow { swipeableState.offset.value }
                 .collect { offset ->
-                    if (offset >= screenHeightPx - 2f && screenHeightPx > 0) {
+                    if (isInitialized && offset >= screenHeightPx - 2f && screenHeightPx > 0) {
                         onClose()
                     }
                 }
