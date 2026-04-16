@@ -151,6 +151,7 @@ private fun EditableLauncherScreen(
     var isConfigLoaded by remember { mutableStateOf(false) }
     var openedFolder by remember { mutableStateOf<LauncherItem.Folder?>(null) }
     var showAppDrawer by remember { mutableStateOf(false) }
+    var drawerTrigger by remember { mutableIntStateOf(0) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
     var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -360,7 +361,10 @@ private fun EditableLauncherScreen(
                 detectDragGestures(
                     onDrag = { change, dragAmount ->
                         if (dragAmount.y < -15f) { // Threshold for upward swipe
-                            showAppDrawer = true
+                            if (!showAppDrawer) {
+                                drawerTrigger++
+                                showAppDrawer = true
+                            }
                             change.consume()
                         }
                     }
@@ -799,22 +803,20 @@ private fun EditableLauncherScreen(
         }
 
         // App Drawer Overlay
-        AnimatedVisibility(
-            visible = showAppDrawer,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
-        ) {
-            AppDrawer(
-                apps = availableApps,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                onAppClick = { pkg ->
-                    launchApp(context, pkg)
-                    showAppDrawer = false
-                },
-                onClose = { showAppDrawer = false },
-                onRefreshApps = reloadApps
-            )
+        if (showAppDrawer) {
+            key(drawerTrigger) {
+                AppDrawer(
+                    apps = availableApps,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    onAppClick = { pkg ->
+                        launchApp(context, pkg)
+                        showAppDrawer = false
+                    },
+                    onClose = { showAppDrawer = false },
+                    onRefreshApps = reloadApps
+                )
+            }
         }
 
         // Prevent accidental closing of the launcher on home screen

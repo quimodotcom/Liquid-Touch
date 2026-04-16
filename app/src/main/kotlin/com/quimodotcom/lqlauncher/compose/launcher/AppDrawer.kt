@@ -120,7 +120,7 @@ fun AppDrawer(
         // Ensure it's open when first shown (handling potential state reuse)
         LaunchedEffect(Unit) {
             if (swipeableState.currentValue == 0) {
-                swipeableState.animateTo(1)
+                swipeableState.snapTo(1)
             }
         }
 
@@ -132,10 +132,13 @@ fun AppDrawer(
         }
 
         // Fail-safe: Detect if visually closed (offset at bottom) to ensure state sync
-        LaunchedEffect(swipeableState.offset.value) {
-            if (swipeableState.offset.value >= screenHeightPx - 2f && screenHeightPx > 0) {
-                onClose()
-            }
+        LaunchedEffect(swipeableState, screenHeightPx) {
+            snapshotFlow { swipeableState.offset.value }
+                .collect { offset ->
+                    if (offset >= screenHeightPx - 2f && screenHeightPx > 0) {
+                        onClose()
+                    }
+                }
         }
 
     // Determine panel style
