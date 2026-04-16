@@ -104,6 +104,7 @@ enum class PanelType {
     BATTERY,    // Battery level and percentage
     SEARCH,     // One-row browser search
     MEDIA_CONTROL, // Interactive media controls
+    PLAY_INTEGRITY, // Device Integrity Testing
     CUSTOM      // User-defined content
 }
 

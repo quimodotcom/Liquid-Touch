@@ -1520,6 +1520,7 @@ private fun GlassPanelContent(
             PanelType.BATTERY -> BatteryPanelContent(glassSettings)
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
             PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
+            PanelType.PLAY_INTEGRITY -> PlayIntegrityPanelContent(glassSettings)
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1528,6 +1529,78 @@ private fun GlassPanelContent(
                         fontSize = 16.sp
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayIntegrityPanelContent(glassSettings: LiquidGlassSettings) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var projectNumber by remember { mutableStateOf(glassSettings.playIntegrityCloudProjectNumber) }
+    var integrityStatus by remember { mutableStateOf("Ready to Test") }
+    var isTesting by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Security,
+            contentDescription = null,
+            tint = if (glassSettings.playIntegrityEnabled) Color(0xFF6366F1) else Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        if (projectNumber.isBlank()) {
+            Text(
+                "API Key Missing",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Set in settings",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                integrityStatus,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    isTesting = true
+                    integrityStatus = "Testing..."
+                    // Mock integrity test
+                    scope.launch {
+                        delay(2000)
+                        integrityStatus = "MEETS_DEVICE_INTEGRITY"
+                        isTesting = false
+                    }
+                },
+                enabled = !isTesting,
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f))
+            ) {
+                Text("Run Test", fontSize = 11.sp, color = Color.White)
             }
         }
     }

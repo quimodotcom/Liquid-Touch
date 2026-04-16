@@ -65,6 +65,10 @@ data class LiquidGlassSettings(
     val searchWidgetOpensBrowserOnTap: Boolean = true,
     val weatherUnit: String = "F", // "F" or "C"
 
+    // Device Integrity
+    val playIntegrityCloudProjectNumber: String = "",
+    val playIntegrityEnabled: Boolean = false,
+
     // Widget Styles
     val clockStyle: String = "Classic",
     val weatherStyle: String = "Classic",

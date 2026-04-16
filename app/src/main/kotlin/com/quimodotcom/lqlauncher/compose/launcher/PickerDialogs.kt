@@ -266,6 +266,13 @@ fun PanelPickerDialog(
                     description = "Interactive playback buttons",
                     onClick = { onPanelTypeSelected(PanelType.MEDIA_CONTROL) }
                 )
+
+                PanelOption(
+                    icon = Icons.Rounded.Security,
+                    title = "Device Integrity",
+                    description = "Debug Play Integrity status",
+                    onClick = { onPanelTypeSelected(PanelType.PLAY_INTEGRITY) }
+                )
                 
                 Spacer(Modifier.height(16.dp))
                 
