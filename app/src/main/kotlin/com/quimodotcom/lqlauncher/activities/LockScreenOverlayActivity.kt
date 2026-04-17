@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -61,11 +62,12 @@ class LockScreenOverlayActivity : ComponentActivity() {
 
         setContent {
             LockScreenOverlayContent(
-                onUnlock = {
+                onUnlock = { action ->
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
                     keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                         override fun onDismissSucceeded() {
                             super.onDismissSucceeded()
+                            action?.invoke()
                             finish()
                         }
                         override fun onDismissCancelled() {
@@ -83,6 +85,7 @@ class LockScreenOverlayActivity : ComponentActivity() {
 @Composable
 fun NotificationList(
     notifications: List<NotificationItem>,
+    onNotificationClick: (NotificationItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -94,6 +97,7 @@ fun NotificationList(
         items(notifications, key = { it.key }) { item ->
             NotificationCard(
                 item = item,
+                onClick = { onNotificationClick(item) },
                 onDismiss = {
                     val intent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION").apply {
                         setPackage(context.packageName)
@@ -109,6 +113,7 @@ fun NotificationList(
 @Composable
 fun NotificationCard(
     item: NotificationItem,
+    onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val offsetX = remember { Animatable(0f) }
@@ -119,6 +124,7 @@ fun NotificationCard(
         modifier = Modifier
             .fillMaxWidth()
             .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+            .clickable(onClick = onClick)
             .pointerInput(item.key) {
                 detectDragGestures(
                     onDragStart = { },
@@ -195,7 +201,7 @@ fun NotificationCard(
 }
 
 @Composable
-fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
+fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismiss: () -> Unit) {
     val mediaState by MediaStateRepository.mediaState.collectAsState()
     val notifications by MediaStateRepository.activeNotifications.collectAsState()
     val context = LocalContext.current
@@ -213,7 +219,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
 
     // Backup unlock method
     BackHandler {
-        onUnlock()
+        onUnlock(null)
     }
 
     Box(
@@ -230,7 +236,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     },
                     onDragEnd = {
                         if (totalDragY < -150f) {
-                            onUnlock()
+                            onUnlock(null)
                         }
                         totalDragY = 0f
                     }
@@ -260,6 +266,15 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
         // Notifications List
         NotificationList(
             notifications = notifications,
+            onNotificationClick = { item ->
+                onUnlock {
+                    try {
+                        item.contentIntent?.send()
+                    } catch (e: Exception) {
+                        android.util.Log.e("LockScreen", "Failed to send content intent", e)
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 220.dp, bottom = 260.dp)
@@ -334,7 +349,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             IconButton(
-                onClick = onUnlock,
+                onClick = { onUnlock(null) },
                 modifier = Modifier
                     .size(48.dp)
                     .background(Color.White.copy(alpha = 0.1f), CircleShape)
