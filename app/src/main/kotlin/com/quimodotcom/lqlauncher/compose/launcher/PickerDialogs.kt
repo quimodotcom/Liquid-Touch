@@ -495,6 +495,26 @@ fun AddItemMenu(
     }
 }
 
+@Composable
+private fun ActionOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFF6366F1))
+        Spacer(Modifier.width(16.dp))
+        Text(title, color = Color.White)
+    }
+}
+
 /**
  * Picker for invisible button actions
  */
