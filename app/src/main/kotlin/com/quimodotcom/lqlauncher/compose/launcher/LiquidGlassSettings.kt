@@ -14,6 +14,9 @@ import java.io.File
  */
 @Serializable
 data class LiquidGlassSettings(
+    // Master switch
+    val liquidGlassEnabled: Boolean = false,
+
     // Blur settings
     val blurRadius: Float = 20f,
     val blurEnabled: Boolean = true,
@@ -61,6 +64,10 @@ data class LiquidGlassSettings(
     val openWeatherApiKey: String = "",
     val searchWidgetOpensBrowserOnTap: Boolean = true,
     val weatherUnit: String = "F", // "F" or "C"
+
+    // Device Integrity
+    val playIntegrityCloudProjectNumber: String = "",
+    val playIntegrityEnabled: Boolean = false,
 
     // Widget Styles
     val clockStyle: String = "Classic",

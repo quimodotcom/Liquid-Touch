@@ -290,19 +290,28 @@ fun EditModeToolbar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx()
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx()
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha * 0.08f))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha * 0.08f))
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.8f),
+                        shape = RoundedCornerShape(glassSettings.panelCornerRadius.dp)
+                    )
                 }
             )
             .horizontalScroll(rememberScrollState())

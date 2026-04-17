@@ -100,37 +100,8 @@ fun AppDrawer(
         else currentApps.value.filter { it.label.contains(searchQuery, ignoreCase = true) }
     }
 
-    // Physics-based swipe-to-dismiss
-    val swipeableState = rememberSwipeableState(initialValue = 1) // 1 = Open, 0 = Closed
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    // Use full screen height as the close anchor to ensure it fully dismisses
-    val config = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenHeightPx = with(density) { config.screenHeightDp.dp.toPx() }
-    val anchors = mapOf(0f to 1, screenHeightPx to 0) // Pull down to close
-
-    // Detect if closed by swipe
-    LaunchedEffect(swipeableState.currentValue) {
-        if (swipeableState.currentValue == 0) {
-            onClose()
-        }
-    }
-
-    // Fail-safe: Detect if visually closed (offset at bottom) to ensure state sync
-    LaunchedEffect(swipeableState) {
-        snapshotFlow { swipeableState.offset.value }
-            .collect { offset ->
-                if (offset >= screenHeightPx - 5f) {
-                    onClose()
-                }
-            }
-    }
-
-    // Determine panel style
-    val panelColor = Color(glassSettings.panelTintColor)
-    val panelAlpha = glassSettings.panelBackgroundAlpha
-    val blurRadius = glassSettings.blurRadius.dp
-
-    Box(
+    // Use BoxWithConstraints to get accurate height for anchors
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .clickable(
@@ -139,34 +110,81 @@ fun AppDrawer(
             ) { onClose() },
         contentAlignment = Alignment.BottomCenter
     ) {
+        val screenHeightPx = constraints.maxHeight.toFloat()
+
+        // Physics-based swipe-to-dismiss
+        // 1 = Open (offset 0), 0 = Closed (offset screenHeightPx)
+        val swipeableState = rememberSwipeableState(initialValue = 0)
+        val anchors = mapOf(0f to 1, screenHeightPx to 0)
+        var isInitialized by remember { mutableStateOf(false) }
+
+        // Start animation to "Open" state
+        LaunchedEffect(screenHeightPx) {
+            if (screenHeightPx > 0 && !isInitialized) {
+                swipeableState.animateTo(1)
+                isInitialized = true
+            }
+        }
+
+        // Detect if closed by swipe (only after initialization)
+        LaunchedEffect(swipeableState.currentValue) {
+            if (isInitialized && swipeableState.currentValue == 0) {
+                onClose()
+            }
+        }
+
+        // Fail-safe: Detect if visually closed (offset at bottom) to ensure state sync
+        LaunchedEffect(swipeableState, screenHeightPx, isInitialized) {
+            snapshotFlow { swipeableState.offset.value }
+                .collect { offset ->
+                    if (isInitialized && offset >= screenHeightPx - 2f && screenHeightPx > 0) {
+                        onClose()
+                    }
+                }
+        }
+
+    // Determine panel style
+    val panelColor = Color(glassSettings.panelTintColor)
+    val panelAlpha = glassSettings.panelBackgroundAlpha
+    val blurRadius = glassSettings.blurRadius.dp
+
         Column(
             modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.95f)
                 .graphicsLayer { translationY = swipeableState.offset.value }
                 .swipeable(
                     state = swipeableState,
                     anchors = anchors,
-                    thresholds = { _, _ -> FractionalThreshold(0.3f) },
+                    thresholds = { _, _ -> FractionalThreshold(0.25f) },
                     orientation = Orientation.Vertical
                 )
-                .fillMaxWidth()
-                .fillMaxHeight(0.95f)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
-                    effects = {
-                         // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
-                         // causes RenderEffect crashes on custom ROMs like LineageOS.
-                         if (glassSettings.vibrancyEnabled) vibrancy()
-                         if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                         if (glassSettings.lensEnabled) lens(
-                             refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                             refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                             chromaticAberration = glassSettings.chromaticAberration
-                         )
-                    },
-                    onDrawSurface = {
-                         drawRect(panelColor.copy(alpha = panelAlpha))
+                .then(
+                    if (glassSettings.liquidGlassEnabled) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
+                            effects = {
+                                 // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
+                                 // causes RenderEffect crashes on custom ROMs like LineageOS.
+                                 if (glassSettings.vibrancyEnabled) vibrancy()
+                                 if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                                 if (glassSettings.lensEnabled) lens(
+                                     refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                     refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                     chromaticAberration = glassSettings.chromaticAberration
+                                 )
+                            },
+                            onDrawSurface = {
+                                 drawRect(panelColor.copy(alpha = panelAlpha))
+                            }
+                        )
+                    } else {
+                        Modifier.background(
+                            color = Color.Black.copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        )
                     }
                 )
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
@@ -235,12 +253,14 @@ fun AppDrawer(
                     // UNLESS we are truly at the top and pulling down.
 
                     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                        // If user is scrolling DOWN (y > 0) and we are at the top of the list,
-                        // we want the parent Swipeable to take over.
-                        // By returning Offset.Zero, we say "we didn't consume it",
-                        // but usually the parent needs to be fed the delta manually if nested scrolling isn't fully automatic.
-
-                        // BUT, if we are scrolling UP (y < 0), we want the list to handle it.
+                        // If the user is scrolling UP (available.y < 0) but the drawer is partially
+                        // dragged down (offset > 0), we should consume the scroll to pull it back up.
+                        if (available.y < 0 && swipeableState.offset.value > 0f) {
+                            scope.launch {
+                                swipeableState.performDrag(available.y)
+                            }
+                            return available
+                        }
                         return Offset.Zero
                     }
 
@@ -283,7 +303,7 @@ fun AppDrawer(
 
             LazyVerticalGrid(
                 state = listState,
-                columns = GridCells.Adaptive(minSize = 72.dp),
+                columns = GridCells.Adaptive(minSize = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier

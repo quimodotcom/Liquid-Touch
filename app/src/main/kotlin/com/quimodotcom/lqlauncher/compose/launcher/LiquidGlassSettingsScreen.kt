@@ -137,6 +137,15 @@ fun LiquidGlassSettingsScreen(
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Visual Effects", icon = Icons.Rounded.AutoAwesome)
                     }
+
+                    item {
+                        SwitchSetting(
+                            title = "Liquid Glass Effects",
+                            subtitle = "Master switch for all glass visual effects",
+                            checked = settings.liquidGlassEnabled,
+                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassEnabled = it)) }
+                        )
+                    }
                     
                     item {
                         SwitchSetting(
@@ -581,6 +590,45 @@ fun LiquidGlassSettingsScreen(
                                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                                             TextButton(onClick = { editingKey = false }) { Text("Cancel") }
                                             TextButton(onClick = { onSettingsChanged(settings.copy(openWeatherApiKey = keyText)); editingKey = false }) { Text("Save") }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        var editingIntegrity by remember { mutableStateOf(false) }
+                        SettingItem(
+                            title = "Play Integrity API Key",
+                            description = if (settings.playIntegrityCloudProjectNumber.isBlank()) "Not set" else settings.playIntegrityCloudProjectNumber,
+                            onClick = { editingIntegrity = true }
+                        )
+
+                        if (editingIntegrity) {
+                            Dialog(onDismissRequest = { editingIntegrity = false }) {
+                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text("Google Cloud Project Number", color = Color.White)
+                                        Spacer(Modifier.height(8.dp))
+                                        var text by remember { mutableStateOf(settings.playIntegrityCloudProjectNumber) }
+                                        OutlinedTextField(
+                                            value = text,
+                                            onValueChange = { text = it },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true,
+                                            placeholder = { Text("1234567890") }
+                                        )
+                                        Spacer(Modifier.height(12.dp))
+                                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                            TextButton(onClick = { editingIntegrity = false }) { Text("Cancel") }
+                                            TextButton(onClick = {
+                                                onSettingsChanged(settings.copy(
+                                                    playIntegrityCloudProjectNumber = text,
+                                                    playIntegrityEnabled = text.isNotBlank()
+                                                ))
+                                                editingIntegrity = false
+                                            }) { Text("Save") }
                                         }
                                     }
                                 }

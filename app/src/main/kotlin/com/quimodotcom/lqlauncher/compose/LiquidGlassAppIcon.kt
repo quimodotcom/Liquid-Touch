@@ -71,23 +71,32 @@ fun LiquidGlassAppIcon(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(tileSize)
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(corner) },
-                    effects = {
-                        if (glassSettings.vibrancyEnabled) vibrancy()
-                        if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                        if (glassSettings.lensEnabled) lens(
-                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                            chromaticAberration = glassSettings.chromaticAberration
+                .then(
+                    if (glassSettings.liquidGlassEnabled) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(corner) },
+                            effects = {
+                                if (glassSettings.vibrancyEnabled) vibrancy()
+                                if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                                if (glassSettings.lensEnabled) lens(
+                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                    chromaticAberration = glassSettings.chromaticAberration
+                                )
+                            },
+                            onDrawSurface = {
+                                drawRect(Color.White.copy(alpha = glassSettings.iconBackgroundAlpha))
+                                if (tint != Color.Unspecified) {
+                                    drawRect(tint.copy(alpha = 0.3f))
+                                }
+                            }
                         )
-                    },
-                    onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = glassSettings.iconBackgroundAlpha))
-                        if (tint != Color.Unspecified) {
-                            drawRect(tint.copy(alpha = 0.3f))
-                        }
+                    } else {
+                        Modifier.background(
+                            color = Color.Black.copy(alpha = 0.15f),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(corner)
+                        )
                     }
                 )
                 .padding(padding)

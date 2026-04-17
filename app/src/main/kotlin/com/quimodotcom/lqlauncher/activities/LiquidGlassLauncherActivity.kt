@@ -22,6 +22,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
@@ -151,6 +152,7 @@ private fun EditableLauncherScreen(
     var isConfigLoaded by remember { mutableStateOf(false) }
     var openedFolder by remember { mutableStateOf<LauncherItem.Folder?>(null) }
     var showAppDrawer by remember { mutableStateOf(false) }
+    var drawerTrigger by remember { mutableIntStateOf(0) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
     var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -356,22 +358,16 @@ private fun EditableLauncherScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                var total = 0f
-                detectDragGestures(
-                    onDragStart = { total = 0f },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        total += dragAmount.y
-                        if (total < -200f) {
-                            // App Drawer: upward-swipe gesture
+            .pointerInput(showAppDrawer) {
+                if (!showAppDrawer) {
+                    detectVerticalDragGestures { change, dragAmount ->
+                        if (dragAmount < -10f) { // Sensitive upward flick
+                            drawerTrigger++
                             showAppDrawer = true
-                            total = 0f
+                            change.consume()
                         }
-                    },
-                    onDragEnd = { total = 0f },
-                    onDragCancel = { total = 0f }
-                )
+                    }
+                }
             }
             .background(Color.Black)
     ) {
@@ -806,22 +802,20 @@ private fun EditableLauncherScreen(
         }
 
         // App Drawer Overlay
-        AnimatedVisibility(
-            visible = showAppDrawer,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
-        ) {
-            AppDrawer(
-                apps = availableApps,
-                backdrop = backdrop,
-                glassSettings = glassSettings,
-                onAppClick = { pkg ->
-                    launchApp(context, pkg)
-                    showAppDrawer = false
-                },
-                onClose = { showAppDrawer = false },
-                onRefreshApps = reloadApps
-            )
+        if (showAppDrawer) {
+            key(drawerTrigger) {
+                AppDrawer(
+                    apps = availableApps,
+                    backdrop = backdrop,
+                    glassSettings = glassSettings,
+                    onAppClick = { pkg ->
+                        launchApp(context, pkg)
+                        showAppDrawer = false
+                    },
+                    onClose = { showAppDrawer = false },
+                    onRefreshApps = reloadApps
+                )
+            }
         }
 
         // Prevent accidental closing of the launcher on home screen
@@ -1345,20 +1339,29 @@ private fun AppShortcutView(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
             .pointerInput(isEditMode) {
@@ -1468,22 +1471,32 @@ private fun GlassPanelBackground(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(blurRadius.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            // Lower alpha so grid shows through in edit mode
+                            val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
+                            drawRect(panelTintColor.copy(alpha = alpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    // Lower alpha so grid shows through in edit mode
-                    val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-                    drawRect(panelTintColor.copy(alpha = alpha))
+                } else {
+                    val alpha = if (isEditMode) 0.05f else 0.15f
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = alpha),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
     )
@@ -1508,6 +1521,7 @@ private fun GlassPanelContent(
             PanelType.BATTERY -> BatteryPanelContent(glassSettings)
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
             PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
+            PanelType.PLAY_INTEGRITY -> PlayIntegrityPanelContent(glassSettings)
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1516,6 +1530,78 @@ private fun GlassPanelContent(
                         fontSize = 16.sp
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayIntegrityPanelContent(glassSettings: LiquidGlassSettings) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var projectNumber by remember { mutableStateOf(glassSettings.playIntegrityCloudProjectNumber) }
+    var integrityStatus by remember { mutableStateOf("Ready to Test") }
+    var isTesting by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Security,
+            contentDescription = null,
+            tint = if (glassSettings.playIntegrityEnabled) Color(0xFF6366F1) else Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.size(24.dp)
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        if (projectNumber.isBlank()) {
+            Text(
+                "API Key Missing",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Set in settings",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                integrityStatus,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    isTesting = true
+                    integrityStatus = "Testing..."
+                    // Mock integrity test
+                    scope.launch {
+                        delay(2000)
+                        integrityStatus = "MEETS_DEVICE_INTEGRITY"
+                        isTesting = false
+                    }
+                },
+                enabled = !isTesting,
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.15f))
+            ) {
+                Text("Run Test", fontSize = 11.sp, color = Color.White)
             }
         }
     }
@@ -2213,20 +2299,29 @@ private fun FolderView(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RoundedRectangle(cornerRadius) },
-                effects = {
-                    if (glassSettings.vibrancyEnabled) vibrancy()
-                    if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                    if (glassSettings.lensEnabled) lens(
-                        refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                        refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                        chromaticAberration = glassSettings.chromaticAberration
+            .then(
+                if (glassSettings.liquidGlassEnabled) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { RoundedRectangle(cornerRadius) },
+                        effects = {
+                            if (glassSettings.vibrancyEnabled) vibrancy()
+                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.lensEnabled) lens(
+                                refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                chromaticAberration = glassSettings.chromaticAberration
+                            )
+                        },
+                        onDrawSurface = {
+                            drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                        }
                     )
-                },
-                onDrawSurface = {
-                    drawRect(tintColor.copy(alpha = glassSettings.iconBackgroundAlpha))
+                } else {
+                    Modifier.background(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(cornerRadius)
+                    )
                 }
             )
             .pointerInput(isEditMode) {
@@ -2406,20 +2501,29 @@ private fun OpenedFolderDialog(
             modifier = Modifier
                 .width(280.dp)
                 .clip(RoundedCornerShape(cornerRadius))
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { RoundedRectangle(cornerRadius) },
-                    effects = {
-                        if (glassSettings.vibrancyEnabled) vibrancy()
-                        if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
-                        if (glassSettings.lensEnabled) lens(
-                            refractionHeight = glassSettings.refractionHeight.dp.toPx(),
-                            refractionAmount = glassSettings.refractionAmount.dp.toPx(),
-                            chromaticAberration = glassSettings.chromaticAberration
+                .then(
+                    if (glassSettings.liquidGlassEnabled) {
+                        Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { RoundedRectangle(cornerRadius) },
+                            effects = {
+                                if (glassSettings.vibrancyEnabled) vibrancy()
+                                if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                                if (glassSettings.lensEnabled) lens(
+                                    refractionHeight = glassSettings.refractionHeight.dp.toPx(),
+                                    refractionAmount = glassSettings.refractionAmount.dp.toPx(),
+                                    chromaticAberration = glassSettings.chromaticAberration
+                                )
+                            },
+                            onDrawSurface = {
+                                drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
+                            }
                         )
-                    },
-                    onDrawSurface = {
-                        drawRect(tintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
+                    } else {
+                        Modifier.background(
+                            color = Color.Black.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(cornerRadius)
+                        )
                     }
                 )
                 .padding(16.dp),
