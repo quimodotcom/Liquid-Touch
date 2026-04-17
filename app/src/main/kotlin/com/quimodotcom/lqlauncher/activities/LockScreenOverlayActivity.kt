@@ -32,8 +32,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
+import androidx.core.graphics.drawable.toBitmap
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -116,9 +119,22 @@ fun NotificationCard(
     onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val density = androidx.compose.ui.platform.LocalDensity.current
+
+    val iconBitmapState = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, item.packageName) {
+        withContext(Dispatchers.IO) {
+            try {
+                val drawable = context.packageManager.getApplicationIcon(item.packageName)
+                value = drawable.toBitmap(64, 64).asImageBitmap()
+            } catch (e: Exception) {
+                value = null
+            }
+        }
+    }
+    val iconBitmap = iconBitmapState.value
 
     Box(
         modifier = Modifier
@@ -161,20 +177,28 @@ fun NotificationCard(
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Icon Placeholder (Simplified)
+            // App Icon
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color.White.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Rounded.Notifications,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp)
-                )
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        Icons.Rounded.Notifications,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
             Spacer(Modifier.width(16.dp))
