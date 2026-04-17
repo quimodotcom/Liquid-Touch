@@ -152,6 +152,7 @@ private fun EditableLauncherScreen(
     var openedFolder by remember { mutableStateOf<LauncherItem.Folder?>(null) }
     var showAppDrawer by remember { mutableStateOf(false) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
+    var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Liquid glass settings state
     var glassSettings by remember { mutableStateOf(LiquidGlassSettings()) }
@@ -270,10 +271,18 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    // Wallpaper painter (honour permission and theme)
+    // Wallpaper painter (honour permission, theme and secret)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = if (isDarkTheme) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri,
-        useSystem = launcherConfig.useSystemWallpaper,
+        customUri = remember(isDarkTheme, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
+            if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
+                launcherConfig.wallpaperSecretUri
+            } else if (isDarkTheme) {
+                launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
+            } else {
+                launcherConfig.wallpaperUri
+            }
+        },
+        useSystem = launcherConfig.useSystemWallpaper && (!glassSettings.secretWallpaperVisible || launcherConfig.wallpaperSecretUri == null),
         permissionGranted = hasWallpaperPermission
     )
 
@@ -561,12 +570,14 @@ private fun EditableLauncherScreen(
                 val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
 
                 val width = with(density) {
-                    if (item is LauncherItem.AppShortcut) (item.spanX * cellWidth).toDp()
-                    else (item.spanX * cellWidth).toDp()
+                    (item.spanX * cellWidth).toDp()
                 }
                 val height = with(density) {
-                    if (item is LauncherItem.AppShortcut) (item.spanY * cellWidth).toDp()
-                    else (item.spanY * cellHeight).toDp()
+                    if (item is LauncherItem.AppShortcut || item is LauncherItem.InvisibleButton) {
+                        (item.spanY * cellWidth).toDp()  // Use cellWidth for 1:1 ratio
+                    } else {
+                        (item.spanY * cellHeight).toDp()  // Use cellHeight for panels/folders
+                    }
                 }
 
                 EditModeWrapper(
@@ -591,19 +602,23 @@ private fun EditableLauncherScreen(
                         editModeState = editModeState.copy(selectedItemId = item.id)
                     },
                     onMove = { newX, newY ->
-                        // Folder drop logic
+                        // 1. Folder drop logic (Apps only)
                         if (item is LauncherItem.AppShortcut) {
+                            // Find folder at the drop position
                             val targetFolder = launcherConfig.items.filterIsInstance<LauncherItem.Folder>().find { folder ->
                                 newX >= folder.gridX && newX < folder.gridX + folder.spanX &&
                                 newY >= folder.gridY && newY < folder.gridY + folder.spanY
                             }
+
                             if (targetFolder != null) {
                                 launcherConfig = launcherConfig.copy(
                                     items = launcherConfig.items.mapNotNull { existingItem ->
                                         when {
+                                            // Add app to target folder
                                             existingItem.id == targetFolder.id && existingItem is LauncherItem.Folder -> {
                                                 existingItem.copy(apps = existingItem.apps + item.packageName)
                                             }
+                                            // Remove app from home screen
                                             existingItem.id == item.id -> null
                                             else -> existingItem
                                         }
@@ -612,17 +627,45 @@ private fun EditableLauncherScreen(
                                 editModeState = editModeState.copy(selectedItemId = null)
                                 return@EditModeWrapper
                             }
+
+                            // 2. Folder creation logic (dropping App on App)
+                            val targetApp = launcherConfig.items.filterIsInstance<LauncherItem.AppShortcut>().find { otherApp ->
+                                otherApp.id != item.id &&
+                                newX == otherApp.gridX && newY == otherApp.gridY
+                            }
+
+                            if (targetApp != null) {
+                                // Create new folder at target location
+                                val newFolder = LauncherItem.Folder(
+                                    gridX = targetApp.gridX,
+                                    gridY = targetApp.gridY,
+                                    name = "New Folder",
+                                    apps = listOf(targetApp.packageName, item.packageName)
+                                )
+
+                                launcherConfig = launcherConfig.copy(
+                                    items = launcherConfig.items.mapNotNull { existingItem ->
+                                        if (existingItem.id == targetApp.id) newFolder
+                                        else if (existingItem.id == item.id) null
+                                        else existingItem
+                                    }
+                                )
+                                editModeState = editModeState.copy(selectedItemId = null)
+                                return@EditModeWrapper
+                            }
                         }
 
+                        // 3. Regular move logic
                         launcherConfig = launcherConfig.copy(
-                            items = launcherConfig.items.map {
-                                if (it.id == item.id) {
-                                    when (it) {
-                                        is LauncherItem.AppShortcut -> it.copy(gridX = newX, gridY = newY)
-                                        is LauncherItem.GlassPanel -> it.copy(gridX = newX, gridY = newY)
-                                        is LauncherItem.Folder -> it.copy(gridX = newX, gridY = newY)
+                            items = launcherConfig.items.map { existingItem ->
+                                if (existingItem.id == item.id) {
+                                    when (existingItem) {
+                                        is LauncherItem.AppShortcut -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.GlassPanel -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.Folder -> existingItem.copy(gridX = newX, gridY = newY)
+                                        is LauncherItem.InvisibleButton -> existingItem.copy(gridX = newX, gridY = newY)
                                     }
-                                } else it
+                                } else existingItem
                             }
                         )
                     },
@@ -678,6 +721,75 @@ private fun EditableLauncherScreen(
                                 cellWidth = cellWidth
                             )
                         }
+                        is LauncherItem.InvisibleButton -> {
+                            val view = LocalView.current
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        if (editModeState.isEnabled) {
+                                            Modifier
+                                                .background(
+                                                    Color.White.copy(alpha = 0.1f),
+                                                    RoundedCornerShape(12.dp)
+                                                )
+                                                .border(
+                                                    1.dp,
+                                                    Color.White.copy(alpha = 0.2f),
+                                                    RoundedCornerShape(12.dp)
+                                                )
+                                        } else Modifier
+                                    )
+                                    .pointerInput(editModeState.isEnabled) {
+                                        if (!editModeState.isEnabled) {
+                                            detectTapGestures(onTap = {
+                                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                                when (item.action) {
+                                                    LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
+                                                        val newState = !glassSettings.secretWallpaperVisible
+                                                        glassSettings = glassSettings.copy(secretWallpaperVisible = newState)
+                                                        // Ensure immediate reload for wallpaper service when visibility changes
+                                                        scope.launch {
+                                                            LiquidGlassSettingsRepository.saveSettings(context, glassSettings.copy(secretWallpaperVisible = newState))
+                                                        }
+                                                    }
+                                                    LauncherAction.OPEN_APP -> {
+                                                        item.targetPackageName?.let {
+                                                            launchApp(
+                                                                context,
+                                                                it
+                                                            )
+                                                        }
+                                                    }
+                                                    LauncherAction.OPEN_APP_DRAWER -> {
+                                                        showAppDrawer = true
+                                                    }
+                                                    LauncherAction.OPEN_SETTINGS -> {
+                                                        showSettings = true
+                                                    }
+                                                    else -> {}
+                                                }
+                                            })
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (editModeState.isEnabled) {
+                                    Icon(
+                                        imageVector = when (item.action) {
+                                            LauncherAction.TOGGLE_SECRET_WALLPAPER -> Icons.Rounded.Visibility
+                                            LauncherAction.OPEN_APP_DRAWER -> Icons.Rounded.Menu
+                                            LauncherAction.OPEN_SETTINGS -> Icons.Rounded.Settings
+                                            else -> Icons.Rounded.RadioButtonUnchecked
+                                        },
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
+                        else -> {}
                     }
                 }
             }
@@ -730,6 +842,10 @@ private fun EditableLauncherScreen(
             onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
             onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
             onAddFolder = { showFolderNameDialog = true },
+            onAddInvisibleButton = {
+                val pos = findEmptyCell(launcherConfig)
+                showInvisibleButtonActionPicker = pos
+            },
             onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
             onOpenSettings = { showSettings = true },
             onExitEditMode = {
@@ -768,6 +884,10 @@ private fun EditableLauncherScreen(
             onAddFolder = {
                 showFolderNameDialog = true
             },
+            onAddInvisibleButton = {
+                showInvisibleButtonActionPicker = pendingGridPosition
+                pendingGridPosition = null
+            },
             onDismiss = { pendingGridPosition = null }
         )
     }
@@ -791,6 +911,25 @@ private fun EditableLauncherScreen(
             onDismiss = {
                 editModeState = editModeState.copy(showAppPicker = false)
                 pendingGridPosition = null
+            }
+        )
+    }
+
+    if (showInvisibleButtonActionPicker != null) {
+        val (x, y) = showInvisibleButtonActionPicker!!
+        InvisibleButtonActionPickerDialog(
+            onActionSelected = { action ->
+                launcherConfig = launcherConfig.copy(
+                    items = launcherConfig.items + LauncherItem.InvisibleButton(
+                        gridX = x,
+                        gridY = y,
+                        action = action
+                    )
+                )
+                showInvisibleButtonActionPicker = null
+            },
+            onDismiss = {
+                showInvisibleButtonActionPicker = null
             }
         )
     }
@@ -840,6 +979,8 @@ private fun EditableLauncherScreen(
 
     if (editModeState.showWallpaperPicker) {
         WallpaperPickerDialog(
+            settings = glassSettings,
+            onSettingsChanged = { glassSettings = it },
             currentWallpaperUri = launcherConfig.wallpaperUri,
             currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
@@ -1065,6 +1206,17 @@ private fun EditableLauncherScreen(
                     gridRows = newSettings.gridRows
                 )
             },
+            launcherConfig = launcherConfig,
+            onConfigChanged = { newConfig ->
+                launcherConfig = newConfig
+                // Explicitly save to trigger repository persistence and service broadcast
+                scope.launch {
+                    LauncherConfigRepository.saveConfig(context, newConfig)
+                }
+            },
+            onOpenWallpaperPicker = {
+                editModeState = editModeState.copy(showWallpaperPicker = true)
+            },
             onExportSchematic = {
                 exportSchematicLauncher.launch("liquid_glass_layout.json")
             },
@@ -1123,128 +1275,6 @@ private fun EditableLauncherScreen(
     }
 }
 
-@Composable
-private fun LauncherItemView(
-    item: LauncherItem,
-    isEditMode: Boolean,
-    isSelected: Boolean,
-    backdrop: LayerBackdrop,
-    glassSettings: LiquidGlassSettings,
-    metadataVersion: Int,
-    cellWidth: Float,
-    cellHeight: Float,
-    gridColumns: Int,
-    gridRows: Int,
-    allItems: List<LauncherItem>,
-    context: Context,
-    onSelect: () -> Unit,
-    onMove: (Int, Int) -> Unit,
-    onResize: (Int, Int) -> Unit,
-    onDelete: () -> Unit,
-    onAddToFolder: (folderId: String, packageName: String) -> Unit,
-    onOpenFolder: (LauncherItem.Folder) -> Unit,
-    onLaunch: (String) -> Unit
-) {
-    val density = LocalDensity.current
-
-    val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
-    val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
-
-    // For apps: use 1:1 square cells (use cellWidth for both dimensions)
-    // For panels/folders: use flexible rectangular cells
-    val width = with(density) {
-        if (item is LauncherItem.AppShortcut) {
-            (item.spanX * cellWidth).toDp()
-        } else {
-            (item.spanX * cellWidth).toDp()
-        }
-    }
-    val height = with(density) {
-        if (item is LauncherItem.AppShortcut) {
-            (item.spanY * cellWidth).toDp()  // Use cellWidth for 1:1 ratio
-        } else {
-            (item.spanY * cellHeight).toDp()  // Use cellHeight for panels
-        }
-    }
-
-    EditModeWrapper(
-        item = item,
-        isSelected = isSelected,
-        isEditMode = isEditMode,
-        cellWidth = cellWidth,
-        cellHeight = cellHeight,
-        gridColumns = gridColumns,
-        gridRows = gridRows,
-        onSelect = onSelect,
-        onMove = { newX, newY ->
-            // Check if dropping onto a folder
-            if (item is LauncherItem.AppShortcut) {
-                val targetFolder = allItems.filterIsInstance<LauncherItem.Folder>().find { folder ->
-                    newX >= folder.gridX && newX < folder.gridX + folder.spanX &&
-                    newY >= folder.gridY && newY < folder.gridY + folder.spanY
-                }
-                if (targetFolder != null) {
-                    onAddToFolder(targetFolder.id, item.packageName)
-                    return@EditModeWrapper
-                }
-            }
-            onMove(newX, newY)
-        },
-        onResize = onResize,
-        onDelete = onDelete,
-        modifier = Modifier
-            .offset(x = offsetX, y = offsetY)
-            .size(width = width, height = height)
-            .padding(4.dp)
-    ) {
-        when (item) {
-            is LauncherItem.AppShortcut -> {
-                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
-                AppShortcutView(
-                    item = item,
-                    backdrop = backdrop,
-                    glassSettings = glassSettings,
-                    metadataVersion = metadataVersion,
-                    context = context,
-                    isEditMode = isEditMode,
-                    hasNotification = activeNotifications.contains(item.packageName),
-                    onLaunch = onLaunch,
-                    showLabel = glassSettings.showAppLabels,
-                    cellWidth = cellWidth
-                )
-            }
-            is LauncherItem.GlassPanel -> {
-                Box {
-                    GlassPanelBackground(
-                        item = item,
-                        backdrop = backdrop,
-                        glassSettings = glassSettings,
-                        isEditMode = isEditMode
-                    )
-                    GlassPanelContent(
-                        item = item,
-                        glassSettings = glassSettings,
-                        isEditMode = isEditMode
-                    )
-                }
-            }
-            is LauncherItem.Folder -> {
-                val activeNotifications by com.quimodotcom.lqlauncher.services.MediaListenerService.activeNotificationPackages.collectAsState()
-                val hasNotification = item.apps.any { activeNotifications.contains(it) }
-                FolderView(
-                    item = item,
-                    backdrop = backdrop,
-                    glassSettings = glassSettings,
-                    context = context,
-                    isEditMode = isEditMode,
-                    hasNotification = hasNotification,
-                    onOpenFolder = { onOpenFolder(item) },
-                    cellWidth = cellWidth
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun AppShortcutView(
@@ -1260,7 +1290,7 @@ private fun AppShortcutView(
     cellWidth: Float = 0f
 ) {
     val cornerRadius = glassSettings.iconCornerRadius.dp
-    val tintColor = Color(glassSettings.panelTintColor)
+    val tintColor = Color(glassSettings.panelTintColor.toInt())
     val density = LocalDensity.current
     val scaledSize = with(density) { (cellWidth * glassSettings.appTileScale).toDp() }
 
@@ -1415,7 +1445,7 @@ private fun AppShortcutView(
                 Box(
                     modifier = Modifier
                         .size(dotSize)
-                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .background(Color(glassSettings.notificationDotColor.toInt()), CircleShape)
                         .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
                 )
             }
@@ -1430,7 +1460,7 @@ private fun GlassPanelBackground(
     glassSettings: LiquidGlassSettings,
     isEditMode: Boolean
 ) {
-    val panelTintColor = Color(item.tintColor)
+    val panelTintColor = Color(item.tintColor.toInt())
     val blurRadius = glassSettings.blurRadius.dp
     val cornerRadius = glassSettings.panelCornerRadius.dp
 
@@ -1477,6 +1507,7 @@ private fun GlassPanelContent(
             PanelType.QUICK_SETTINGS -> QuickSettingsPanelContent()
             PanelType.BATTERY -> BatteryPanelContent(glassSettings)
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
+            PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1974,6 +2005,81 @@ private fun CompactQuickSettingToggle(
 }
 
 @Composable
+private fun MediaControlPanelContent() {
+    val mediaState by com.quimodotcom.lqlauncher.services.MediaStateRepository.mediaState.collectAsState()
+    val view = LocalView.current
+
+    if (mediaState == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No Media Playing", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            IconButton(onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToPrevious()
+            }) {
+                Icon(Icons.Rounded.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+
+            Surface(
+                onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    com.quimodotcom.lqlauncher.services.MediaStateRepository.playPause()
+                },
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.size(56.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (mediaState?.isPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            IconButton(onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToNext()
+            }) {
+                Icon(Icons.Rounded.SkipNext, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = mediaState?.title ?: "",
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = mediaState?.artist ?: "",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
 private fun BatteryPanelContent(glassSettings: LiquidGlassSettings) {
     val context = LocalContext.current
     val batteryManager = remember { context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager }
@@ -2086,7 +2192,7 @@ private fun FolderView(
     onOpenFolder: () -> Unit,
     cellWidth: Float = 0f
 ) {
-    val tintColor = Color(item.tintColor)
+    val tintColor = Color(item.tintColor.toInt())
     val cornerRadius = glassSettings.iconCornerRadius.dp
     val density = LocalDensity.current
     val scaledSize = with(density) { (cellWidth * glassSettings.appTileScale).toDp() }
@@ -2258,7 +2364,7 @@ private fun FolderView(
                 Box(
                     modifier = Modifier
                         .size(dotSize)
-                        .background(Color(glassSettings.notificationDotColor), CircleShape)
+                        .background(Color(glassSettings.notificationDotColor.toInt()), CircleShape)
                         .border(width = 1.dp, color = Color.White.copy(alpha = 0.2f), shape = CircleShape)
                 )
             }
@@ -2278,7 +2384,7 @@ private fun OpenedFolderDialog(
     onSortApps: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val tintColor = Color(folder.tintColor)
+    val tintColor = Color(folder.tintColor.toInt())
     val cornerRadius = glassSettings.panelCornerRadius.dp
     val view = LocalView.current
 
@@ -2564,9 +2670,20 @@ private suspend fun loadAvailableApps(context: Context): List<AvailableApp> {
             val override = overrides[pkg]
 
             val label = override?.label ?: resolveInfo.loadLabel(pm).toString()
+            val icon = try {
+                if (override?.customIconUri != null) {
+                    loadDrawableFromUri(context, override.customIconUri) ?: resolveInfo.loadIcon(pm)
+                } else {
+                    resolveInfo.loadIcon(pm)
+                }
+            } catch (e: Exception) {
+                null
+            }
+
             AvailableApp(
                 packageName = pkg,
                 label = label,
+                icon = icon,
                 componentName = ComponentName(pkg, resolveInfo.activityInfo.name),
                 customIconUri = override?.customIconUri
             )
@@ -2596,7 +2713,7 @@ private fun createDefaultItems(apps: List<AvailableApp>): List<LauncherItem> {
             spanY = 2,
             panelType = PanelType.CLOCK,
             blurRadius = 25f,
-            tintColor = 0xFF6366F1
+            tintColor = 0xFF6366F1L
         )
     )
 

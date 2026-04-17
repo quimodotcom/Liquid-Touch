@@ -64,9 +64,12 @@ android {
             } else {
                 // 2️⃣ Fallback to local text‑file credentials
                 storeFile = file("keystore/myrelease.jks")
-                storePassword = readCredential("storePassword.txt") ?: "dummy"
-                keyAlias = readCredential("keyAlias.txt") ?: "dummy"
-                keyPassword = readCredential("keyPassword.txt") ?: "dummy"
+                storePassword = readCredential("storePassword.txt")
+                ?: throw GradleException("Missing storePassword.txt in app/keystore")
+                keyAlias = readCredential("keyAlias.txt")
+                ?: throw GradleException("Missing keyAlias.txt in app/keystore")
+                keyPassword = readCredential("keyPassword.txt")
+                ?: throw GradleException("Missing keyPassword.txt in app/keystore")
             }
 
             enableV1Signing = true
@@ -84,6 +87,8 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            // Use consistent signing for debug builds to allow OTA updates from CI
+            signingConfig = signingConfigs.getByName("release")
         }
         release {
             isMinifyEnabled = true
@@ -173,6 +178,7 @@ dependencies {
     // Coil for image loading
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    implementation(libs.coil.gif)
 
     // WorkManager for background prewarm
     implementation("androidx.work:work-runtime-ktx:2.8.1")

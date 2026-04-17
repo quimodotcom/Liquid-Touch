@@ -7,6 +7,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -276,6 +278,7 @@ fun EditModeToolbar(
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
+    onAddInvisibleButton: () -> Unit,
     onChangeWallpaper: () -> Unit,
     onOpenSettings: () -> Unit,
     onExitEditMode: () -> Unit,
@@ -302,13 +305,15 @@ fun EditModeToolbar(
                     drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha * 0.08f))
                 }
             )
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ToolbarButton(Icons.Rounded.Apps, "Add App", onClick = onAddApp)
         ToolbarButton(Icons.Rounded.Widgets, "Add Panel", onClick = onAddPanel)
         ToolbarButton(Icons.Rounded.Folder, "Add Folder", onClick = onAddFolder)
+        ToolbarButton(Icons.Rounded.RadioButtonUnchecked, "Hidden", onClick = onAddInvisibleButton)
         ToolbarButton(Icons.Rounded.Wallpaper, "Wallpaper", onClick = onChangeWallpaper)
         ToolbarButton(Icons.Rounded.Settings, "Settings", onClick = onOpenSettings)
         ToolbarButton(Icons.Rounded.Check, "Done", onClick = onExitEditMode, primary = true)

@@ -156,14 +156,6 @@ private fun AppPickerItem(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // App icon
-        val context = androidx.compose.ui.platform.LocalContext.current
-        val iconBitmap = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, app.componentName, app.customIconUri) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val loaded = com.quimodotcom.lqlauncher.helpers.AppIconCache.loadIcon(context, app.componentName, 96, app.customIconUri, null)
-                value = loaded?.asImageBitmap()
-            }
-        }
-
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -171,20 +163,21 @@ private fun AppPickerItem(
                 .background(Color(0xFF2E2E3E)),
             contentAlignment = Alignment.Center
         ) {
-            if (iconBitmap.value != null) {
+            app.icon?.let { drawable ->
+                val bitmap = remember(drawable) {
+                    drawable.toBitmap(96, 96).asImageBitmap()
+                }
                 Image(
-                    bitmap = iconBitmap.value!!,
+                    painter = BitmapPainter(bitmap),
                     contentDescription = app.label,
                     modifier = Modifier.size(40.dp)
                 )
-            } else {
-                Icon(
-                    Icons.Rounded.Android,
-                    contentDescription = null,
-                    tint = Color.Gray,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
+            } ?: Icon(
+                Icons.Rounded.Android,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(32.dp)
+            )
         }
         
         Spacer(Modifier.height(4.dp))
@@ -265,6 +258,13 @@ fun PanelPickerDialog(
                     title = "Browser Search",
                     description = "One-row search bar (opens default browser)",
                     onClick = { onPanelTypeSelected(PanelType.SEARCH) }
+                )
+
+                PanelOption(
+                    icon = Icons.Rounded.MusicNote,
+                    title = "Media Controls",
+                    description = "Interactive playback buttons",
+                    onClick = { onPanelTypeSelected(PanelType.MEDIA_CONTROL) }
                 )
                 
                 Spacer(Modifier.height(16.dp))
@@ -414,6 +414,7 @@ fun AddItemMenu(
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
+    onAddInvisibleButton: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -469,8 +470,96 @@ fun AddItemMenu(
                     Spacer(Modifier.width(16.dp))
                     Text("Folder", color = Color.White)
                 }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onAddInvisibleButton)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.RadioButtonUnchecked, null, tint = Color(0xFF6366F1))
+                    Spacer(Modifier.width(16.dp))
+                    Text("Hidden Button", color = Color.White)
+                }
             }
         }
+    }
+}
+
+/**
+ * Picker for invisible button actions
+ */
+@Composable
+fun InvisibleButtonActionPickerDialog(
+    onActionSelected: (LauncherAction) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = Color(0xFF1E1E2E)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    "Hidden Button Action",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                ActionOption(
+                    icon = Icons.Rounded.Visibility,
+                    title = "Toggle Secret Wallpaper",
+                    onClick = { onActionSelected(LauncherAction.TOGGLE_SECRET_WALLPAPER) }
+                )
+
+                ActionOption(
+                    icon = Icons.Rounded.Menu,
+                    title = "Open App Drawer",
+                    onClick = { onActionSelected(LauncherAction.OPEN_APP_DRAWER) }
+                )
+
+                ActionOption(
+                    icon = Icons.Rounded.Settings,
+                    title = "Open Settings",
+                    onClick = { onActionSelected(LauncherAction.OPEN_SETTINGS) }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Cancel", color = Color(0xFF6366F1))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color(0xFF6366F1))
+        Spacer(Modifier.width(16.dp))
+        Text(title, color = Color.White)
     }
 }
 

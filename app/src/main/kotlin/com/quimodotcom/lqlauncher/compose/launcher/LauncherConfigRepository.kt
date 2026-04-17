@@ -1,6 +1,7 @@
 package com.quimodotcom.lqlauncher.compose.launcher
 
 import android.content.Context
+import android.content.Intent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -13,6 +14,7 @@ import java.io.File
 object LauncherConfigRepository {
     
     private const val CONFIG_FILE_NAME = "launcher_config.json"
+    private const val ACTION_CONFIG_CHANGED = "com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED"
     
     private val json = Json {
         prettyPrint = true
@@ -29,6 +31,9 @@ object LauncherConfigRepository {
                 val file = File(context.filesDir, CONFIG_FILE_NAME)
                 val jsonString = json.encodeToString(config)
                 file.writeText(jsonString)
+
+                // Notify service (WallpaperService) to reload config
+                context.sendBroadcast(Intent(ACTION_CONFIG_CHANGED))
             } catch (e: Exception) {
                 e.printStackTrace()
             }

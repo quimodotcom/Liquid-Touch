@@ -28,7 +28,7 @@ data class LiquidGlassSettings(
     val vibrancyEnabled: Boolean = true,
     
     // Colors and transparency
-    val panelTintColor: Long = 0xFF6366F1,
+    val panelTintColor: Long = 0xFF6366F1L,
     val panelBackgroundAlpha: Float = 0.12f,
     val iconBackgroundAlpha: Float = 0.1f,
     
@@ -75,7 +75,8 @@ data class LiquidGlassSettings(
     val parallaxIntensity: Float = 0.2f,
 
     // Lock Screen
-    val enableLockScreenMediaArt: Boolean = false,
+    val enableLockScreenMediaArt: Boolean = true,
+    val enableHomeMediaArt: Boolean = false,
     val enableLockScreenControls: Boolean = false,
 
     // Debug & Updates
@@ -83,11 +84,21 @@ data class LiquidGlassSettings(
     val showDebugLogs: Boolean = false,
     val githubUpdateUrl: String = "",
     val githubToken: String = "",
+    val autoUpdateEnabled: Boolean = false,
 
     // Notifications
     val showNotificationDots: Boolean = false,
-    val notificationDotColor: Long = 0xFFEF4444, // Default Red-500
-    val liquidGlassNotificationDots: Boolean = false
+    val notificationDotColor: Long = 0xFFEF4444L, // Default Red-500
+    val liquidGlassNotificationDots: Boolean = false,
+
+    // Wallpaper Schedule
+    val dayStartHour: Int = 7,
+    val dayStartMinute: Int = 0,
+    val nightStartHour: Int = 20,
+    val nightStartMinute: Int = 0,
+
+    // Runtime state (persisted for convenience)
+    val secretWallpaperVisible: Boolean = true
 )
 
 /**

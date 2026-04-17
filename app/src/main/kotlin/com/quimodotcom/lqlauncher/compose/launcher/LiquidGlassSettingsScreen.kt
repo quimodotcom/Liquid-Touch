@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import android.view.HapticFeedbackConstants
 import kotlinx.coroutines.launch
 import android.widget.Toast
@@ -36,13 +40,16 @@ import android.content.Intent
 import android.content.ComponentName
 
 /**
- * Full-screen settings dialog for Liquid Glass parameters
+ * Fully organized and categorized settings for Liquid Glass Launcher
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiquidGlassSettingsScreen(
     settings: LiquidGlassSettings,
     onSettingsChanged: (LiquidGlassSettings) -> Unit,
+    launcherConfig: LauncherConfig,
+    onConfigChanged: (LauncherConfig) -> Unit,
+    onOpenWallpaperPicker: () -> Unit,
     onExportSchematic: () -> Unit,
     onImportSchematic: () -> Unit,
     onDismiss: () -> Unit
@@ -62,7 +69,7 @@ fun LiquidGlassSettingsScreen(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Liquid Glass Settings", color = Color.White) },
+                        title = { Text("Settings", color = Color.White) },
                         navigationIcon = {
                             IconButton(onClick = {
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -76,7 +83,7 @@ fun LiquidGlassSettingsScreen(
                                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                 onSettingsChanged(LiquidGlassSettings())
                             }) {
-                                Text("Reset", color = Color(0xFF6366F1))
+                                Text("Reset All", color = Color(0xFF6366F1))
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -93,15 +100,48 @@ fun LiquidGlassSettingsScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // === BLUR SETTINGS ===
+                    // === 1. WALLPAPER & LAYERS ===
                     item {
-                        SettingsSection(title = "Blur Effect", icon = Icons.Rounded.BlurOn)
+                        SettingsSection(title = "Wallpaper & Layers", icon = Icons.Rounded.Wallpaper)
+                    }
+
+                    item {
+                        SettingItem(
+                            title = "Background Layers",
+                            description = "Configure Day/Night cycles and Subject layer",
+                            onClick = onOpenWallpaperPicker
+                        )
+                    }
+
+                    item {
+                        var showSecretPicker by remember { mutableStateOf(false) }
+                        SettingItem(
+                            title = "Secret Wallpaper",
+                            description = "Shown on home screen after unlocking",
+                            onClick = { showSecretPicker = true }
+                        )
+
+                        if (showSecretPicker) {
+                            SecretWallpaperPickerDialog(
+                                currentConfig = launcherConfig,
+                                onConfigChanged = onConfigChanged,
+                                onDismiss = { showSecretPicker = false }
+                            )
+                        }
+                    }
+
+
+
+                    // === 2. VISUAL EFFECTS ===
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(title = "Visual Effects", icon = Icons.Rounded.AutoAwesome)
                     }
                     
                     item {
                         SwitchSetting(
                             title = "Enable Blur",
-                            subtitle = "Frosted glass blur effect",
+                            subtitle = "Frosted glass transparency effect",
                             checked = settings.blurEnabled,
                             onCheckedChange = { onSettingsChanged(settings.copy(blurEnabled = it)) }
                         )
@@ -117,22 +157,16 @@ fun LiquidGlassSettingsScreen(
                             onValueChange = { onSettingsChanged(settings.copy(blurRadius = it)) }
                         )
                     }
-                    
-                    // === LENS EFFECT ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Glass Refraction", icon = Icons.Rounded.CenterFocusWeak)
-                    }
-                    
+
                     item {
                         SwitchSetting(
-                            title = "Enable Refraction",
-                            subtitle = "Glass lens distortion effect",
+                            title = "Glass Refraction",
+                            subtitle = "Realistic lens distortion effect",
                             checked = settings.lensEnabled,
                             onCheckedChange = { onSettingsChanged(settings.copy(lensEnabled = it)) }
                         )
                     }
-                    
+
                     item {
                         SliderSetting(
                             title = "Refraction Height",
@@ -143,58 +177,70 @@ fun LiquidGlassSettingsScreen(
                             onValueChange = { onSettingsChanged(settings.copy(refractionHeight = it)) }
                         )
                     }
-                    
+
                     item {
                         SliderSetting(
-                            title = "Refraction Amount",
+                            title = "Refraction Intensity",
                             value = settings.refractionAmount,
                             valueRange = 4f..40f,
                             enabled = settings.lensEnabled,
-                            valueLabel = "${settings.refractionAmount.toInt()}dp",
+                            valueLabel = "${settings.refractionAmount.toInt()}",
                             onValueChange = { onSettingsChanged(settings.copy(refractionAmount = it)) }
                         )
                     }
-                    
+
                     item {
                         SwitchSetting(
                             title = "Chromatic Aberration",
-                            subtitle = "Rainbow color fringing on edges",
+                            subtitle = "Rainbow fringing on glass edges",
                             checked = settings.chromaticAberration,
                             onCheckedChange = { onSettingsChanged(settings.copy(chromaticAberration = it)) }
                         )
                     }
-                    
-                    // === VIBRANCY ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Vibrancy", icon = Icons.Rounded.AutoAwesome)
-                    }
-                    
+
                     item {
                         SwitchSetting(
-                            title = "Enable Vibrancy",
-                            subtitle = "Enhanced color saturation",
+                            title = "Vibrancy",
+                            subtitle = "Enhanced background saturation",
                             checked = settings.vibrancyEnabled,
                             onCheckedChange = { onSettingsChanged(settings.copy(vibrancyEnabled = it)) }
                         )
                     }
-                    
-                    // === COLORS ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Colors & Transparency", icon = Icons.Rounded.Palette)
-                    }
-                    
+
                     item {
                         ColorPickerSetting(
                             title = "Panel Tint Color",
-                            currentColor = Color(settings.panelTintColor),
+                            currentColor = Color(settings.panelTintColor.toInt()),
                             onColorSelected = { 
-                                onSettingsChanged(settings.copy(panelTintColor = it.value.toLong())) 
+                                onSettingsChanged(settings.copy(panelTintColor = it.toArgb().toLong()))
                             }
                         )
                     }
-                    
+
+                    item {
+                        SwitchSetting(
+                            title = "Interactive Lock Controls",
+                            subtitle = "Show playback buttons over the lock screen",
+                            checked = settings.enableLockScreenControls,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
+                            }
+                        )
+                    }
+
                     item {
                         SliderSetting(
                             title = "Panel Transparency",
@@ -204,23 +250,7 @@ fun LiquidGlassSettingsScreen(
                             onValueChange = { onSettingsChanged(settings.copy(panelBackgroundAlpha = it)) }
                         )
                     }
-                    
-                    item {
-                        SliderSetting(
-                            title = "Icon Transparency",
-                            value = settings.iconBackgroundAlpha,
-                            valueRange = 0.05f..0.3f,
-                            valueLabel = "${(settings.iconBackgroundAlpha * 100).toInt()}%",
-                            onValueChange = { onSettingsChanged(settings.copy(iconBackgroundAlpha = it)) }
-                        )
-                    }
-                    
-                    // === SHAPE ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Shape", icon = Icons.Rounded.RoundedCorner)
-                    }
-                    
+
                     item {
                         SliderSetting(
                             title = "Panel Corner Radius",
@@ -231,25 +261,15 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
                     
-                    item {
-                        SliderSetting(
-                            title = "Icon Corner Radius",
-                            value = settings.iconCornerRadius,
-                            valueRange = 4f..24f,
-                            valueLabel = "${settings.iconCornerRadius.toInt()}dp",
-                            onValueChange = { onSettingsChanged(settings.copy(iconCornerRadius = it)) }
-                        )
-                    }
-                    
-                    // === GRID ===
+                    // === 3. GRID & LAYOUT ===
                     item {
                         Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Grid Layout", icon = Icons.Rounded.GridView)
+                        SettingsSection(title = "Grid & Layout", icon = Icons.Rounded.GridView)
                     }
                     
                     item {
                         SliderSetting(
-                            title = "Columns",
+                            title = "Grid Columns",
                             value = settings.gridColumns.toFloat(),
                             valueRange = 3f..6f,
                             steps = 2,
@@ -260,7 +280,7 @@ fun LiquidGlassSettingsScreen(
                     
                     item {
                         SliderSetting(
-                            title = "Rows",
+                            title = "Grid Rows",
                             value = settings.gridRows.toFloat(),
                             valueRange = 4f..8f,
                             steps = 3,
@@ -271,24 +291,53 @@ fun LiquidGlassSettingsScreen(
                     
                     item {
                         SliderSetting(
-                            title = "App Tile Size",
+                            title = "App Icon Size",
                             value = settings.appTileScale,
                             valueRange = 0.5f..1.5f,
                             valueLabel = "${(settings.appTileScale * 100).toInt()}%",
                             onValueChange = { onSettingsChanged(settings.copy(appTileScale = it)) }
                         )
                     }
-                    
-                    // === GLOBAL THEME ===
+
+                    item {
+                        SliderSetting(
+                            title = "Icon Corner Radius",
+                            value = settings.iconCornerRadius,
+                            valueRange = 4f..24f,
+                            valueLabel = "${settings.iconCornerRadius.toInt()}dp",
+                            onValueChange = { onSettingsChanged(settings.copy(iconCornerRadius = it)) }
+                        )
+                    }
+
+                    item {
+                        SliderSetting(
+                            title = "Icon Transparency",
+                            value = settings.iconBackgroundAlpha,
+                            valueRange = 0.05f..0.3f,
+                            valueLabel = "${(settings.iconBackgroundAlpha * 100).toInt()}%",
+                            onValueChange = { onSettingsChanged(settings.copy(iconBackgroundAlpha = it)) }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Show App Labels",
+                            subtitle = "Display names below icons",
+                            checked = settings.showAppLabels,
+                            onCheckedChange = { onSettingsChanged(settings.copy(showAppLabels = it)) }
+                        )
+                    }
+
+                    // === 4. THEMES & ICONS ===
                     item {
                         Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Global Theme", icon = Icons.Rounded.AutoAwesome)
+                        SettingsSection(title = "Themes & Icons", icon = Icons.Rounded.Palette)
                     }
 
                     item {
                         SwitchSetting(
                             title = "Cyberpunk Theme",
-                            subtitle = "Dark, high blur, neon accents",
+                            subtitle = "Dark mode with high-contrast neon accents",
                             checked = settings.cyberpunkTheme,
                             onCheckedChange = { onSettingsChanged(settings.copy(cyberpunkTheme = it)) }
                         )
@@ -301,7 +350,7 @@ fun LiquidGlassSettingsScreen(
 
                         SettingItem(
                             title = "Icon Pack",
-                            description = if (settings.iconPackPackageName.isEmpty()) "Default" else "Custom: $currentPackName",
+                            description = if (settings.iconPackPackageName.isEmpty()) "Default" else "Active: $currentPackName",
                             onClick = { showIconPackPicker = true }
                         )
 
@@ -319,14 +368,14 @@ fun LiquidGlassSettingsScreen(
 
                     item {
                         SwitchSetting(
-                            title = "Use Icon Pack in Drawer",
+                            title = "Icon Pack in Drawer",
                             subtitle = "Apply custom icons to app drawer",
                             checked = settings.useIconPackInAppDrawer,
                             onCheckedChange = { onSettingsChanged(settings.copy(useIconPackInAppDrawer = it)) }
                         )
                     }
 
-                    // === WIDGET STYLES ===
+                    // === 5. WIDGET STYLES ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Widget Styles", icon = Icons.Rounded.Style)
@@ -362,24 +411,15 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
                     
-                    item {
-                        SwitchSetting(
-                            title = "Show App Labels",
-                            subtitle = "Display app names below icons",
-                            checked = settings.showAppLabels,
-                            onCheckedChange = { onSettingsChanged(settings.copy(showAppLabels = it)) }
-                        )
-                    }
-                    
-                    // === ANIMATION ===
+                    // === 6. INTERACTION ===
                     item {
                         Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Animation", icon = Icons.Rounded.Animation)
+                        SettingsSection(title = "Interaction", icon = Icons.Rounded.Explore)
                     }
                     
                     item {
                         SliderSetting(
-                            title = "Drag Bounce",
+                            title = "Drag Elasticity",
                             value = settings.dragSpringDamping,
                             valueRange = 0.3f..1.0f,
                             valueLabel = String.format("%.1f", settings.dragSpringDamping),
@@ -397,16 +437,10 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
-                    // === MOTION ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Motion", icon = Icons.Rounded.Explore)
-                    }
-
                     item {
                         SwitchSetting(
                             title = "Parallax Effect",
-                            subtitle = "Move background with device tilt",
+                            subtitle = "Background moves with device tilt",
                             checked = settings.enableParallax,
                             onCheckedChange = { onSettingsChanged(settings.copy(enableParallax = it)) }
                         )
@@ -414,7 +448,7 @@ fun LiquidGlassSettingsScreen(
 
                     item {
                         SliderSetting(
-                            title = "Intensity",
+                            title = "Parallax Intensity",
                             value = settings.parallaxIntensity,
                             valueRange = 0f..2f,
                             enabled = settings.enableParallax,
@@ -423,10 +457,102 @@ fun LiquidGlassSettingsScreen(
                         )
                     }
 
-                    // === INTEGRATIONS ===
+                    // === 7. INTEGRATIONS ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Integrations", icon = Icons.Rounded.Cloud)
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Notification Dots",
+                            subtitle = "Show badge on apps with notifications",
+                            checked = settings.showNotificationDots,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(showNotificationDots = enabled))
+                            }
+                        )
+                    }
+
+                    item {
+                        ColorPickerSetting(
+                            title = "Notification Dot Color",
+                            currentColor = Color(settings.notificationDotColor.toInt()),
+                            onColorSelected = {
+                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb().toLong()))
+                            },
+                            enabled = !settings.liquidGlassNotificationDots
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Liquid Glass Dots",
+                            subtitle = "Apply glass effect to notification badges",
+                            checked = settings.liquidGlassNotificationDots,
+                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassNotificationDots = it)) }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Lock Screen Media Art",
+                            subtitle = "Show full screen album art on lock screen",
+                            checked = settings.enableLockScreenMediaArt,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
+                            }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Home Screen Media Art",
+                            subtitle = "Show full screen album art on home screen",
+                            checked = settings.enableHomeMediaArt,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
+
+                                    if (!isEnabled) {
+                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                        } catch (e: Exception) {}
+                                        return@SwitchSetting
+                                    }
+                                }
+                                onSettingsChanged(settings.copy(enableHomeMediaArt = enabled))
+                            }
+                        )
                     }
 
                     item {
@@ -474,61 +600,33 @@ fun LiquidGlassSettingsScreen(
 
                     item {
                         SwitchSetting(
-                            title = "Open browser when tapping search",
-                            subtitle = "Tapping the search panel will open the browser instead of focusing input",
+                            title = "Search Widget opens Browser",
+                            subtitle = "Tapping search opens browser immediately",
                             checked = settings.searchWidgetOpensBrowserOnTap,
                             onCheckedChange = { onSettingsChanged(settings.copy(searchWidgetOpensBrowserOnTap = it)) }
                         )
                     }
 
-                    // === LOCK SCREEN ===
+                    // === 8. MAINTENANCE ===
                     item {
                         Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Lock Screen", icon = Icons.Rounded.Lock)
+                        SettingsSection(title = "Maintenance", icon = Icons.Rounded.Build)
                     }
 
                     item {
-                        SwitchSetting(
-                            title = "Show Media Art",
-                            subtitle = "Show full screen album art on lock screen when music is playing",
-                            checked = settings.enableLockScreenMediaArt,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Please grant Notification Access to enable this feature", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Cannot open settings", Toast.LENGTH_SHORT).show()
-                                        }
-                                        // Don't enable it yet, user needs to grant permission first
-                                        return@SwitchSetting
-                                    }
-                                }
-                                onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
-                            }
+                        SettingItem(
+                            title = "Export Schematic",
+                            description = "Save layout and settings to file",
+                            onClick = onExportSchematic
                         )
                     }
 
                     item {
-                        SwitchSetting(
-                            title = "Interactive Media Controls",
-                            subtitle = "Overlay interactive playback controls on the lock screen",
-                            checked = settings.enableLockScreenControls,
-                            onCheckedChange = { enabled ->
-                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
-                            }
+                        SettingItem(
+                            title = "Import Schematic",
+                            description = "Restore layout and settings from file",
+                            onClick = onImportSchematic
                         )
-                    }
-
-                    // === DEBUG ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Advanced", icon = Icons.Rounded.Build)
                     }
 
                     item {
@@ -537,8 +635,8 @@ fun LiquidGlassSettingsScreen(
                         if (showConfirmation) {
                             AlertDialog(
                                 onDismissRequest = { showConfirmation = false },
-                                title = { Text("Enable Debug Settings?") },
-                                text = { Text("Only enable this if you know what you are doing. Incorrect settings may cause instability.") },
+                                title = { Text("Enable Developer Mode?") },
+                                text = { Text("Only enable if you know what you are doing. Instability may occur.") },
                                 confirmButton = {
                                     TextButton(onClick = {
                                         onSettingsChanged(settings.copy(showDebugSettings = true))
@@ -559,15 +657,12 @@ fun LiquidGlassSettingsScreen(
                         }
 
                         SwitchSetting(
-                            title = "Show Debug Settings",
-                            subtitle = "Advanced configuration options",
+                            title = "Developer Mode",
+                            subtitle = "Access advanced configuration options",
                             checked = settings.showDebugSettings,
                             onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    showConfirmation = true
-                                } else {
-                                    onSettingsChanged(settings.copy(showDebugSettings = false))
-                                }
+                                if (enabled) showConfirmation = true
+                                else onSettingsChanged(settings.copy(showDebugSettings = false))
                             }
                         )
                     }
@@ -576,20 +671,9 @@ fun LiquidGlassSettingsScreen(
                         item {
                             SwitchSetting(
                                 title = "Show Debug Logs",
-                                subtitle = "Overlay debug information on lock screen",
+                                subtitle = "Overlay internal logs on lock screen",
                                 checked = settings.showDebugLogs,
                                 onCheckedChange = { onSettingsChanged(settings.copy(showDebugLogs = it)) }
-                            )
-                        }
-
-                        item {
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "GitHub Updates",
-                                color = Color(0xFF6366F1),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                             )
                         }
 
@@ -660,6 +744,15 @@ fun LiquidGlassSettingsScreen(
                         }
 
                         item {
+                            SwitchSetting(
+                                title = "Automatic Updates",
+                                subtitle = "Check and install updates from GitHub",
+                                checked = settings.autoUpdateEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(autoUpdateEnabled = it)) }
+                            )
+                        }
+
+                        item {
                             SettingItem(
                                 title = "Check for Updates",
                                 description = "Manually check for updates from GitHub",
@@ -669,7 +762,12 @@ fun LiquidGlassSettingsScreen(
                                     } else {
                                         Toast.makeText(context, "Checking for updates...", Toast.LENGTH_SHORT).show()
                                         scope.launch {
-                                            com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(context, settings.githubUpdateUrl, settings.githubToken)
+                                            com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(
+                                                context = context,
+                                                url = settings.githubUpdateUrl,
+                                                token = settings.githubToken,
+                                                isManual = true
+                                            )
                                         }
                                     }
                                 }
@@ -677,20 +775,9 @@ fun LiquidGlassSettingsScreen(
                         }
 
                         item {
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                "Animated Cover",
-                                color = Color(0xFF6366F1),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                            )
-                        }
-
-                        item {
                             var showDebugger by remember { mutableStateOf(false) }
                             SettingItem(
-                                title = "Open Debugger",
+                                title = "Art Debugger",
                                 description = "Test animated cover fetching",
                                 onClick = { showDebugger = true }
                             )
@@ -699,80 +786,6 @@ fun LiquidGlassSettingsScreen(
                                 AppleMusicDebugDialog(onDismiss = { showDebugger = false })
                             }
                         }
-                    }
-                    
-                    // === BACKUP & RESTORE ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Backup & Restore", icon = Icons.Rounded.Backup)
-                    }
-
-                    item {
-                        SettingItem(
-                            title = "Export Schematic",
-                            description = "Save current layout and settings to a file",
-                            onClick = onExportSchematic
-                        )
-                    }
-
-                    item {
-                        SettingItem(
-                            title = "Import Schematic",
-                            description = "Restore layout and settings from a file",
-                            onClick = onImportSchematic
-                        )
-                    }
-
-                    // === NOTIFICATIONS ===
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(title = "Notifications", icon = Icons.Rounded.Notifications)
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Notification Dots",
-                            subtitle = "Show a dot on apps with active notifications",
-                            checked = settings.showNotificationDots,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Please grant Notification Access to enable this feature", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Cannot open settings", Toast.LENGTH_SHORT).show()
-                                        }
-                                        return@SwitchSetting
-                                    }
-                                }
-                                onSettingsChanged(settings.copy(showNotificationDots = enabled))
-                            }
-                        )
-                    }
-
-                    item {
-                        ColorPickerSetting(
-                            title = "Dot Color",
-                            currentColor = Color(settings.notificationDotColor),
-                            onColorSelected = {
-                                onSettingsChanged(settings.copy(notificationDotColor = it.value.toLong()))
-                            },
-                            enabled = !settings.liquidGlassNotificationDots
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Liquid Glass Dots",
-                            subtitle = "Apply frosted glass effect to notification dots (disables color)",
-                            checked = settings.liquidGlassNotificationDots,
-                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassNotificationDots = it)) }
-                        )
                     }
 
                     item {
@@ -892,8 +905,6 @@ private fun SliderSetting(
             Slider(
                 value = value,
                 onValueChange = {
-                    // Only tick if integer part changes or significant change
-                    // Or for small ranges (like tile scale 0.5-1.5), tick on e.g. 0.1 increments
                     val isSmallRange = (valueRange.endInclusive - valueRange.start) < 5f
                     val threshold = if (isSmallRange) 0.1f else 1.0f
 
@@ -1144,7 +1155,7 @@ private fun IconPackPickerDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                     onPackSelected("")
                                 }
                                 .background(if (currentPack.isEmpty()) Color(0xFF6366F1).copy(alpha = 0.2f) else Color.Transparent)
@@ -1165,7 +1176,7 @@ private fun IconPackPickerDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                                     onPackSelected(pack.packageName)
                                 }
                                 .background(if (currentPack == pack.packageName) Color(0xFF6366F1).copy(alpha = 0.2f) else Color.Transparent)
@@ -1191,6 +1202,61 @@ private fun IconPackPickerDialog(
         }
     }
 }
+
+@Composable
+private fun SecretWallpaperPickerDialog(
+    currentConfig: LauncherConfig,
+    onConfigChanged: (LauncherConfig) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val pickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {}
+
+            onConfigChanged(currentConfig.copy(wallpaperSecretUri = uri.toString()))
+            Toast.makeText(context, "Secret wallpaper set!", Toast.LENGTH_SHORT).show()
+            onDismiss()
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Secret Wallpaper") },
+        text = { Text("Choose an image that will only be shown on your home screen after unlocking.") },
+        confirmButton = {
+            TextButton(onClick = {
+                pickerLauncher.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                    )
+                )
+            }) {
+                Text("Pick Image/Video")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                onConfigChanged(currentConfig.copy(wallpaperSecretUri = null))
+                onDismiss()
+            }) {
+                Text("Clear", color = Color.Red)
+            }
+        },
+        containerColor = Color(0xFF1A1A24),
+        titleContentColor = Color.White,
+        textContentColor = Color.White.copy(alpha = 0.8f)
+    )
+}
+
 
 @Composable
 private fun SettingItem(

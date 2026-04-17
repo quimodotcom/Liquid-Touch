@@ -16,28 +16,39 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
 object AutoUpdater {
     private const val TAG = "AutoUpdater"
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun checkForUpdates(context: Context, url: String, token: String) {
+    suspend fun checkForUpdates(context: Context, url: String, token: String, isManual: Boolean = false) {
         if (url.isBlank()) return
+
+        DebugLogger.log(TAG, "Checking for updates: $url")
 
         withContext(Dispatchers.IO) {
             try {
                 // 1. Parse URL to get owner/repo
-                // Expected format: https://github.com/owner/repo/actions or just https://github.com/owner/repo
                 val regex = Regex("github\\.com/([^/]+)/([^/]+)")
-                val match = regex.find(url) ?: return@withContext
-                val (owner, repo) = match.destructured
+                val match = regex.find(url)
+                if (match == null) {
+                    DebugLogger.log(TAG, "Invalid GitHub URL format")
+                    return@withContext
+                }
+                val (owner, repoRaw) = match.destructured
+                val repo = repoRaw.substringBefore("/").substringBefore(".git")
 
-                Log.d(TAG, "Checking updates for $owner/$repo")
+                DebugLogger.log(TAG, "Repo: $owner/$repo")
 
                 // 2. Fetch latest successful workflow run
-                val runsUrl = "https://api.github.com/repos/$owner/$repo/actions/runs?status=success&per_page=1"
+                // We filter for "status=success" and "branch=main/master" if possible
+                val runsUrl = "https://api.github.com/repos/$owner/$repo/actions/runs?status=success&per_page=10"
 
                 val runsRequest = Request.Builder()
                     .url(runsUrl)
@@ -54,21 +65,34 @@ object AutoUpdater {
 
                 val runsBody = runsResponse.body?.string() ?: return@withContext
                 val runsJson = json.parseToJsonElement(runsBody).jsonObject
-                val workflowRuns = runsJson["workflow_runs"]?.jsonArray
-                val latestRun = workflowRuns?.firstOrNull()?.jsonObject
+                val workflowRuns = runsJson["workflow_runs"]?.jsonArray ?: return@withContext
+
+                // Find latest run with artifacts
+                var latestRun: kotlinx.serialization.json.JsonObject? = null
+                var runNumber = 0
+
+                for (i in 0 until workflowRuns.size) {
+                    val run = workflowRuns[i].jsonObject
+                    val hasArtifacts = run["artifacts_url"] != null
+                    if (hasArtifacts) {
+                        latestRun = run
+                        runNumber = run["run_number"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                        break
+                    }
+                }
 
                 if (latestRun == null) {
-                    Log.d(TAG, "No successful runs found")
+                    DebugLogger.log(TAG, "No successful runs with artifacts found")
                     return@withContext
                 }
 
-                // Check version
-                val runNumber = latestRun["run_number"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
                 val currentVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName
                 val currentBuildNumber = currentVersion?.substringAfterLast(".")?.toIntOrNull() ?: 0
 
-                if (runNumber <= currentBuildNumber) {
-                    Log.d(TAG, "App is up to date (Remote: $runNumber, Local: $currentBuildNumber)")
+                DebugLogger.log(TAG, "Version Check: Remote=$runNumber, Local=$currentBuildNumber")
+
+                if (runNumber <= currentBuildNumber && !isManual) {
+                    DebugLogger.log(TAG, "App is up to date")
                     return@withContext
                 }
 
@@ -98,10 +122,25 @@ object AutoUpdater {
                      return@withContext
                 }
 
-                val downloadUrl = firstArtifact["archive_download_url"]?.jsonPrimitive?.contentOrNull ?: return@withContext
-                val artifactName = firstArtifact["name"]?.jsonPrimitive?.contentOrNull ?: "update"
+                // Filter for "app-debug" or "launcher" artifact if multiple exist
+                var selectedArtifact = artifacts.firstOrNull()?.jsonObject
+                for (i in 0 until artifacts.size) {
+                    val name = artifacts[i].jsonObject["name"]?.jsonPrimitive?.contentOrNull ?: ""
+                    if (name.contains("app-debug", ignoreCase = true) || name.contains("launcher", ignoreCase = true)) {
+                        selectedArtifact = artifacts[i].jsonObject
+                        break
+                    }
+                }
 
-                Log.d(TAG, "Downloading artifact: $artifactName from $downloadUrl")
+                if (selectedArtifact == null) {
+                    DebugLogger.log(TAG, "No matching artifact found")
+                    return@withContext
+                }
+
+                val downloadUrl = selectedArtifact["archive_download_url"]?.jsonPrimitive?.contentOrNull ?: return@withContext
+                val artifactName = selectedArtifact["name"]?.jsonPrimitive?.contentOrNull ?: "update"
+
+                DebugLogger.log(TAG, "Downloading: $artifactName")
 
                 // 4. Download Artifact (ZIP)
                 val downloadRequest = Request.Builder()
@@ -118,24 +157,30 @@ object AutoUpdater {
                 }
 
                 val zipFile = File(context.cacheDir, "update.zip")
-                val sink = java.io.BufferedOutputStream(FileOutputStream(zipFile))
-                downloadResponse.body?.byteStream()?.use { input ->
-                    input.copyTo(sink)
+                zipFile.outputStream().use { output ->
+                    downloadResponse.body?.byteStream()?.use { input ->
+                        input.copyTo(output)
+                    }
                 }
-                sink.close()
+
+                DebugLogger.log(TAG, "Downloaded ${zipFile.length()} bytes. Unzipping...")
 
                 // 5. Unzip to find APK
                 var apkFile: File? = null
-                ZipInputStream(zipFile.inputStream()).use { zis ->
+                ZipInputStream(zipFile.inputStream().buffered()).use { zis ->
                     var entry = zis.nextEntry
                     while (entry != null) {
-                        if (entry.name.endsWith(".apk")) {
-                            apkFile = File(context.cacheDir, "update.apk") // overwrite previous
-                            val fos = FileOutputStream(apkFile)
-                            zis.copyTo(fos)
-                            fos.close()
+                        // Look for APK, including in subdirectories
+                        if (entry.name.endsWith(".apk", ignoreCase = true)) {
+                            DebugLogger.log(TAG, "Found APK: ${entry.name}")
+                            val extractedApk = File(context.cacheDir, "update.apk")
+                            extractedApk.outputStream().use { fos ->
+                                zis.copyTo(fos)
+                            }
+                            apkFile = extractedApk
                             break
                         }
+                        zis.closeEntry()
                         entry = zis.nextEntry
                     }
                 }

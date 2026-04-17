@@ -1,12 +1,11 @@
 package com.quimodotcom.lqlauncher.services
 
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
+import android.media.session.MediaController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
-import android.media.session.MediaController
-import android.media.session.PlaybackState
 
 data class MediaState(
     val title: String,
@@ -18,48 +17,51 @@ data class MediaState(
 )
 
 data class NotificationItem(
+    val id: Int,
     val key: String,
+    val packageName: String,
     val title: String,
     val text: String,
-    val packageName: String,
-    val postTime: Long
+    val icon: Icon?,
+    val timestamp: Long
 )
 
 object MediaStateRepository {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
 
-    private val _notifications = MutableStateFlow<List<NotificationItem>>(emptyList())
-    val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
+    private val _activeNotifications = MutableStateFlow<List<NotificationItem>>(emptyList())
+    val activeNotifications: StateFlow<List<NotificationItem>> = _activeNotifications.asStateFlow()
 
-    private var currentController: MediaController? = null
+    private var activeController: MediaController? = null
 
     fun update(state: MediaState?, controller: MediaController? = null) {
         _mediaState.value = state
         if (controller != null) {
-            currentController = controller
+            activeController = controller
         }
-    }
-
-    fun togglePlayPause() {
-        val controller = currentController ?: return
-        val pbState = controller.playbackState?.state
-        if (pbState == PlaybackState.STATE_PLAYING) {
-            controller.transportControls.pause()
-        } else {
-            controller.transportControls.play()
-        }
-    }
-
-    fun skipNext() {
-        currentController?.transportControls?.skipToNext()
-    }
-
-    fun skipPrevious() {
-        currentController?.transportControls?.skipToPrevious()
     }
 
     fun updateNotifications(notifications: List<NotificationItem>) {
-        _notifications.value = notifications
+        _activeNotifications.value = notifications
+    }
+
+    fun playPause() {
+        activeController?.transportControls?.let {
+            val state = activeController?.playbackState?.state
+            if (state == android.media.session.PlaybackState.STATE_PLAYING) {
+                it.pause()
+            } else {
+                it.play()
+            }
+        }
+    }
+
+    fun skipToNext() {
+        activeController?.transportControls?.skipToNext()
+    }
+
+    fun skipToPrevious() {
+        activeController?.transportControls?.skipToPrevious()
     }
 }

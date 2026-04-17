@@ -10,6 +10,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -25,20 +30,36 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Decode and Prepare Keystore
+        run: |
+          if [[ -z "$SIGNING_KEYSTORE_BASE64" ]]; then
+            echo "Error: SIGNING_KEYSTORE_BASE64 secret is missing!"
+            exit 1
+          fi
+          if [[ -z "$SIGNING_STORE_PASSWORD" || -z "$SIGNING_KEY_ALIAS" || -z "$SIGNING_KEY_PASSWORD" ]]; then
+            echo "Error: One or more signing secrets are missing!"
+            exit 1
+          fi
+
+          mkdir -p app/keystore
+          echo "Decoding keystore..."
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/keystore/myrelease.jks
+
+          # Populate credential files for Gradle local fallback logic
+          echo "$SIGNING_STORE_PASSWORD" > app/keystore/storePassword.txt
+          echo "$SIGNING_KEY_ALIAS" > app/keystore/keyAlias.txt
+          echo "$SIGNING_KEY_PASSWORD" > app/keystore/keyPassword.txt
+
+          # Final validation
+          if [[ ! -s app/keystore/myrelease.jks ]]; then
+            echo "Error: Decoded keystore file is empty!"
+            exit 1
+          fi
+
       - name: Build Debug APK
         env:
-          SIGNING_STORE_FILE: dummy.jks
-          SIGNING_STORE_PASSWORD: dummy
-          SIGNING_KEY_ALIAS: dummy
-          SIGNING_KEY_PASSWORD: dummy
-        run: |
-          mkdir -p app/keystore
-          touch dummy.jks
-          echo "dummy" > app/keystore/storePassword.txt
-          echo "dummy" > app/keystore/keyAlias.txt
-          echo "dummy" > app/keystore/keyPassword.txt
-          touch app/keystore/myrelease.jks
-          ./gradlew assembleDebug --stacktrace
+          SIGNING_STORE_FILE: keystore/myrelease.jks
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
