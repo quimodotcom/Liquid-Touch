@@ -2,6 +2,7 @@ package com.quimodotcom.lqlauncher.activities
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.util.Log
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -291,11 +292,20 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
         NotificationList(
             notifications = notifications,
             onNotificationClick = { item ->
+                android.util.Log.d("LockScreen", "Notification clicked: ${item.packageName}, key: ${item.key}, hasIntent: ${item.contentIntent != null}")
                 onUnlock {
                     try {
-                        item.contentIntent?.send()
+                        // 1. Launch the app's content intent using Activity context
+                        item.contentIntent?.send(context, 0, null)
+
+                        // 2. Dismiss the notification from system and UI
+                        val cancelIntent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION").apply {
+                            setPackage(context.packageName)
+                            putExtra("key", item.key)
+                        }
+                        context.sendBroadcast(cancelIntent)
                     } catch (e: Exception) {
-                        android.util.Log.e("LockScreen", "Failed to send content intent", e)
+                        Log.e("LockScreen", "Failed to process notification click", e)
                     }
                 }
             },
