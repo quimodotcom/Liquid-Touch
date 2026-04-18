@@ -2,6 +2,7 @@ package com.quimodotcom.lqlauncher.activities
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.util.Log
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -9,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -31,8 +33,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
+import androidx.core.graphics.drawable.toBitmap
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -61,11 +66,12 @@ class LockScreenOverlayActivity : ComponentActivity() {
 
         setContent {
             LockScreenOverlayContent(
-                onUnlock = {
+                onUnlock = { action ->
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
                     keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                         override fun onDismissSucceeded() {
                             super.onDismissSucceeded()
+                            action?.invoke()
                             finish()
                         }
                         override fun onDismissCancelled() {
@@ -83,6 +89,7 @@ class LockScreenOverlayActivity : ComponentActivity() {
 @Composable
 fun NotificationList(
     notifications: List<NotificationItem>,
+    onNotificationClick: (NotificationItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -94,6 +101,7 @@ fun NotificationList(
         items(notifications, key = { it.key }) { item ->
             NotificationCard(
                 item = item,
+                onClick = { onNotificationClick(item) },
                 onDismiss = {
                     val intent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION").apply {
                         setPackage(context.packageName)
@@ -109,16 +117,31 @@ fun NotificationList(
 @Composable
 fun NotificationCard(
     item: NotificationItem,
+    onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val density = androidx.compose.ui.platform.LocalDensity.current
+
+    val iconBitmapState = produceState<androidx.compose.ui.graphics.ImageBitmap?>(initialValue = null, item.packageName) {
+        withContext(Dispatchers.IO) {
+            try {
+                val drawable = context.packageManager.getApplicationIcon(item.packageName)
+                value = drawable.toBitmap(64, 64).asImageBitmap()
+            } catch (e: Exception) {
+                value = null
+            }
+        }
+    }
+    val iconBitmap = iconBitmapState.value
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+            .clickable(onClick = onClick)
             .pointerInput(item.key) {
                 detectDragGestures(
                     onDragStart = { },
@@ -155,20 +178,28 @@ fun NotificationCard(
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Icon Placeholder (Simplified)
+            // App Icon
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color.White.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Rounded.Notifications,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(18.dp)
-                )
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        Icons.Rounded.Notifications,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
             Spacer(Modifier.width(16.dp))
@@ -195,7 +226,7 @@ fun NotificationCard(
 }
 
 @Composable
-fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
+fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismiss: () -> Unit) {
     val mediaState by MediaStateRepository.mediaState.collectAsState()
     val notifications by MediaStateRepository.activeNotifications.collectAsState()
     val context = LocalContext.current
@@ -213,7 +244,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
 
     // Backup unlock method
     BackHandler {
-        onUnlock()
+        onUnlock(null)
     }
 
     Box(
@@ -230,7 +261,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
                     },
                     onDragEnd = {
                         if (totalDragY < -150f) {
-                            onUnlock()
+                            onUnlock(null)
                         }
                         totalDragY = 0f
                     }
@@ -260,6 +291,24 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
         // Notifications List
         NotificationList(
             notifications = notifications,
+            onNotificationClick = { item ->
+                android.util.Log.d("LockScreen", "Notification clicked: ${item.packageName}, key: ${item.key}, hasIntent: ${item.contentIntent != null}")
+                onUnlock {
+                    try {
+                        // 1. Launch the app's content intent using Activity context
+                        item.contentIntent?.send(context, 0, null)
+
+                        // 2. Dismiss the notification from system and UI
+                        val cancelIntent = android.content.Intent("com.quimodotcom.lqlauncher.CANCEL_NOTIFICATION").apply {
+                            setPackage(context.packageName)
+                            putExtra("key", item.key)
+                        }
+                        context.sendBroadcast(cancelIntent)
+                    } catch (e: Exception) {
+                        Log.e("LockScreen", "Failed to process notification click", e)
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 220.dp, bottom = 260.dp)
@@ -334,7 +383,7 @@ fun LockScreenOverlayContent(onUnlock: () -> Unit, onDismiss: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             IconButton(
-                onClick = onUnlock,
+                onClick = { onUnlock(null) },
                 modifier = Modifier
                     .size(48.dp)
                     .background(Color.White.copy(alpha = 0.1f), CircleShape)
