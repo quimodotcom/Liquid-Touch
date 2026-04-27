@@ -1,5 +1,6 @@
 package com.quimodotcom.lqlauncher.services
 
+import android.app.PendingIntent
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
 import android.media.session.MediaController
@@ -23,7 +24,8 @@ data class NotificationItem(
     val title: String,
     val text: String,
     val icon: Icon?,
-    val timestamp: Long
+    val timestamp: Long,
+    val contentIntent: PendingIntent? = null
 )
 
 object MediaStateRepository {

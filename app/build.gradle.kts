@@ -185,4 +185,7 @@ dependencies {
 
     // Serialization for data persistence
     implementation(libs.kotlinx.serialization.json)
+
+    // FreeDroidWarn
+    implementation("com.github.woheller69:FreeDroidWarn:V1.11")
 }
