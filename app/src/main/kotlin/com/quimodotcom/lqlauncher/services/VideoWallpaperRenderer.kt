@@ -293,9 +293,13 @@ class VideoWallpaperRenderer(private val context: Context) {
             val gifRatio = gifW.toFloat() / gifH
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
+            // Center Crop (Fill Screen)
+            // Ensure height is always filled, and width is filled with overflow if needed
             if (gifRatio > screenRatio) {
+                // GIF is wider than screen: scale X to match height and crop sides
                 Matrix.scaleM(mvpMatrix, 0, gifRatio / screenRatio, 1f, 1f)
             } else {
+                // GIF is taller than screen: scale Y to match width and crop top/bottom
                 Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / gifRatio, 1f)
             }
 
@@ -315,16 +319,18 @@ class VideoWallpaperRenderer(private val context: Context) {
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } else if (isMpPlaying && videoFrameAvailable) {
             // Draw Video
-            // Calculate MVP Matrix for Fit Center (Black Bars)
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
             Matrix.setIdentityM(mvpMatrix, 0)
 
             // Center Crop (Fill Screen)
+            // If video is square (1:1) and screen is tall (e.g. 9:19), screenRatio will be ~0.47
+            // videoRatio (1.0) > screenRatio (0.47), so we scale X by 1.0/0.47 = 2.12
+            // This ensures height is exactly 1.0 (filled) and width overflows.
             if (videoRatio > screenRatio) {
-                // Video is wider than screen: scale X to match height, crop width
+                // Video is wider than screen: scale X to match height, crop sides
                 Matrix.scaleM(mvpMatrix, 0, videoRatio / screenRatio, 1f, 1f)
             } else {
-                // Video is taller than screen: scale Y to match width, crop height
+                // Video is taller than screen: scale Y to match width, crop top/bottom
                 Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / videoRatio, 1f)
             }
 

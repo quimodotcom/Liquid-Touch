@@ -10,6 +10,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.quimodotcom.lqlauncher.services.MediaStateRepository
 import com.quimodotcom.lqlauncher.services.NotificationItem
 import java.text.SimpleDateFormat
@@ -86,8 +88,17 @@ fun NotificationList(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(notifications.firstOrNull()?.key) {
+        if (notifications.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
     LazyColumn(
         modifier = modifier.fillMaxWidth(),
+        state = listState,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -120,12 +131,12 @@ fun NotificationCard(
             .fillMaxWidth()
             .offset { IntOffset(offsetX.value.roundToInt(), 0) }
             .pointerInput(item.key) {
-                detectDragGestures(
+                detectHorizontalDragGestures(
                     onDragStart = { },
-                    onDrag = { change, dragAmount ->
+                    onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         scope.launch {
-                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                            offsetX.snapTo(offsetX.value + dragAmount)
                         }
                     },
                     onDragEnd = {
