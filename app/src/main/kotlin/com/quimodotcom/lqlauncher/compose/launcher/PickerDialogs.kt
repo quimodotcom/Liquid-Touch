@@ -496,7 +496,7 @@ fun AddItemMenu(
 }
 
 @Composable
-private fun ActionOption(
+private fun PickerDialogActionOption(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     onClick: () -> Unit
@@ -539,19 +539,19 @@ fun InvisibleButtonActionPickerDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                ActionOption(
+                PickerDialogActionOption(
                     icon = Icons.Rounded.Visibility,
                     title = "Toggle Secret Wallpaper",
                     onClick = { onActionSelected(LauncherAction.TOGGLE_SECRET_WALLPAPER) }
                 )
 
-                ActionOption(
+                PickerDialogActionOption(
                     icon = Icons.Rounded.Menu,
                     title = "Open App Drawer",
                     onClick = { onActionSelected(LauncherAction.OPEN_APP_DRAWER) }
                 )
 
-                ActionOption(
+                PickerDialogActionOption(
                     icon = Icons.Rounded.Settings,
                     title = "Open Settings",
                     onClick = { onActionSelected(LauncherAction.OPEN_SETTINGS) }
