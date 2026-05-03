@@ -90,6 +90,8 @@ import com.quimodotcom.lqlauncher.compose.launcher.*
 import com.quimodotcom.lqlauncher.helpers.WeatherRepository
 import com.quimodotcom.lqlauncher.helpers.rememberTiltState
 import com.quimodotcom.lqlauncher.extensions.config
+import com.quimodotcom.lqlauncher.BuildConfig
+import org.woheller69.freeDroidWarn.FreeDroidWarn
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -108,6 +110,8 @@ class LiquidGlassLauncherActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE)
 
         // Mutable state that drives UI and composition
         val wallpaperPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {

@@ -104,7 +104,8 @@ class MediaListenerService : NotificationListenerService() {
                         title = title,
                         text = text,
                         icon = sbn.notification.smallIcon,
-                        timestamp = sbn.postTime
+                        timestamp = sbn.postTime,
+                        contentIntent = sbn.notification.contentIntent
                     )
                 } else null
             }.sortedByDescending { it.timestamp }
