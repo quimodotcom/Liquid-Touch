@@ -981,11 +981,18 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val isShowingMediaArt = (isLocked && settings.enableLockScreenMediaArt) || settings.enableHomeMediaArt
             val artToDisplay = if (isShowingMediaArt) mediaArtBitmap else null
 
-            // Media Art is now ONLY static background on lockscreen to avoid overlaps with animated overlay
-            val currentBg = artToDisplay ?: scaledWallpaper
+            // Determine if we should use the "Glow" look
+            val useGlowEffect = isShowingMediaArt && settings.mediaArtGlowEnabled && artToDisplay != null
+
+            // Background Layer
+            val currentBg = if (useGlowEffect) {
+                blurredMediaArt ?: artToDisplay ?: scaledWallpaper
+            } else {
+                artToDisplay ?: scaledWallpaper
+            }
 
             if (isLocked) {
-                DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, currentBg=${currentBg != null}")
+                DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, glow=$useGlowEffect, currentBg=${currentBg != null}")
             }
 
             // Identity check to avoid redundant texture uploads
@@ -994,14 +1001,31 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 lastBgBitmap = currentBg
             }
 
-            val currentSub = if (!isLocked) scaledSubject else null
+            // Subject Layer
+            val currentSub = if (useGlowEffect) {
+                artToDisplay
+            } else if (!isLocked) {
+                scaledSubject
+            } else {
+                null
+            }
+
             if (currentSub != lastSubBitmap) {
                 videoRenderer?.setSubject(currentSub)
                 lastSubBitmap = currentSub
+
+                // Update Subject Scale Mode
+                if (useGlowEffect) {
+                    videoRenderer?.setSubjectScale(0.85f)
+                    videoRenderer?.setSubjectScaleMode(VideoWallpaperRenderer.ScaleMode.FIT_CENTER)
+                } else {
+                    videoRenderer?.setSubjectScale(1.0f)
+                    videoRenderer?.setSubjectScaleMode(VideoWallpaperRenderer.ScaleMode.CENTER_CROP)
+                }
             }
 
             // Update Video Renderer state for Animated Art
-            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode) {
+            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode && !useGlowEffect) {
                 // Ensure video renderer is playing our animated cover
                 if (currentVideoPath != animatedMediaFile?.absolutePath) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)

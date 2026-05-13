@@ -228,6 +228,15 @@ fun LiquidGlassSettingsScreen(
 
                     item {
                         SwitchSetting(
+                            title = "Media Art Glow Effect",
+                            subtitle = "Replace animated art with a glowing still",
+                            checked = settings.mediaArtGlowEnabled,
+                            onCheckedChange = { onSettingsChanged(settings.copy(mediaArtGlowEnabled = it)) }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
                             title = "Interactive Lock Controls",
                             subtitle = "Show playback buttons over the lock screen",
                             checked = settings.enableLockScreenControls,
