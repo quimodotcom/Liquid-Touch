@@ -116,6 +116,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
         private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         private val ambientTimeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        private var lastWallpaperSwitchMinutes = -1
 
         private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -931,6 +932,21 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastSubBitmap: Bitmap? = null
 
         private fun draw() {
+            // Check for Day/Night switch
+            val calendarForSwitch = Calendar.getInstance()
+            val currentMinutes = calendarForSwitch.get(Calendar.HOUR_OF_DAY) * 60 + calendarForSwitch.get(Calendar.MINUTE)
+            if (currentMinutes != lastWallpaperSwitchMinutes) {
+                val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
+                val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
+
+                // If we crossed a boundary, reload
+                if (currentMinutes == nightStart || currentMinutes == dayStart) {
+                    DebugLogger.log("WallpaperService", "Time boundary crossed: $currentMinutes. Reloading.")
+                    reloadSettings()
+                }
+                lastWallpaperSwitchMinutes = currentMinutes
+            }
+
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
                 // Use Canvas drawing for Ambient Mode to avoid GL overhead if possible,
@@ -1110,6 +1126,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                  clockPaint.color = textColor
                  datePaint.color = textColor
+
+                 if (settings.ledMatrixEnabled) {
+                     clockPaint.typeface = Typeface.MONOSPACE
+                     clockPaint.letterSpacing = 0.1f
+                     datePaint.typeface = Typeface.MONOSPACE
+                     datePaint.letterSpacing = 0.05f
+                 }
 
                  cvs.drawText(time, centerX, clockY, clockPaint)
                  val dateY = clockY + datePaint.textSize + DATE_GAP_DP * density

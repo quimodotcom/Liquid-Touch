@@ -237,6 +237,24 @@ fun LiquidGlassSettingsScreen(
 
                     item {
                         SwitchSetting(
+                            title = "LED Matrix Text",
+                            subtitle = "Apply digital pixel effect to UI text",
+                            checked = settings.ledMatrixEnabled,
+                            onCheckedChange = { onSettingsChanged(settings.copy(ledMatrixEnabled = it)) }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
+                            title = "Scrolling Media Info",
+                            subtitle = "Scroll long song titles on lock screen",
+                            checked = settings.scrollingTextEnabled,
+                            onCheckedChange = { onSettingsChanged(settings.copy(scrollingTextEnabled = it)) }
+                        )
+                    }
+
+                    item {
+                        SwitchSetting(
                             title = "Interactive Lock Controls",
                             subtitle = "Show playback buttons over the lock screen",
                             checked = settings.enableLockScreenControls,
