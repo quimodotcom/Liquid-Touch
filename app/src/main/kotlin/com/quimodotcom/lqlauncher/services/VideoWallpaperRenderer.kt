@@ -63,6 +63,7 @@ class VideoWallpaperRenderer(private val context: Context) {
     private val stMatrix = FloatArray(16)
     private var videoRatio = 1.777f // Default to 16:9 to avoid initial distortion
     private var subjectScale = 1.0f
+    private var backgroundScale = 1.0f
     private var subjectScaleMode = ScaleMode.CENTER_CROP
 
     enum class ScaleMode {
@@ -72,6 +73,10 @@ class VideoWallpaperRenderer(private val context: Context) {
 
     fun setSubjectScale(scale: Float) {
         subjectScale = scale
+    }
+
+    fun setBackgroundScale(scale: Float) {
+        backgroundScale = scale
     }
 
     fun setSubjectScaleMode(mode: ScaleMode) {
@@ -352,6 +357,7 @@ class VideoWallpaperRenderer(private val context: Context) {
             // Debug Logging for Scaling
             val now = System.currentTimeMillis()
             if (now - lastDrawLogTime > 5000) {
+                lastDrawLogTime = now
                 DebugLogger.log(TAG, "Scale Video: sRatio=%.2f, vRatio=%.2f, res=%.2fx%.2f".format(screenRatio, videoRatio, if(videoRatio>screenRatio) videoRatio/screenRatio else 1f, if(videoRatio>screenRatio) 1f else screenRatio/videoRatio))
             }
 
@@ -403,16 +409,16 @@ class VideoWallpaperRenderer(private val context: Context) {
                 // Let's implement Center Crop for BG.
                 val bgW = bgBitmap!!.width
                 val bgH = bgBitmap!!.height
-                val bgRatio = bgW.toFloat() / bgH
+                val bgRatio = if (bgH > 0) bgW.toFloat() / bgH else 1f
                 val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
-                // Center Crop
+                // Center Crop with Zoom support
                 if (bgRatio > screenRatio) {
                     // Bitmap wider: scale X to overflow
-                    Matrix.scaleM(mvpMatrix, 0, bgRatio / screenRatio, 1f, 1f)
+                    Matrix.scaleM(mvpMatrix, 0, (bgRatio / screenRatio) * backgroundScale, backgroundScale, 1f)
                 } else {
                     // Bitmap taller: scale Y to overflow
-                    Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / bgRatio, 1f)
+                    Matrix.scaleM(mvpMatrix, 0, backgroundScale, (screenRatio / bgRatio) * backgroundScale, 1f)
                 }
 
                 val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")

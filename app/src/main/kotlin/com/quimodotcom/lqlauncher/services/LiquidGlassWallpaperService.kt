@@ -377,13 +377,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                     val canvas = Canvas(small)
                                     val paint = Paint(Paint.FILTER_BITMAP_FLAG)
                                     val matrix = android.graphics.ColorMatrix().apply {
-                                        setSaturation(2.5f) // High saturation for "vibrant" look
+                                        setSaturation(3.5f) // Increased saturation for extra vibrant look
                                     }
                                     paint.colorFilter = android.graphics.ColorMatrixColorFilter(matrix)
                                     canvas.drawBitmap(art, null, Rect(0, 0, smallW, smallH), paint)
 
-                                    // Larger blur radius for "bigger" look
-                                    val blurred = StackBlur.blur(small, 80)
+                                    // Even larger blur radius for "bigger" look
+                                    val blurred = StackBlur.blur(small, 120)
 
                                     synchronized(this@LiquidGlassEngine) {
                                         blurredMediaArt?.recycle()
@@ -636,17 +636,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val calendar = Calendar.getInstance()
                 val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
 
-                val nightStartMinutes = settings.nightStartHour * 60 + settings.nightStartMinute
-                val dayStartMinutes = settings.dayStartHour * 60 + settings.dayStartMinute
-
-                val isCustomNight = if (nightStartMinutes > dayStartMinutes) {
-                    currentMinutes >= nightStartMinutes || currentMinutes < dayStartMinutes
-                } else {
-                    currentMinutes >= nightStartMinutes && currentMinutes < dayStartMinutes
-                }
-
-                val isSystemNight = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-                val isDark = isCustomNight || isSystemNight
+                val isDark = isCurrentlyNight()
+                DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark (min=$currentMinutes)")
 
                 val mainUri = if (isLocked) {
                     if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
@@ -942,20 +933,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastBgBitmap: Bitmap? = null
         private var lastSubBitmap: Bitmap? = null
 
-        private fun draw() {
-            // Check for Day/Night switch based on current state vs last loaded state
+        private fun isCurrentlyNight(): Boolean {
             val calendar = Calendar.getInstance()
             val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
             val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
             val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
 
-            val isCustomNight = if (nightStart > dayStart) {
+            return if (nightStart > dayStart) {
                 currentMinutes >= nightStart || currentMinutes < dayStart
             } else {
                 currentMinutes >= nightStart && currentMinutes < dayStart
             }
-            val isSystemNight = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-            val isDark = isCustomNight || isSystemNight
+        }
+
+        private fun draw() {
+            // Check for Day/Night switch based on current state vs last loaded state
+            val isDark = isCurrentlyNight()
 
             if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
                 DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
@@ -1031,6 +1024,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
             if (currentBg !== lastBgBitmap) {
                 videoRenderer?.setBackground(currentBg)
                 lastBgBitmap = currentBg
+
+                // Update Background Scale (Zoom in for glow effect)
+                if (useGlowEffect) {
+                    videoRenderer?.setBackgroundScale(1.35f) // Expansive zoom
+                } else {
+                    videoRenderer?.setBackgroundScale(1.0f)
+                }
             }
 
             // Subject Layer

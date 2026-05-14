@@ -352,7 +352,8 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
                     val infiniteTransition = rememberInfiniteTransition(label = "scrollingText")
 
                     val density = androidx.compose.ui.platform.LocalDensity.current
-                    val screenWidthPx = LocalContext.current.resources.displayMetrics.widthPixels
+                    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+                    val screenWidthPx = (screenWidthDp * density.density).roundToInt()
 
                     // Estimate text width (monospace is more predictable)
                     val charWidth = if (isLed) 18f else 15f
@@ -361,10 +362,10 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
                     }
 
                     val xOffset by infiniteTransition.animateFloat(
-                        initialValue = (screenWidthPx).toFloat(),
+                        initialValue = screenWidthPx.toFloat(),
                         targetValue = -textWidthPx.toFloat(),
                         animationSpec = infiniteRepeatable(
-                            animation = tween(8000, easing = LinearEasing),
+                            animation = tween(10000, easing = LinearEasing),
                             repeatMode = RepeatMode.Restart
                         ),
                         label = "xOffset"
