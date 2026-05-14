@@ -116,7 +116,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
         private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         private val ambientTimeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        private var lastWallpaperSwitchMinutes = -1
+        private var lastWallpaperThemeIsDark: Boolean? = null
 
         private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -371,8 +371,19 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                     // Create a smaller version for blurring (performance)
                                     val smallW = max(1, art.width / 4)
                                     val smallH = max(1, art.height / 4)
-                                    val small = Bitmap.createScaledBitmap(art, smallW, smallH, true)
-                                    val blurred = StackBlur.blur(small, 20) // Reduced radius from 60 to 20
+
+                                    // Apply Saturation Boost for vibrancy before blurring
+                                    val small = Bitmap.createBitmap(smallW, smallH, Bitmap.Config.ARGB_8888)
+                                    val canvas = Canvas(small)
+                                    val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+                                    val matrix = android.graphics.ColorMatrix().apply {
+                                        setSaturation(2.5f) // High saturation for "vibrant" look
+                                    }
+                                    paint.colorFilter = android.graphics.ColorMatrixColorFilter(matrix)
+                                    canvas.drawBitmap(art, null, Rect(0, 0, smallW, smallH), paint)
+
+                                    // Larger blur radius for "bigger" look
+                                    val blurred = StackBlur.blur(small, 80)
 
                                     synchronized(this@LiquidGlassEngine) {
                                         blurredMediaArt?.recycle()
@@ -932,20 +943,25 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastSubBitmap: Bitmap? = null
 
         private fun draw() {
-            // Check for Day/Night switch
-            val calendarForSwitch = Calendar.getInstance()
-            val currentMinutes = calendarForSwitch.get(Calendar.HOUR_OF_DAY) * 60 + calendarForSwitch.get(Calendar.MINUTE)
-            if (currentMinutes != lastWallpaperSwitchMinutes) {
-                val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
-                val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
+            // Check for Day/Night switch based on current state vs last loaded state
+            val calendar = Calendar.getInstance()
+            val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+            val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
+            val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
 
-                // If we crossed a boundary, reload
-                if (currentMinutes == nightStart || currentMinutes == dayStart) {
-                    DebugLogger.log("WallpaperService", "Time boundary crossed: $currentMinutes. Reloading.")
-                    reloadSettings()
-                }
-                lastWallpaperSwitchMinutes = currentMinutes
+            val isCustomNight = if (nightStart > dayStart) {
+                currentMinutes >= nightStart || currentMinutes < dayStart
+            } else {
+                currentMinutes >= nightStart && currentMinutes < dayStart
             }
+            val isSystemNight = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            val isDark = isCustomNight || isSystemNight
+
+            if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
+                DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
+                reloadSettings()
+            }
+            lastWallpaperThemeIsDark = isDark
 
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
@@ -1066,9 +1082,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
 
             // Render UI to Bitmap, then pass to GL
-            val calendar = Calendar.getInstance()
-            val currentTime = if (isLocked) timeFormat.format(calendar.time) else ""
-            val currentDate = if (isLocked) dateFormat.format(calendar.time) else ""
+            val calendarUI = Calendar.getInstance()
+            val currentTime = if (isLocked) timeFormat.format(calendarUI.time) else ""
+            val currentDate = if (isLocked) dateFormat.format(calendarUI.time) else ""
 
             // Include time/lock state in check
             val currentState = "$mediaTitle|$mediaArtist|${surfaceHolder?.surfaceFrame?.width()}|$currentTime|$currentDate|$isLocked"

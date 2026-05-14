@@ -336,31 +336,33 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
         )
 
         if (mediaState != null) {
+            val isScrolling = settings.value.scrollingTextEnabled
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 120.dp, start = 24.dp, end = 24.dp),
+                    .padding(bottom = 120.dp, start = if (isScrolling) 0.dp else 24.dp, end = if (isScrolling) 0.dp else 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val title = mediaState?.title ?: "Unknown Title"
                 val artist = mediaState?.artist ?: "Unknown Artist"
                 val isLed = settings.value.ledMatrixEnabled
-                val isScrolling = settings.value.scrollingTextEnabled
 
                 if (isScrolling) {
                     val infiniteTransition = rememberInfiniteTransition(label = "scrollingText")
 
-                    // Width calculation for scrolling
                     val density = androidx.compose.ui.platform.LocalDensity.current
-                    val textWidthPx = remember(title) {
-                         // Rough estimate of text width based on length
-                         (title.length * 15f * density.density).roundToInt()
+                    val screenWidthPx = LocalContext.current.resources.displayMetrics.widthPixels
+
+                    // Estimate text width (monospace is more predictable)
+                    val charWidth = if (isLed) 18f else 15f
+                    val textWidthPx = remember(title, isLed) {
+                         ((title.length * charWidth + (if(isLed) title.length*2f else 0f)) * density.density).roundToInt()
                     }
 
                     val xOffset by infiniteTransition.animateFloat(
-                        initialValue = 200f,
-                        targetValue = -textWidthPx.toFloat() - 200f,
+                        initialValue = (screenWidthPx).toFloat(),
+                        targetValue = -textWidthPx.toFloat(),
                         animationSpec = infiniteRepeatable(
                             animation = tween(8000, easing = LinearEasing),
                             repeatMode = RepeatMode.Restart
@@ -373,7 +375,7 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
                             .fillMaxWidth()
                             .height(40.dp)
                             .clipToBounds(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
                             text = title,
@@ -382,7 +384,7 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
                             fontWeight = if (isLed) FontWeight.Normal else FontWeight.Bold,
                             fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
                             letterSpacing = if (isLed) 2.sp else 0.sp,
-                            textAlign = TextAlign.Center,
+                            textAlign = TextAlign.Start,
                             maxLines = 1,
                             modifier = Modifier.offset {
                                 IntOffset(xOffset.roundToInt(), 0)
