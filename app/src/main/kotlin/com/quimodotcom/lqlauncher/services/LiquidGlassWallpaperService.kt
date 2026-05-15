@@ -71,6 +71,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private var settings: LiquidGlassSettings = LiquidGlassSettings()
         private var settingsJob: Job? = null
+        private var tickerJob: Job? = null
 
         private fun shouldShowAnimatedArt(): Boolean {
             return if (isLocked) settings.enableLockScreenMediaArt else settings.enableHomeMediaArt
@@ -462,6 +463,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
+                startTickerJob()
 
                 // Launch interactive controls if enabled and locked
                 // Check if media is actually playing/active to avoid blank overlay
@@ -492,6 +494,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             } else {
                 android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                 gifJob?.cancel()
+                tickerJob?.cancel()
                 handler.removeCallbacks(drawRunnable)
             }
         }
@@ -517,6 +520,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Stop video/gif to save power
                 videoRenderer?.stop()
                 gifJob?.cancel()
+                tickerJob?.cancel()
                 android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
             } else {
                 // Resume video/gif if needed
@@ -525,6 +529,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isInAmbientMode) {
                     startGifJobIfNeeded()
+                    startTickerJob()
                     android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                     android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
@@ -537,6 +542,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Stop video/gif to save power
                 videoRenderer?.stop()
                 gifJob?.cancel()
+                tickerJob?.cancel()
                 android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
 
                 // Switch to thinner font for AOD to save pixels/power
@@ -555,6 +561,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isPowerSaveMode) {
                     startGifJobIfNeeded()
+                    startTickerJob()
                     android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                     android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
@@ -889,6 +896,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
             } else {
                 // videoRenderer?.reset() // Be careful not to stop media art video
+            }
+        }
+
+        private fun startTickerJob() {
+            tickerJob?.cancel()
+            if (isInAmbientMode || isPowerSaveMode || !isVisible) return
+
+            tickerJob = engineScope.launch {
+                while (isActive) {
+                    val isDark = isCurrentlyNight()
+                    if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
+                        DebugLogger.log("WallpaperService", "Ticker: Day/Night switch detected.")
+                        reloadSettings()
+                    }
+                    delay(60000) // Check every minute
+                }
             }
         }
 
