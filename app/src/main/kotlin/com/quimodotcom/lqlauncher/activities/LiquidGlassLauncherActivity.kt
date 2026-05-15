@@ -2112,73 +2112,102 @@ private fun MediaControlPanelContent() {
     val mediaState by com.quimodotcom.lqlauncher.services.MediaStateRepository.mediaState.collectAsState()
     val view = LocalView.current
 
-    if (mediaState == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No Media Playing", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp)
-        }
-        return
-    }
-
-    Column(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            IconButton(onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToPrevious()
-            }) {
-                Icon(Icons.Rounded.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(28.dp))
-            }
+        val size = minOf(maxWidth, maxHeight)
+        val isTiny = size < 120.dp
+        val isTall = maxHeight > (maxWidth * 1.5f)
 
-            Surface(
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    com.quimodotcom.lqlauncher.services.MediaStateRepository.playPause()
-                },
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.15f),
-                modifier = Modifier.size(56.dp)
+        if (mediaState == null) {
+            Text(
+                "No Media",
+                color = Color.White.copy(alpha = 0.4f),
+                fontSize = if (isTiny) 11.sp else 14.sp,
+                textAlign = TextAlign.Center
+            )
+            return@BoxWithConstraints
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Controls Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isTiny) 8.dp else 16.dp),
+                modifier = Modifier.wrapContentSize()
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (mediaState?.isPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
+                if (!isTiny) {
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToPrevious()
+                        },
+                        modifier = Modifier.size(if (isTiny) 32.dp else 40.dp)
+                    ) {
+                        Icon(Icons.Rounded.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(if (isTiny) 20.dp else 28.dp))
+                    }
+                }
+
+                Surface(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        com.quimodotcom.lqlauncher.services.MediaStateRepository.playPause()
+                    },
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.12f),
+                    modifier = Modifier.size(if (isTiny) 48.dp else 56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (mediaState?.isPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(if (isTiny) 26.dp else 32.dp)
+                        )
+                    }
+                }
+
+                if (!isTiny) {
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToNext()
+                        },
+                        modifier = Modifier.size(if (isTiny) 32.dp else 40.dp)
+                    ) {
+                        Icon(Icons.Rounded.SkipNext, null, tint = Color.White, modifier = Modifier.size(if (isTiny) 20.dp else 28.dp))
+                    }
                 }
             }
 
-            IconButton(onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                com.quimodotcom.lqlauncher.services.MediaStateRepository.skipToNext()
-            }) {
-                Icon(Icons.Rounded.SkipNext, null, tint = Color.White, modifier = Modifier.size(28.dp))
-            }
+            Spacer(Modifier.height(if (isTiny) 4.dp else 12.dp))
+
+            // Text Info
+            Text(
+                text = mediaState?.title ?: "",
+                color = Color.White,
+                fontSize = if (isTiny) 11.sp else 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+            )
+            Text(
+                text = mediaState?.artist ?: "",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = if (isTiny) 10.sp else 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+            )
         }
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = mediaState?.title ?: "",
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = mediaState?.artist ?: "",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 11.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 
