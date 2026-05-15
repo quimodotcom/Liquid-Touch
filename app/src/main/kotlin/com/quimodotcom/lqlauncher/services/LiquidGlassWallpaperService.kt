@@ -70,6 +70,11 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var mediaArtist: String = ""
 
         private var settings: LiquidGlassSettings = LiquidGlassSettings()
+        private var settingsJob: Job? = null
+
+        private fun shouldShowAnimatedArt(): Boolean {
+            return if (isLocked) settings.enableLockScreenMediaArt else settings.enableHomeMediaArt
+        }
 
         // Video Renderer
         private var videoRenderer: VideoWallpaperRenderer? = null
@@ -294,7 +299,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         }
 
                         // Handle Animated Art (load high-res frame from video URL)
-                        if (settings.enableLockScreenMediaArt && state.animatedArtUrl != null) {
+                        if ((settings.enableLockScreenMediaArt || settings.enableHomeMediaArt) && state.animatedArtUrl != null) {
                             DebugLogger.log("WallpaperService", "Loading Animated Art: ${state.animatedArtUrl}")
                             try {
                                 val dm = resources.displayMetrics
@@ -342,7 +347,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                                         // Trigger video player update
                                         withContext(Dispatchers.Main) {
-                                            if (isVisible && isLocked && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                                            if (isVisible && shouldShowAnimatedArt() && !isPowerSaveMode) {
                                                 if (file.absolutePath != currentVideoPath) {
                                                     DebugLogger.log("WallpaperService", "Swapping video: ${file.name}, ${file.length()}b")
                                                     videoRenderer?.setVideoSource(file)
@@ -351,7 +356,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                                     DebugLogger.log("WallpaperService", "Continuing playback: ${file.name}")
                                                 }
                                             } else {
-                                                DebugLogger.log("WallpaperService", "Not showing video: v=$isVisible, l=$isLocked, s=${settings.enableLockScreenMediaArt}")
+                                                DebugLogger.log("WallpaperService", "Not showing video: v=$isVisible, l=$isLocked, s=${shouldShowAnimatedArt()}")
                                             }
                                             draw()
                                         }
@@ -475,7 +480,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
 
                 // Resume video/gif if file exists
-                if (isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode && !isPowerSaveMode) {
+                if (animatedMediaFile != null && shouldShowAnimatedArt() && !isInAmbientMode && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 if (!isInAmbientMode && !isPowerSaveMode) {
@@ -515,7 +520,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
             } else {
                 // Resume video/gif if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isInAmbientMode) {
+                if (isVisible && animatedMediaFile != null && shouldShowAnimatedArt() && !isInAmbientMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 if (isVisible && !isInAmbientMode) {
@@ -545,7 +550,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 datePaint.alpha = 255
 
                 // Resume video/gif if needed
-                if (isVisible && isLocked && animatedMediaFile != null && settings.enableLockScreenMediaArt && !isPowerSaveMode) {
+                if (isVisible && animatedMediaFile != null && shouldShowAnimatedArt() && !isPowerSaveMode) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                 }
                 if (isVisible && !isPowerSaveMode) {
@@ -602,7 +607,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
         }
 
         private fun reloadSettings() {
-            engineScope.launch {
+            settingsJob?.cancel()
+            settingsJob = engineScope.launch {
                 settings = LiquidGlassSettingsRepository.loadSettings(this@LiquidGlassWallpaperService)
                 updateLockState()
                 loadWallpapers()
@@ -667,21 +673,26 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
 
                 // Process resolveImage for Bitmaps
+                var bitmapLoaded = false
                 if (resolvedImage != null && config != null && (!config.useSystemWallpaper || (resolvedImage == config.wallpaperSecretUri))) {
                     val type = getMimeType(resolvedImage)
                     if (type?.startsWith("video/") == true) {
                         resolvedVideo = resolvedImage
                         wallpaperBitmap = null
+                        bitmapLoaded = true
                     } else if (type?.contains("gif") == true) {
                         resolvedGif = resolvedImage
                         wallpaperBitmap = null
+                        bitmapLoaded = true
                     } else {
                         wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
+                        if (wallpaperBitmap != null) bitmapLoaded = true
                     }
-                } else if (config == null || config.useSystemWallpaper) {
+                }
+
+                if (!bitmapLoaded) {
+                    // Fallback to system wallpaper if custom failed or useSystemWallpaper is true
                     wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
-                } else {
-                    wallpaperBitmap = null
                 }
 
                 // Initial clock color update if no media playing
@@ -939,11 +950,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
             val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
 
-            return if (nightStart > dayStart) {
+            val isNight = if (nightStart > dayStart) {
                 currentMinutes >= nightStart || currentMinutes < dayStart
             } else {
                 currentMinutes >= nightStart && currentMinutes < dayStart
             }
+
+            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight (now=$currentMinutes, day=$dayStart, night=$nightStart)")
+            return isNight
         }
 
         private fun draw() {
