@@ -29,10 +29,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
@@ -426,72 +428,69 @@ fun AddItemMenu(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF1E1E2E)
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF12121A)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    "Add to Home Screen",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    "Add to Grid",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
                 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onAddApp)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.height(200.dp)
                 ) {
-                    Icon(Icons.Rounded.Apps, null, tint = Color(0xFF6366F1))
-                    Spacer(Modifier.width(16.dp))
-                    Text("App Shortcut", color = Color.White)
-                }
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onAddPanel)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.Dashboard, null, tint = Color(0xFF6366F1))
-                    Spacer(Modifier.width(16.dp))
-                    Text("Glass Panel", color = Color.White)
-                }
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onAddFolder)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.Folder, null, tint = Color(0xFF6366F1))
-                    Spacer(Modifier.width(16.dp))
-                    Text("Folder", color = Color.White)
+                    item {
+                        AddItemTile(Icons.Rounded.Apps, "App", onAddApp)
+                    }
+                    item {
+                        AddItemTile(Icons.Rounded.Dashboard, "Panel", onAddPanel)
+                    }
+                    item {
+                        AddItemTile(Icons.Rounded.Folder, "Folder", onAddFolder)
+                    }
+                    item {
+                        AddItemTile(Icons.Rounded.RadioButtonUnchecked, "Hidden", onAddInvisibleButton)
+                    }
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onAddInvisibleButton)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
                 ) {
-                    Icon(Icons.Rounded.RadioButtonUnchecked, null, tint = Color(0xFF6366F1))
-                    Spacer(Modifier.width(16.dp))
-                    Text("Hidden Button", color = Color.White)
+                    Text("Cancel", color = Color.Gray)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AddItemTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(86.dp)
+            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp))
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, null, tint = Color(0xFF6366F1), modifier = Modifier.size(28.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 

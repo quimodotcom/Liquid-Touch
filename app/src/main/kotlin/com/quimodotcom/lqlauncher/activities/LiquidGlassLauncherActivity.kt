@@ -417,6 +417,13 @@ private fun EditableLauncherScreen(
             )
         }
 
+        // Animate bottom padding when edit mode is active to push grid up
+        val gridBottomPadding by animateDpAsState(
+            targetValue = if (editModeState.isEnabled) 220.dp else 96.dp,
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+            label = "gridPadding"
+        )
+
         // Main content - Grid of items
         Box(
             modifier = Modifier
@@ -425,7 +432,7 @@ private fun EditableLauncherScreen(
                 .padding(horizontal = 8.dp, vertical = 8.dp)
                 .onSizeChanged { gridSize = it }
                 // Exclude the bottom handle region from the global gesture detector so the handle can receive input
-                .padding(bottom = 96.dp)
+                .padding(bottom = gridBottomPadding)
                 .pointerInput(editModeState.isEnabled) {
                     if (!editModeState.isEnabled) {
                         detectTapGestures(
@@ -834,24 +841,30 @@ private fun EditableLauncherScreen(
         }
 
         // Edit mode toolbar
-        EditModeToolbar(
-            backdrop = backdrop,
-            isEditMode = editModeState.isEnabled,
-            onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
-            onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
-            onAddFolder = { showFolderNameDialog = true },
-            onAddInvisibleButton = {
-                val pos = findEmptyCell(launcherConfig)
-                showInvisibleButtonActionPicker = pos
-            },
-            onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
-            onOpenSettings = { showSettings = true },
-            onExitEditMode = {
-                editModeState = EditModeState()
-            },
-            glassSettings = glassSettings,
+        AnimatedVisibility(
+            visible = editModeState.isEnabled,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
-        )
+        ) {
+            EditModeToolbar(
+                backdrop = backdrop,
+                isEditMode = editModeState.isEnabled,
+                onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
+                onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
+                onAddFolder = { showFolderNameDialog = true },
+                onAddInvisibleButton = {
+                    val pos = findEmptyCell(launcherConfig)
+                    showInvisibleButtonActionPicker = pos
+                },
+                onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
+                onOpenSettings = { showSettings = true },
+                onExitEditMode = {
+                    editModeState = EditModeState()
+                },
+                glassSettings = glassSettings
+            )
+        }
 
 
     }
