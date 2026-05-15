@@ -23,7 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -39,13 +41,11 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings
 import com.quimodotcom.lqlauncher.services.MediaStateRepository
 import com.quimodotcom.lqlauncher.services.NotificationItem
 import java.text.SimpleDateFormat
@@ -241,6 +241,11 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
     val mediaState by MediaStateRepository.mediaState.collectAsState()
     val notifications by MediaStateRepository.activeNotifications.collectAsState()
     val context = LocalContext.current
+    val settings = remember { mutableStateOf<LiquidGlassSettings>(LiquidGlassSettings()) }
+
+    LaunchedEffect(Unit) {
+        settings.value = com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettingsRepository.loadSettings(context)
+    }
 
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -286,16 +291,21 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
                 .padding(top = 100.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val isLed = settings.value.ledMatrixEnabled
             Text(
                 text = timeStr,
                 color = Color.White,
                 fontSize = 80.sp,
-                fontWeight = FontWeight.Light
+                fontWeight = if (isLed) FontWeight.Normal else FontWeight.Light,
+                fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
+                letterSpacing = if (isLed) 4.sp else 0.sp
             )
             Text(
                 text = dateStr,
                 color = Color.White.copy(alpha = 0.8f),
-                fontSize = 18.sp
+                fontSize = 18.sp,
+                fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
+                letterSpacing = if (isLed) 1.sp else 0.sp
             )
         }
 
@@ -326,27 +336,83 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
         )
 
         if (mediaState != null) {
+            val isScrolling = settings.value.scrollingTextEnabled
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 120.dp, start = 24.dp, end = 24.dp),
+                    .padding(bottom = 120.dp, start = if (isScrolling) 0.dp else 24.dp, end = if (isScrolling) 0.dp else 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val title = mediaState?.title ?: "Unknown Title"
+                val artist = mediaState?.artist ?: "Unknown Artist"
+                val isLed = settings.value.ledMatrixEnabled
+
+                if (isScrolling) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "scrollingText")
+
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+                    val screenWidthPx = (screenWidthDp * density.density).roundToInt()
+
+                    // Estimate text width (monospace is more predictable)
+                    val charWidth = if (isLed) 18f else 15f
+                    val textWidthPx = remember(title, isLed) {
+                         ((title.length * charWidth + (if(isLed) title.length*2f else 0f)) * density.density).roundToInt()
+                    }
+
+                    val xOffset by infiniteTransition.animateFloat(
+                        initialValue = screenWidthPx.toFloat(),
+                        targetValue = -textWidthPx.toFloat(),
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(10000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "xOffset"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .clipToBounds(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = 26.sp,
+                            fontWeight = if (isLed) FontWeight.Normal else FontWeight.Bold,
+                            fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
+                            letterSpacing = if (isLed) 2.sp else 0.sp,
+                            textAlign = TextAlign.Start,
+                            maxLines = 1,
+                            modifier = Modifier.offset {
+                                IntOffset(xOffset.roundToInt(), 0)
+                            }
+                        )
+                    }
+                } else {
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 26.sp,
+                        fontWeight = if (isLed) FontWeight.Normal else FontWeight.Bold,
+                            fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
+                        letterSpacing = if (isLed) 2.sp else 0.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 32.sp
+                    )
+                }
+
                 Text(
-                    text = mediaState?.title ?: "Unknown Title",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 32.sp
-                )
-                Text(
-                    text = mediaState?.artist ?: "Unknown Artist",
+                    text = artist,
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 18.sp,
+                    fontFamily = if (isLed) FontFamily.Monospace else FontFamily.Default,
+                    letterSpacing = if (isLed) 1.sp else 0.sp,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
