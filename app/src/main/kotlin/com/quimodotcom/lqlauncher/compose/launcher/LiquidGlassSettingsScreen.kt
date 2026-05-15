@@ -808,7 +808,7 @@ private fun SettingsCard(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 4.dp),
             content = content
         )
     }
@@ -834,13 +834,15 @@ private fun SwitchSetting(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontSize = 16.sp)
-            Text(subtitle, color = Color.Gray, fontSize = 12.sp)
+            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, color = Color.Gray, fontSize = 11.sp)
+            }
         }
         Switch(
             checked = checked,
@@ -873,25 +875,27 @@ private fun SliderSetting(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 title,
                 color = if (enabled) Color.White else Color.Gray,
-                fontSize = 16.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
             )
             Text(
                 valueLabel,
                 color = if (enabled) Color(0xFF6366F1) else Color.Gray,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         Slider(
             value = value,
             onValueChange = {
@@ -938,11 +942,11 @@ private fun ColorPickerSetting(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 showPicker = true
             } else Modifier)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, color = if (enabled) Color.White else Color.Gray, fontSize = 16.sp)
+        Text(title, color = if (enabled) Color.White else Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         Box(
             modifier = Modifier
                 .size(32.dp)
@@ -1064,10 +1068,10 @@ private fun StyleSelector(
 ) {
     val view = LocalView.current
     Column(
-        modifier = Modifier.padding(16.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Text(title, color = Color.White, fontSize = 16.sp)
-        Spacer(Modifier.height(8.dp))
+        Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { style ->
                 val isSelected = style == currentStyle
@@ -1249,20 +1253,23 @@ private fun SettingItem(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             })
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 color = Color.White
             )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
+            if (description.isNotEmpty()) {
+                Text(
+                    description,
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
         }
         
         Icon(
