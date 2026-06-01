@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -58,6 +59,16 @@ fun LiquidGlassSettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Lifted dialog states
+    var showSecretPicker by remember { mutableStateOf(false) }
+    var showIconPackPicker by remember { mutableStateOf(false) }
+    var editingWeatherKey by remember { mutableStateOf(false) }
+    var editingIntegrityKey by remember { mutableStateOf(false) }
+    var showDevModeConfirmation by remember { mutableStateOf(false) }
+    var editingGitHubUrl by remember { mutableStateOf(false) }
+    var editingGitHubToken by remember { mutableStateOf(false) }
+    var showArtDebugger by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -103,625 +114,523 @@ fun LiquidGlassSettingsScreen(
                     // === 1. WALLPAPER & LAYERS ===
                     item {
                         SettingsSection(title = "Wallpaper & Layers", icon = Icons.Rounded.Wallpaper)
-                    }
-
-                    item {
-                        SettingItem(
-                            title = "Background Layers",
-                            description = "Configure Day/Night cycles and Subject layer",
-                            onClick = onOpenWallpaperPicker
-                        )
-                    }
-
-                    item {
-                        var showSecretPicker by remember { mutableStateOf(false) }
-                        SettingItem(
-                            title = "Secret Wallpaper",
-                            description = "Shown on home screen after unlocking",
-                            onClick = { showSecretPicker = true }
-                        )
-
-                        if (showSecretPicker) {
-                            SecretWallpaperPickerDialog(
-                                currentConfig = launcherConfig,
-                                onConfigChanged = onConfigChanged,
-                                onDismiss = { showSecretPicker = false }
+                        SettingsCard {
+                            SettingItem(
+                                title = "Background Layers",
+                                description = "Configure Day/Night cycles and Subject layer",
+                                onClick = onOpenWallpaperPicker
                             )
+                            SettingsSeparator()
+                            SettingItem(
+                                title = "Secret Wallpaper",
+                                description = "Shown on home screen after unlocking",
+                                onClick = { showSecretPicker = true }
+                            )
+
+                            if (showSecretPicker) {
+                                SecretWallpaperPickerDialog(
+                                    currentConfig = launcherConfig,
+                                    onConfigChanged = onConfigChanged,
+                                    onDismiss = { showSecretPicker = false }
+                                )
+                            }
                         }
                     }
-
-
 
                     // === 2. VISUAL EFFECTS ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Visual Effects", icon = Icons.Rounded.AutoAwesome)
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Liquid Glass Effects",
-                            subtitle = "Master switch for all glass visual effects",
-                            checked = settings.liquidGlassEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassEnabled = it)) }
-                        )
-                    }
-                    
-                    item {
-                        SwitchSetting(
-                            title = "Enable Blur",
-                            subtitle = "Frosted glass transparency effect",
-                            checked = settings.blurEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(blurEnabled = it)) }
-                        )
-                    }
-                    
-                    item {
-                        SliderSetting(
-                            title = "Blur Radius",
-                            value = settings.blurRadius,
-                            valueRange = 1f..50f,
-                            enabled = settings.blurEnabled,
-                            valueLabel = "${settings.blurRadius.toInt()}dp",
-                            onValueChange = { onSettingsChanged(settings.copy(blurRadius = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Glass Refraction",
-                            subtitle = "Realistic lens distortion effect",
-                            checked = settings.lensEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(lensEnabled = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Refraction Height",
-                            value = settings.refractionHeight,
-                            valueRange = 4f..32f,
-                            enabled = settings.lensEnabled,
-                            valueLabel = "${settings.refractionHeight.toInt()}dp",
-                            onValueChange = { onSettingsChanged(settings.copy(refractionHeight = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Refraction Intensity",
-                            value = settings.refractionAmount,
-                            valueRange = 4f..40f,
-                            enabled = settings.lensEnabled,
-                            valueLabel = "${settings.refractionAmount.toInt()}",
-                            onValueChange = { onSettingsChanged(settings.copy(refractionAmount = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Chromatic Aberration",
-                            subtitle = "Rainbow fringing on glass edges",
-                            checked = settings.chromaticAberration,
-                            onCheckedChange = { onSettingsChanged(settings.copy(chromaticAberration = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Vibrancy",
-                            subtitle = "Enhanced background saturation",
-                            checked = settings.vibrancyEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(vibrancyEnabled = it)) }
-                        )
-                    }
-
-                    item {
-                        ColorPickerSetting(
-                            title = "Panel Tint Color",
-                            currentColor = Color(settings.panelTintColor.toInt()),
-                            onColorSelected = { 
-                                onSettingsChanged(settings.copy(panelTintColor = it.toArgb().toLong()))
-                            }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Media Art Glow Effect",
-                            subtitle = "Replace animated art with a glowing still",
-                            checked = settings.mediaArtGlowEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(mediaArtGlowEnabled = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "LED Matrix Text",
-                            subtitle = "Apply digital pixel effect to UI text",
-                            checked = settings.ledMatrixEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(ledMatrixEnabled = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Scrolling Media Info",
-                            subtitle = "Scroll long song titles on lock screen",
-                            checked = settings.scrollingTextEnabled,
-                            onCheckedChange = { onSettingsChanged(settings.copy(scrollingTextEnabled = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Interactive Lock Controls",
-                            subtitle = "Show playback buttons over the lock screen",
-                            checked = settings.enableLockScreenControls,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {}
-                                        return@SwitchSetting
-                                    }
+                        SettingsCard {
+                            SwitchSetting(
+                                title = "Liquid Glass Effects",
+                                subtitle = "Master switch for all glass visual effects",
+                                checked = settings.liquidGlassEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassEnabled = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Enable Blur",
+                                subtitle = "Frosted glass transparency effect",
+                                checked = settings.blurEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(blurEnabled = it)) }
+                            )
+                            SliderSetting(
+                                title = "Blur Radius",
+                                value = settings.blurRadius,
+                                valueRange = 1f..50f,
+                                enabled = settings.blurEnabled,
+                                valueLabel = "${settings.blurRadius.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(blurRadius = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Glass Refraction",
+                                subtitle = "Realistic lens distortion effect",
+                                checked = settings.lensEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(lensEnabled = it)) }
+                            )
+                            SliderSetting(
+                                title = "Refraction Height",
+                                value = settings.refractionHeight,
+                                valueRange = 4f..32f,
+                                enabled = settings.lensEnabled,
+                                valueLabel = "${settings.refractionHeight.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(refractionHeight = it)) }
+                            )
+                            SliderSetting(
+                                title = "Refraction Intensity",
+                                value = settings.refractionAmount,
+                                valueRange = 4f..40f,
+                                enabled = settings.lensEnabled,
+                                valueLabel = "${settings.refractionAmount.toInt()}",
+                                onValueChange = { onSettingsChanged(settings.copy(refractionAmount = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Chromatic Aberration",
+                                subtitle = "Rainbow fringing on glass edges",
+                                checked = settings.chromaticAberration,
+                                onCheckedChange = { onSettingsChanged(settings.copy(chromaticAberration = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Vibrancy",
+                                subtitle = "Enhanced background saturation",
+                                checked = settings.vibrancyEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(vibrancyEnabled = it)) }
+                            )
+                            SettingsSeparator()
+                            ColorPickerSetting(
+                                title = "Panel Tint Color",
+                                currentColor = Color(settings.panelTintColor.toInt()),
+                                onColorSelected = {
+                                    onSettingsChanged(settings.copy(panelTintColor = it.toArgb().toLong()))
                                 }
-                                onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
-                            }
-                        )
-                    }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Media Art Glow Effect",
+                                subtitle = "Replace animated art with a glowing still",
+                                checked = settings.mediaArtGlowEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(mediaArtGlowEnabled = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "LED Matrix Text",
+                                subtitle = "Apply digital pixel effect to UI text",
+                                checked = settings.ledMatrixEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(ledMatrixEnabled = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Scrolling Media Info",
+                                subtitle = "Scroll long song titles on lock screen",
+                                checked = settings.scrollingTextEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(scrollingTextEnabled = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Interactive Lock Controls",
+                                subtitle = "Show playback buttons over the lock screen",
+                                checked = settings.enableLockScreenControls,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) {
+                                        val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                        val isEnabled = flat != null && flat.contains(componentName.flattenToString())
 
-                    item {
-                        SliderSetting(
-                            title = "Panel Transparency",
-                            value = settings.panelBackgroundAlpha,
-                            valueRange = 0.05f..0.4f,
-                            valueLabel = "${(settings.panelBackgroundAlpha * 100).toInt()}%",
-                            onValueChange = { onSettingsChanged(settings.copy(panelBackgroundAlpha = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Panel Corner Radius",
-                            value = settings.panelCornerRadius,
-                            valueRange = 8f..32f,
-                            valueLabel = "${settings.panelCornerRadius.toInt()}dp",
-                            onValueChange = { onSettingsChanged(settings.copy(panelCornerRadius = it)) }
-                        )
+                                        if (!isEnabled) {
+                                            Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                            try {
+                                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                            } catch (e: Exception) {}
+                                            return@SwitchSetting
+                                        }
+                                    }
+                                    onSettingsChanged(settings.copy(enableLockScreenControls = enabled))
+                                }
+                            )
+                            SettingsSeparator()
+                            SliderSetting(
+                                title = "Panel Transparency",
+                                value = settings.panelBackgroundAlpha,
+                                valueRange = 0.05f..0.4f,
+                                valueLabel = "${(settings.panelBackgroundAlpha * 100).toInt()}%",
+                                onValueChange = { onSettingsChanged(settings.copy(panelBackgroundAlpha = it)) }
+                            )
+                            SettingsSeparator()
+                            SliderSetting(
+                                title = "Panel Corner Radius",
+                                value = settings.panelCornerRadius,
+                                valueRange = 8f..32f,
+                                valueLabel = "${settings.panelCornerRadius.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(panelCornerRadius = it)) }
+                            )
+                        }
                     }
                     
                     // === 3. GRID & LAYOUT ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Grid & Layout", icon = Icons.Rounded.GridView)
+                        SettingsCard {
+                            SliderSetting(
+                                title = "Grid Columns",
+                                value = settings.gridColumns.toFloat(),
+                                valueRange = 3f..6f,
+                                steps = 2,
+                                valueLabel = "${settings.gridColumns}",
+                                onValueChange = { onSettingsChanged(settings.copy(gridColumns = it.toInt())) }
+                            )
+                            SliderSetting(
+                                title = "Grid Rows",
+                                value = settings.gridRows.toFloat(),
+                                valueRange = 4f..8f,
+                                steps = 3,
+                                valueLabel = "${settings.gridRows}",
+                                onValueChange = { onSettingsChanged(settings.copy(gridRows = it.toInt())) }
+                            )
+                            SettingsSeparator()
+                            SliderSetting(
+                                title = "App Icon Size",
+                                value = settings.appTileScale,
+                                valueRange = 0.5f..1.5f,
+                                valueLabel = "${(settings.appTileScale * 100).toInt()}%",
+                                onValueChange = { onSettingsChanged(settings.copy(appTileScale = it)) }
+                            )
+                            SliderSetting(
+                                title = "Icon Corner Radius",
+                                value = settings.iconCornerRadius,
+                                valueRange = 4f..24f,
+                                valueLabel = "${settings.iconCornerRadius.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(iconCornerRadius = it)) }
+                            )
+                            SliderSetting(
+                                title = "Icon Transparency",
+                                value = settings.iconBackgroundAlpha,
+                                valueRange = 0.05f..0.3f,
+                                valueLabel = "${(settings.iconBackgroundAlpha * 100).toInt()}%",
+                                onValueChange = { onSettingsChanged(settings.copy(iconBackgroundAlpha = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Show App Labels",
+                                subtitle = "Display names below icons",
+                                checked = settings.showAppLabels,
+                                onCheckedChange = { onSettingsChanged(settings.copy(showAppLabels = it)) }
+                            )
+                        }
                     }
                     
-                    item {
-                        SliderSetting(
-                            title = "Grid Columns",
-                            value = settings.gridColumns.toFloat(),
-                            valueRange = 3f..6f,
-                            steps = 2,
-                            valueLabel = "${settings.gridColumns}",
-                            onValueChange = { onSettingsChanged(settings.copy(gridColumns = it.toInt())) }
-                        )
-                    }
-                    
-                    item {
-                        SliderSetting(
-                            title = "Grid Rows",
-                            value = settings.gridRows.toFloat(),
-                            valueRange = 4f..8f,
-                            steps = 3,
-                            valueLabel = "${settings.gridRows}",
-                            onValueChange = { onSettingsChanged(settings.copy(gridRows = it.toInt())) }
-                        )
-                    }
-                    
-                    item {
-                        SliderSetting(
-                            title = "App Icon Size",
-                            value = settings.appTileScale,
-                            valueRange = 0.5f..1.5f,
-                            valueLabel = "${(settings.appTileScale * 100).toInt()}%",
-                            onValueChange = { onSettingsChanged(settings.copy(appTileScale = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Icon Corner Radius",
-                            value = settings.iconCornerRadius,
-                            valueRange = 4f..24f,
-                            valueLabel = "${settings.iconCornerRadius.toInt()}dp",
-                            onValueChange = { onSettingsChanged(settings.copy(iconCornerRadius = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Icon Transparency",
-                            value = settings.iconBackgroundAlpha,
-                            valueRange = 0.05f..0.3f,
-                            valueLabel = "${(settings.iconBackgroundAlpha * 100).toInt()}%",
-                            onValueChange = { onSettingsChanged(settings.copy(iconBackgroundAlpha = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Show App Labels",
-                            subtitle = "Display names below icons",
-                            checked = settings.showAppLabels,
-                            onCheckedChange = { onSettingsChanged(settings.copy(showAppLabels = it)) }
-                        )
-                    }
-
                     // === 4. THEMES & ICONS ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Themes & Icons", icon = Icons.Rounded.Palette)
-                    }
+                        SettingsCard {
+                            SwitchSetting(
+                                title = "Cyberpunk Theme",
+                                subtitle = "Dark mode with high-contrast neon accents",
+                                checked = settings.cyberpunkTheme,
+                                onCheckedChange = { onSettingsChanged(settings.copy(cyberpunkTheme = it)) }
+                            )
+                            SettingsSeparator()
+                            // Icon Pack Picker
+                            val currentPackName = settings.iconPackPackageName.ifEmpty { "Default" }
 
-                    item {
-                        SwitchSetting(
-                            title = "Cyberpunk Theme",
-                            subtitle = "Dark mode with high-contrast neon accents",
-                            checked = settings.cyberpunkTheme,
-                            onCheckedChange = { onSettingsChanged(settings.copy(cyberpunkTheme = it)) }
-                        )
-                    }
+                            SettingItem(
+                                title = "Icon Pack",
+                                description = if (settings.iconPackPackageName.isEmpty()) "Default" else "Active: $currentPackName",
+                                onClick = { showIconPackPicker = true }
+                            )
 
-                    item {
-                        // Icon Pack Picker
-                        var showIconPackPicker by remember { mutableStateOf(false) }
-                        val currentPackName = settings.iconPackPackageName.ifEmpty { "Default" }
-
-                        SettingItem(
-                            title = "Icon Pack",
-                            description = if (settings.iconPackPackageName.isEmpty()) "Default" else "Active: $currentPackName",
-                            onClick = { showIconPackPicker = true }
-                        )
-
-                        if (showIconPackPicker) {
-                            IconPackPickerDialog(
-                                currentPack = settings.iconPackPackageName,
-                                onPackSelected = { pkg ->
-                                    onSettingsChanged(settings.copy(iconPackPackageName = pkg))
-                                    showIconPackPicker = false
-                                },
-                                onDismiss = { showIconPackPicker = false }
+                            if (showIconPackPicker) {
+                                IconPackPickerDialog(
+                                    currentPack = settings.iconPackPackageName,
+                                    onPackSelected = { pkg ->
+                                        onSettingsChanged(settings.copy(iconPackPackageName = pkg))
+                                        showIconPackPicker = false
+                                    },
+                                    onDismiss = { showIconPackPicker = false }
+                                )
+                            }
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Icon Pack in Drawer",
+                                subtitle = "Apply custom icons to app drawer",
+                                checked = settings.useIconPackInAppDrawer,
+                                onCheckedChange = { onSettingsChanged(settings.copy(useIconPackInAppDrawer = it)) }
                             )
                         }
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Icon Pack in Drawer",
-                            subtitle = "Apply custom icons to app drawer",
-                            checked = settings.useIconPackInAppDrawer,
-                            onCheckedChange = { onSettingsChanged(settings.copy(useIconPackInAppDrawer = it)) }
-                        )
                     }
 
                     // === 5. WIDGET STYLES ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Widget Styles", icon = Icons.Rounded.Style)
-                    }
-
-                    item {
-                        val styles = listOf("Classic", "Cyberpunk")
-                        StyleSelector(
-                            title = "Clock Style",
-                            currentStyle = settings.clockStyle,
-                            options = styles,
-                            onStyleSelected = { onSettingsChanged(settings.copy(clockStyle = it)) }
-                        )
-                    }
-
-                    item {
-                        val styles = listOf("Classic", "Cyberpunk")
-                        StyleSelector(
-                            title = "Weather Style",
-                            currentStyle = settings.weatherStyle,
-                            options = styles,
-                            onStyleSelected = { onSettingsChanged(settings.copy(weatherStyle = it)) }
-                        )
-                    }
-
-                    item {
-                        val styles = listOf("Classic", "Cyberpunk")
-                        StyleSelector(
-                            title = "Battery Style",
-                            currentStyle = settings.batteryStyle,
-                            options = styles,
-                            onStyleSelected = { onSettingsChanged(settings.copy(batteryStyle = it)) }
-                        )
+                        SettingsCard {
+                            val styles = listOf("Classic", "Cyberpunk")
+                            StyleSelector(
+                                title = "Clock Style",
+                                currentStyle = settings.clockStyle,
+                                options = styles,
+                                onStyleSelected = { onSettingsChanged(settings.copy(clockStyle = it)) }
+                            )
+                            SettingsSeparator()
+                            StyleSelector(
+                                title = "Weather Style",
+                                currentStyle = settings.weatherStyle,
+                                options = styles,
+                                onStyleSelected = { onSettingsChanged(settings.copy(weatherStyle = it)) }
+                            )
+                            SettingsSeparator()
+                            StyleSelector(
+                                title = "Battery Style",
+                                currentStyle = settings.batteryStyle,
+                                options = styles,
+                                onStyleSelected = { onSettingsChanged(settings.copy(batteryStyle = it)) }
+                            )
+                        }
                     }
                     
                     // === 6. INTERACTION ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Interaction", icon = Icons.Rounded.Explore)
-                    }
-                    
-                    item {
-                        SliderSetting(
-                            title = "Drag Elasticity",
-                            value = settings.dragSpringDamping,
-                            valueRange = 0.3f..1.0f,
-                            valueLabel = String.format("%.1f", settings.dragSpringDamping),
-                            onValueChange = { onSettingsChanged(settings.copy(dragSpringDamping = it)) }
-                        )
-                    }
-                    
-                    item {
-                        SliderSetting(
-                            title = "Drag Speed",
-                            value = settings.dragSpringStiffness,
-                            valueRange = 50f..500f,
-                            valueLabel = "${settings.dragSpringStiffness.toInt()}",
-                            onValueChange = { onSettingsChanged(settings.copy(dragSpringStiffness = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Parallax Effect",
-                            subtitle = "Background moves with device tilt",
-                            checked = settings.enableParallax,
-                            onCheckedChange = { onSettingsChanged(settings.copy(enableParallax = it)) }
-                        )
-                    }
-
-                    item {
-                        SliderSetting(
-                            title = "Parallax Intensity",
-                            value = settings.parallaxIntensity,
-                            valueRange = 0f..2f,
-                            enabled = settings.enableParallax,
-                            valueLabel = String.format("%.2f", settings.parallaxIntensity),
-                            onValueChange = { onSettingsChanged(settings.copy(parallaxIntensity = it)) }
-                        )
+                        SettingsCard {
+                            SliderSetting(
+                                title = "Drag Elasticity",
+                                value = settings.dragSpringDamping,
+                                valueRange = 0.3f..1.0f,
+                                valueLabel = String.format("%.1f", settings.dragSpringDamping),
+                                onValueChange = { onSettingsChanged(settings.copy(dragSpringDamping = it)) }
+                            )
+                            SliderSetting(
+                                title = "Drag Speed",
+                                value = settings.dragSpringStiffness,
+                                valueRange = 50f..500f,
+                                valueLabel = "${settings.dragSpringStiffness.toInt()}",
+                                onValueChange = { onSettingsChanged(settings.copy(dragSpringStiffness = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Parallax Effect",
+                                subtitle = "Background moves with device tilt",
+                                checked = settings.enableParallax,
+                                onCheckedChange = { onSettingsChanged(settings.copy(enableParallax = it)) }
+                            )
+                            SliderSetting(
+                                title = "Parallax Intensity",
+                                value = settings.parallaxIntensity,
+                                valueRange = 0f..2f,
+                                enabled = settings.enableParallax,
+                                valueLabel = String.format("%.2f", settings.parallaxIntensity),
+                                onValueChange = { onSettingsChanged(settings.copy(parallaxIntensity = it)) }
+                            )
+                        }
                     }
 
                     // === 7. INTEGRATIONS ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Integrations", icon = Icons.Rounded.Cloud)
-                    }
+                        SettingsCard {
+                            SwitchSetting(
+                                title = "Notification Dots",
+                                subtitle = "Show badge on apps with notifications",
+                                checked = settings.showNotificationDots,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) {
+                                        val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                        val isEnabled = flat != null && flat.contains(componentName.flattenToString())
 
-                    item {
-                        SwitchSetting(
-                            title = "Notification Dots",
-                            subtitle = "Show badge on apps with notifications",
-                            checked = settings.showNotificationDots,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {}
-                                        return@SwitchSetting
+                                        if (!isEnabled) {
+                                            Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                            try {
+                                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                            } catch (e: Exception) {}
+                                            return@SwitchSetting
+                                        }
                                     }
+                                    onSettingsChanged(settings.copy(showNotificationDots = enabled))
                                 }
-                                onSettingsChanged(settings.copy(showNotificationDots = enabled))
-                            }
-                        )
-                    }
+                            )
+                            ColorPickerSetting(
+                                title = "Notification Dot Color",
+                                currentColor = Color(settings.notificationDotColor.toInt()),
+                                onColorSelected = {
+                                    onSettingsChanged(settings.copy(notificationDotColor = it.toArgb().toLong()))
+                                },
+                                enabled = !settings.liquidGlassNotificationDots
+                            )
+                            SwitchSetting(
+                                title = "Liquid Glass Dots",
+                                subtitle = "Apply glass effect to notification badges",
+                                checked = settings.liquidGlassNotificationDots,
+                                onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassNotificationDots = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Lock Screen Media Art",
+                                subtitle = "Show full screen album art on lock screen",
+                                checked = settings.enableLockScreenMediaArt,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) {
+                                        val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                        val isEnabled = flat != null && flat.contains(componentName.flattenToString())
 
-                    item {
-                        ColorPickerSetting(
-                            title = "Notification Dot Color",
-                            currentColor = Color(settings.notificationDotColor.toInt()),
-                            onColorSelected = {
-                                onSettingsChanged(settings.copy(notificationDotColor = it.toArgb().toLong()))
-                            },
-                            enabled = !settings.liquidGlassNotificationDots
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Liquid Glass Dots",
-                            subtitle = "Apply glass effect to notification badges",
-                            checked = settings.liquidGlassNotificationDots,
-                            onCheckedChange = { onSettingsChanged(settings.copy(liquidGlassNotificationDots = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Lock Screen Media Art",
-                            subtitle = "Show full screen album art on lock screen",
-                            checked = settings.enableLockScreenMediaArt,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {}
-                                        return@SwitchSetting
+                                        if (!isEnabled) {
+                                            Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                            try {
+                                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                            } catch (e: Exception) {}
+                                            return@SwitchSetting
+                                        }
                                     }
+                                    onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
                                 }
-                                onSettingsChanged(settings.copy(enableLockScreenMediaArt = enabled))
-                            }
-                        )
-                    }
+                            )
+                            SwitchSetting(
+                                title = "Home Screen Media Art",
+                                subtitle = "Show full screen album art on home screen",
+                                checked = settings.enableHomeMediaArt,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) {
+                                        val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
+                                        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                        val isEnabled = flat != null && flat.contains(componentName.flattenToString())
 
-                    item {
-                        SwitchSetting(
-                            title = "Home Screen Media Art",
-                            subtitle = "Show full screen album art on home screen",
-                            checked = settings.enableHomeMediaArt,
-                            onCheckedChange = { enabled ->
-                                if (enabled) {
-                                    val componentName = ComponentName(context.packageName, "com.quimodotcom.lqlauncher.services.MediaListenerService")
-                                    val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                                    val isEnabled = flat != null && flat.contains(componentName.flattenToString())
-
-                                    if (!isEnabled) {
-                                        Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
-                                        try {
-                                            context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                                        } catch (e: Exception) {}
-                                        return@SwitchSetting
+                                        if (!isEnabled) {
+                                            Toast.makeText(context, "Grant Notification Access to enable", Toast.LENGTH_LONG).show()
+                                            try {
+                                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                            } catch (e: Exception) {}
+                                            return@SwitchSetting
+                                        }
                                     }
+                                    onSettingsChanged(settings.copy(enableHomeMediaArt = enabled))
                                 }
-                                onSettingsChanged(settings.copy(enableHomeMediaArt = enabled))
-                            }
-                        )
-                    }
+                            )
+                            SettingsSeparator()
+                            // OpenWeather API Key
+                            SettingItem(
+                                title = "OpenWeather API Key",
+                                description = if (settings.openWeatherApiKey.isBlank()) "Not set" else "********",
+                                onClick = { editingWeatherKey = true }
+                            )
 
-                    item {
-                        // OpenWeather API Key
-                        var editingKey by remember { mutableStateOf(false) }
-                        SettingItem(
-                            title = "OpenWeather API Key",
-                            description = if (settings.openWeatherApiKey.isBlank()) "Not set" else "********",
-                            onClick = { editingKey = true }
-                        )
-
-                        if (editingKey) {
-                            Dialog(onDismissRequest = { editingKey = false }) {
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("OpenWeather API Key", color = Color.White)
-                                        Spacer(Modifier.height(8.dp))
-                                        var keyText by remember { mutableStateOf(settings.openWeatherApiKey) }
-                                        OutlinedTextField(
-                                            value = keyText,
-                                            onValueChange = { keyText = it },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true
-                                        )
-                                        Spacer(Modifier.height(12.dp))
-                                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                            TextButton(onClick = { editingKey = false }) { Text("Cancel") }
-                                            TextButton(onClick = { onSettingsChanged(settings.copy(openWeatherApiKey = keyText)); editingKey = false }) { Text("Save") }
+                            if (editingWeatherKey) {
+                                Dialog(onDismissRequest = { editingWeatherKey = false }) {
+                                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Text("OpenWeather API Key", color = Color.White)
+                                            Spacer(Modifier.height(8.dp))
+                                            var keyText by remember { mutableStateOf(settings.openWeatherApiKey) }
+                                            OutlinedTextField(
+                                                value = keyText,
+                                                onValueChange = { keyText = it },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = true
+                                            )
+                                            Spacer(Modifier.height(12.dp))
+                                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                                TextButton(onClick = { editingWeatherKey = false }) { Text("Cancel") }
+                                                TextButton(onClick = { onSettingsChanged(settings.copy(openWeatherApiKey = keyText)); editingWeatherKey = false }) { Text("Save") }
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
+                            SettingItem(
+                                title = "Play Integrity API Key",
+                                description = if (settings.playIntegrityCloudProjectNumber.isBlank()) "Not set" else settings.playIntegrityCloudProjectNumber,
+                                onClick = { editingIntegrityKey = true }
+                            )
 
-                    item {
-                        var editingIntegrity by remember { mutableStateOf(false) }
-                        SettingItem(
-                            title = "Play Integrity API Key",
-                            description = if (settings.playIntegrityCloudProjectNumber.isBlank()) "Not set" else settings.playIntegrityCloudProjectNumber,
-                            onClick = { editingIntegrity = true }
-                        )
-
-                        if (editingIntegrity) {
-                            Dialog(onDismissRequest = { editingIntegrity = false }) {
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("Google Cloud Project Number", color = Color.White)
-                                        Spacer(Modifier.height(8.dp))
-                                        var text by remember { mutableStateOf(settings.playIntegrityCloudProjectNumber) }
-                                        OutlinedTextField(
-                                            value = text,
-                                            onValueChange = { text = it },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            singleLine = true,
-                                            placeholder = { Text("1234567890") }
-                                        )
-                                        Spacer(Modifier.height(12.dp))
-                                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                            TextButton(onClick = { editingIntegrity = false }) { Text("Cancel") }
-                                            TextButton(onClick = {
-                                                onSettingsChanged(settings.copy(
-                                                    playIntegrityCloudProjectNumber = text,
-                                                    playIntegrityEnabled = text.isNotBlank()
-                                                ))
-                                                editingIntegrity = false
-                                            }) { Text("Save") }
+                            if (editingIntegrityKey) {
+                                Dialog(onDismissRequest = { editingIntegrityKey = false }) {
+                                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Text("Google Cloud Project Number", color = Color.White)
+                                            Spacer(Modifier.height(8.dp))
+                                            var text by remember { mutableStateOf(settings.playIntegrityCloudProjectNumber) }
+                                            OutlinedTextField(
+                                                value = text,
+                                                onValueChange = { text = it },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = true,
+                                                placeholder = { Text("1234567890") }
+                                            )
+                                            Spacer(Modifier.height(12.dp))
+                                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                                TextButton(onClick = { editingIntegrityKey = false }) { Text("Cancel") }
+                                                TextButton(onClick = {
+                                                    onSettingsChanged(settings.copy(
+                                                        playIntegrityCloudProjectNumber = text,
+                                                        playIntegrityEnabled = text.isNotBlank()
+                                                    ))
+                                                    editingIntegrityKey = false
+                                                }) { Text("Save") }
+                                            }
                                         }
                                     }
                                 }
                             }
+                            SettingsSeparator()
+                            val units = listOf("F", "C")
+                            StyleSelector(
+                                title = "Temperature Unit",
+                                currentStyle = settings.weatherUnit,
+                                options = units,
+                                onStyleSelected = { onSettingsChanged(settings.copy(weatherUnit = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Search Widget opens Browser",
+                                subtitle = "Tapping search opens browser immediately",
+                                checked = settings.searchWidgetOpensBrowserOnTap,
+                                onCheckedChange = { onSettingsChanged(settings.copy(searchWidgetOpensBrowserOnTap = it)) }
+                            )
                         }
-                    }
-
-                    item {
-                        val units = listOf("F", "C")
-                        StyleSelector(
-                            title = "Temperature Unit",
-                            currentStyle = settings.weatherUnit,
-                            options = units,
-                            onStyleSelected = { onSettingsChanged(settings.copy(weatherUnit = it)) }
-                        )
-                    }
-
-                    item {
-                        SwitchSetting(
-                            title = "Search Widget opens Browser",
-                            subtitle = "Tapping search opens browser immediately",
-                            checked = settings.searchWidgetOpensBrowserOnTap,
-                            onCheckedChange = { onSettingsChanged(settings.copy(searchWidgetOpensBrowserOnTap = it)) }
-                        )
                     }
 
                     // === 8. MAINTENANCE ===
                     item {
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Maintenance", icon = Icons.Rounded.Build)
+                        SettingsCard {
+                            SettingItem(
+                                title = "Export Schematic",
+                                description = "Save layout and settings to file",
+                                onClick = onExportSchematic
+                            )
+                            SettingsSeparator()
+                            SettingItem(
+                                title = "Import Schematic",
+                                description = "Restore layout and settings from file",
+                                onClick = onImportSchematic
+                            )
+                        }
                     }
 
                     item {
-                        SettingItem(
-                            title = "Export Schematic",
-                            description = "Save layout and settings to file",
-                            onClick = onExportSchematic
-                        )
-                    }
-
-                    item {
-                        SettingItem(
-                            title = "Import Schematic",
-                            description = "Restore layout and settings from file",
-                            onClick = onImportSchematic
-                        )
-                    }
-
-                    item {
-                        var showConfirmation by remember { mutableStateOf(false) }
-
-                        if (showConfirmation) {
+                        if (showDevModeConfirmation) {
                             AlertDialog(
-                                onDismissRequest = { showConfirmation = false },
+                                onDismissRequest = { showDevModeConfirmation = false },
                                 title = { Text("Enable Developer Mode?") },
                                 text = { Text("Only enable if you know what you are doing. Instability may occur.") },
                                 confirmButton = {
                                     TextButton(onClick = {
                                         onSettingsChanged(settings.copy(showDebugSettings = true))
-                                        showConfirmation = false
+                                        showDevModeConfirmation = false
                                     }) {
                                         Text("Enable", color = Color(0xFFEF4444))
                                     }
                                 },
                                 dismissButton = {
-                                    TextButton(onClick = { showConfirmation = false }) {
+                                    TextButton(onClick = { showDevModeConfirmation = false }) {
                                         Text("Cancel")
                                     }
                                 },
@@ -731,134 +640,127 @@ fun LiquidGlassSettingsScreen(
                             )
                         }
 
-                        SwitchSetting(
-                            title = "Developer Mode",
-                            subtitle = "Access advanced configuration options",
-                            checked = settings.showDebugSettings,
-                            onCheckedChange = { enabled ->
-                                if (enabled) showConfirmation = true
-                                else onSettingsChanged(settings.copy(showDebugSettings = false))
-                            }
-                        )
-                    }
-
-                    if (settings.showDebugSettings) {
-                        item {
+                        SettingsCard {
                             SwitchSetting(
-                                title = "Show Debug Logs",
-                                subtitle = "Overlay internal logs on lock screen",
-                                checked = settings.showDebugLogs,
-                                onCheckedChange = { onSettingsChanged(settings.copy(showDebugLogs = it)) }
-                            )
-                        }
-
-                        item {
-                            var editingUrl by remember { mutableStateOf(false) }
-                            SettingItem(
-                                title = "GitHub Update URL",
-                                description = if (settings.githubUpdateUrl.isBlank()) "Not set" else settings.githubUpdateUrl,
-                                onClick = { editingUrl = true }
+                                title = "Developer Mode",
+                                subtitle = "Access advanced configuration options",
+                                checked = settings.showDebugSettings,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) showDevModeConfirmation = true
+                                    else onSettingsChanged(settings.copy(showDebugSettings = false))
+                                }
                             )
 
-                            if (editingUrl) {
-                                Dialog(onDismissRequest = { editingUrl = false }) {
-                                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            Text("GitHub Update URL", color = Color.White)
-                                            Spacer(Modifier.height(8.dp))
-                                            var text by remember { mutableStateOf(settings.githubUpdateUrl) }
-                                            OutlinedTextField(
-                                                value = text,
-                                                onValueChange = { text = it },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                singleLine = true,
-                                                placeholder = { Text("https://github.com/user/repo/actions") }
-                                            )
-                                            Spacer(Modifier.height(12.dp))
-                                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                                TextButton(onClick = { editingUrl = false }) { Text("Cancel") }
-                                                TextButton(onClick = { onSettingsChanged(settings.copy(githubUpdateUrl = text)); editingUrl = false }) { Text("Save") }
+                            if (settings.showDebugSettings) {
+                                SettingsSeparator()
+                                SwitchSetting(
+                                    title = "Show Debug Logs",
+                                    subtitle = "Overlay internal logs on lock screen",
+                                    checked = settings.showDebugLogs,
+                                    onCheckedChange = { onSettingsChanged(settings.copy(showDebugLogs = it)) }
+                                )
+
+                                SettingsSeparator()
+                                SettingItem(
+                                    title = "GitHub Update URL",
+                                    description = if (settings.githubUpdateUrl.isBlank()) "Not set" else settings.githubUpdateUrl,
+                                    onClick = { editingGitHubUrl = true }
+                                )
+
+                                if (editingGitHubUrl) {
+                                    Dialog(onDismissRequest = { editingGitHubUrl = false }) {
+                                        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text("GitHub Update URL", color = Color.White)
+                                                Spacer(Modifier.height(8.dp))
+                                                var text by remember { mutableStateOf(settings.githubUpdateUrl) }
+                                                OutlinedTextField(
+                                                    value = text,
+                                                    onValueChange = { text = it },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    singleLine = true,
+                                                    placeholder = { Text("https://github.com/user/repo/actions") }
+                                                )
+                                                Spacer(Modifier.height(12.dp))
+                                                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                                    TextButton(onClick = { editingGitHubUrl = false }) { Text("Cancel") }
+                                                    TextButton(onClick = { onSettingsChanged(settings.copy(githubUpdateUrl = text)); editingGitHubUrl = false }) { Text("Save") }
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        item {
-                            var editingToken by remember { mutableStateOf(false) }
-                            SettingItem(
-                                title = "GitHub Token (Optional)",
-                                description = if (settings.githubToken.isBlank()) "Not set" else "********",
-                                onClick = { editingToken = true }
-                            )
+                                SettingsSeparator()
+                                SettingItem(
+                                    title = "GitHub Token (Optional)",
+                                    description = if (settings.githubToken.isBlank()) "Not set" else "********",
+                                    onClick = { editingGitHubToken = true }
+                                )
 
-                            if (editingToken) {
-                                Dialog(onDismissRequest = { editingToken = false }) {
-                                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            Text("GitHub Token", color = Color.White)
-                                            Spacer(Modifier.height(8.dp))
-                                            var text by remember { mutableStateOf(settings.githubToken) }
-                                            OutlinedTextField(
-                                                value = text,
-                                                onValueChange = { text = it },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                singleLine = true,
-                                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
-                                            )
-                                            Spacer(Modifier.height(12.dp))
-                                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                                TextButton(onClick = { editingToken = false }) { Text("Cancel") }
-                                                TextButton(onClick = { onSettingsChanged(settings.copy(githubToken = text)); editingToken = false }) { Text("Save") }
+                                if (editingGitHubToken) {
+                                    Dialog(onDismissRequest = { editingGitHubToken = false }) {
+                                        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text("GitHub Token", color = Color.White)
+                                                Spacer(Modifier.height(8.dp))
+                                                var text by remember { mutableStateOf(settings.githubToken) }
+                                                OutlinedTextField(
+                                                    value = text,
+                                                    onValueChange = { text = it },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    singleLine = true,
+                                                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                                                )
+                                                Spacer(Modifier.height(12.dp))
+                                                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                                    TextButton(onClick = { editingGitHubToken = false }) { Text("Cancel") }
+                                                    TextButton(onClick = { onSettingsChanged(settings.copy(githubToken = text)); editingGitHubToken = false }) { Text("Save") }
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        item {
-                            SwitchSetting(
-                                title = "Automatic Updates",
-                                subtitle = "Check and install updates from GitHub",
-                                checked = settings.autoUpdateEnabled,
-                                onCheckedChange = { onSettingsChanged(settings.copy(autoUpdateEnabled = it)) }
-                            )
-                        }
+                                SettingsSeparator()
+                                SwitchSetting(
+                                    title = "Automatic Updates",
+                                    subtitle = "Check and install updates from GitHub",
+                                    checked = settings.autoUpdateEnabled,
+                                    onCheckedChange = { onSettingsChanged(settings.copy(autoUpdateEnabled = it)) }
+                                )
 
-                        item {
-                            SettingItem(
-                                title = "Check for Updates",
-                                description = "Manually check for updates from GitHub",
-                                onClick = {
-                                    if (settings.githubUpdateUrl.isBlank()) {
-                                        Toast.makeText(context, "Please set GitHub Update URL", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Checking for updates...", Toast.LENGTH_SHORT).show()
-                                        scope.launch {
-                                            com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(
-                                                context = context,
-                                                url = settings.githubUpdateUrl,
-                                                token = settings.githubToken,
-                                                isManual = true
-                                            )
+                                SettingsSeparator()
+                                SettingItem(
+                                    title = "Check for Updates",
+                                    description = "Manually check for updates from GitHub",
+                                    onClick = {
+                                        if (settings.githubUpdateUrl.isBlank()) {
+                                            Toast.makeText(context, "Please set GitHub Update URL", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Checking for updates...", Toast.LENGTH_SHORT).show()
+                                            scope.launch {
+                                                com.quimodotcom.lqlauncher.helpers.AutoUpdater.checkForUpdates(
+                                                    context = context,
+                                                    url = settings.githubUpdateUrl,
+                                                    token = settings.githubToken,
+                                                    isManual = true
+                                                )
+                                            }
                                         }
                                     }
+                                )
+
+                                SettingsSeparator()
+                                SettingItem(
+                                    title = "Art Debugger",
+                                    description = "Test animated cover fetching",
+                                    onClick = { showArtDebugger = true }
+                                )
+
+                                if (showArtDebugger) {
+                                    AppleMusicDebugDialog(onDismiss = { showArtDebugger = false })
                                 }
-                            )
-                        }
-
-                        item {
-                            var showDebugger by remember { mutableStateOf(false) }
-                            SettingItem(
-                                title = "Art Debugger",
-                                description = "Test animated cover fetching",
-                                onClick = { showDebugger = true }
-                            )
-
-                            if (showDebugger) {
-                                AppleMusicDebugDialog(onDismiss = { showDebugger = false })
                             }
                         }
                     }
@@ -898,6 +800,31 @@ private fun SettingsSection(
 }
 
 @Composable
+private fun SettingsCard(
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFF1A1A24),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 4.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun SettingsSeparator() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        thickness = 0.5.dp,
+        color = Color.White.copy(alpha = 0.05f)
+    )
+}
+
+@Composable
 private fun SwitchSetting(
     title: String,
     subtitle: String,
@@ -905,36 +832,32 @@ private fun SwitchSetting(
     onCheckedChange: (Boolean) -> Unit
 ) {
     val view = LocalView.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1A1A24),
-        shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontSize = 16.sp)
-                Text(subtitle, color = Color.Gray, fontSize = 12.sp)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            if (subtitle.isNotEmpty()) {
+                Text(subtitle, color = Color.Gray, fontSize = 11.sp)
             }
-            Switch(
-                checked = checked,
-                onCheckedChange = {
-                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    onCheckedChange(it)
-                },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF6366F1),
-                    uncheckedThumbColor = Color.Gray,
-                    uncheckedTrackColor = Color(0xFF2A2A3A)
-                )
-            )
         }
+        Switch(
+            checked = checked,
+            onCheckedChange = {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onCheckedChange(it)
+            },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF6366F1),
+                uncheckedThumbColor = Color.Gray,
+                uncheckedTrackColor = Color(0xFF2A2A3A)
+            )
+        )
     }
 }
 
@@ -950,60 +873,56 @@ private fun SliderSetting(
 ) {
     val view = LocalView.current
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1A1A24),
-        shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    title, 
-                    color = if (enabled) Color.White else Color.Gray, 
-                    fontSize = 16.sp
-                )
-                Text(
-                    valueLabel, 
-                    color = if (enabled) Color(0xFF6366F1) else Color.Gray, 
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Slider(
-                value = value,
-                onValueChange = {
-                    val isSmallRange = (valueRange.endInclusive - valueRange.start) < 5f
-                    val threshold = if (isSmallRange) 0.1f else 1.0f
-
-                    val oldQuantized = (value / threshold).toInt()
-                    val newQuantized = (it / threshold).toInt()
-
-                    if (oldQuantized != newQuantized) {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    }
-                    onValueChange(it)
-                },
-                valueRange = valueRange,
-                steps = steps,
-                enabled = enabled,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF6366F1),
-                    activeTrackColor = Color(0xFF6366F1),
-                    inactiveTrackColor = Color(0xFF2A2A3A),
-                    disabledThumbColor = Color.Gray,
-                    disabledActiveTrackColor = Color.Gray,
-                    disabledInactiveTrackColor = Color(0xFF2A2A3A)
-                )
+            Text(
+                title,
+                color = if (enabled) Color.White else Color.Gray,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                valueLabel,
+                color = if (enabled) Color(0xFF6366F1) else Color.Gray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
+        Spacer(Modifier.height(4.dp))
+        Slider(
+            value = value,
+            onValueChange = {
+                val isSmallRange = (valueRange.endInclusive - valueRange.start) < 5f
+                val threshold = if (isSmallRange) 0.1f else 1.0f
+
+                val oldQuantized = (value / threshold).toInt()
+                val newQuantized = (it / threshold).toInt()
+
+                if (oldQuantized != newQuantized) {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                }
+                onValueChange(it)
+            },
+            valueRange = valueRange,
+            steps = steps,
+            enabled = enabled,
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFF6366F1),
+                activeTrackColor = Color(0xFF6366F1),
+                inactiveTrackColor = Color(0xFF2A2A3A),
+                disabledThumbColor = Color.Gray,
+                disabledActiveTrackColor = Color.Gray,
+                disabledInactiveTrackColor = Color(0xFF2A2A3A)
+            )
+        )
     }
 }
 
@@ -1017,32 +936,25 @@ private fun ColorPickerSetting(
     var showPicker by remember { mutableStateOf(false) }
     val view = LocalView.current
     
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (enabled) Modifier.clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 showPicker = true
-            } else Modifier),
-        color = if (enabled) Color(0xFF1A1A24) else Color(0xFF1A1A24).copy(alpha = 0.5f),
-        shape = RoundedCornerShape(12.dp)
+            } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Text(title, color = if (enabled) Color.White else Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(title, color = if (enabled) Color.White else Color.Gray, fontSize = 16.sp)
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(if (enabled) currentColor else Color.Gray)
-                    .border(2.dp, Color.White.copy(alpha = if (enabled) 0.3f else 0.1f), CircleShape)
-            )
-        }
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(if (enabled) currentColor else Color.Gray)
+                .border(2.dp, Color.White.copy(alpha = if (enabled) 0.3f else 0.1f), CircleShape)
+        )
     }
     
     if (showPicker) {
@@ -1156,40 +1068,34 @@ private fun StyleSelector(
     onStyleSelected: (String) -> Unit
 ) {
     val view = LocalView.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFF1A1A24),
-        shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(title, color = Color.White, fontSize = 16.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { style ->
-                    val isSelected = style == currentStyle
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            onStyleSelected(style)
-                        },
-                        label = { Text(style) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF6366F1),
-                            selectedLabelColor = Color.White,
-                            containerColor = Color(0xFF2A2A3A),
-                            labelColor = Color.Gray
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = Color.Transparent,
-                            selectedBorderColor = Color.Transparent,
-                            enabled = true,
-                            selected = isSelected
-                        )
+        Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { style ->
+                val isSelected = style == currentStyle
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        onStyleSelected(style)
+                    },
+                    label = { Text(style) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF6366F1),
+                        selectedLabelColor = Color.White,
+                        containerColor = Color(0xFF2A2A3A),
+                        labelColor = Color.Gray
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        borderColor = Color.Transparent,
+                        selectedBorderColor = Color.Transparent,
+                        enabled = true,
+                        selected = isSelected
                     )
-                }
+                )
             }
         }
     }
@@ -1348,20 +1254,23 @@ private fun SettingItem(
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             })
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 color = Color.White
             )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
+            if (description.isNotEmpty()) {
+                Text(
+                    description,
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
         }
         
         Icon(

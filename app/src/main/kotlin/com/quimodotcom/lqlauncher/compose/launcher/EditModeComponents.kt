@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -18,7 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -285,16 +289,17 @@ fun EditModeToolbar(
     glassSettings: com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings = com.quimodotcom.lqlauncher.compose.launcher.LiquidGlassSettings(),
     modifier: Modifier = Modifier
 ) {
-    if (!isEditMode) return
+    val view = LocalView.current
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
+            .padding(16.dp)
             .then(
                 if (glassSettings.liquidGlassEnabled) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
-                        shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
+                        shape = { RoundedRectangle(24.dp) },
                         effects = {
                             if (glassSettings.vibrancyEnabled) vibrancy()
                             if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
@@ -304,59 +309,122 @@ fun EditModeToolbar(
                             )
                         },
                         onDrawSurface = {
-                            drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha * 0.08f))
+                            drawRect(Color.White.copy(alpha = 0.05f))
                         }
                     )
                 } else {
                     Modifier.background(
-                        color = Color.Black.copy(alpha = 0.8f),
-                        shape = RoundedCornerShape(glassSettings.panelCornerRadius.dp)
+                        color = Color(0xFF1A1A24),
+                        shape = RoundedCornerShape(24.dp)
                     )
                 }
             )
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        ToolbarButton(Icons.Rounded.Apps, "Add App", onClick = onAddApp)
-        ToolbarButton(Icons.Rounded.Widgets, "Add Panel", onClick = onAddPanel)
-        ToolbarButton(Icons.Rounded.Folder, "Add Folder", onClick = onAddFolder)
-        ToolbarButton(Icons.Rounded.RadioButtonUnchecked, "Hidden", onClick = onAddInvisibleButton)
-        ToolbarButton(Icons.Rounded.Wallpaper, "Wallpaper", onClick = onChangeWallpaper)
-        ToolbarButton(Icons.Rounded.Settings, "Settings", onClick = onOpenSettings)
-        ToolbarButton(Icons.Rounded.Check, "Done", onClick = onExitEditMode, primary = true)
+        // Category: Add to Grid
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "Add to Grid",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ControlTile(
+                    icon = Icons.Rounded.Apps,
+                    label = "App",
+                    modifier = Modifier.weight(1f),
+                    onClick = onAddApp
+                )
+                ControlTile(
+                    icon = Icons.Rounded.Widgets,
+                    label = "Panel",
+                    modifier = Modifier.weight(1f),
+                    onClick = onAddPanel
+                )
+                ControlTile(
+                    icon = Icons.Rounded.Folder,
+                    label = "Folder",
+                    modifier = Modifier.weight(1f),
+                    onClick = onAddFolder
+                )
+                ControlTile(
+                    icon = Icons.Rounded.RadioButtonUnchecked,
+                    label = "Hidden",
+                    modifier = Modifier.weight(1f),
+                    onClick = onAddInvisibleButton
+                )
+            }
+        }
+
+        // Category: Tools & Appearance
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ControlTile(
+                icon = Icons.Rounded.Wallpaper,
+                label = "Wallpaper",
+                modifier = Modifier.weight(1f),
+                onClick = onChangeWallpaper
+            )
+            ControlTile(
+                icon = Icons.Rounded.Settings,
+                label = "Settings",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenSettings
+            )
+
+            // Large Done Button
+            Box(
+                modifier = Modifier
+                    .weight(1.5f)
+                    .height(56.dp)
+                    .background(Color(0xFF6366F1), RoundedCornerShape(16.dp))
+                    .clickable {
+                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                        onExitEditMode()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ToolbarButton(
+private fun ControlTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
-    primary: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     val view = LocalView.current
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(4.dp)
-    ) {
-        IconButton(
-            onClick = {
+        modifier = modifier
+            .height(56.dp)
+            .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+            .clickable {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 onClick()
             },
-            modifier = Modifier
-                .size(52.dp)
-                .background(if (primary) Color(0xFF6366F1) else Color.White.copy(alpha = 0.12f), CircleShape)
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = Color.White,
-                modifier = Modifier.size(26.dp)
-            )
-        }
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
+        Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Medium)
     }
 }
 
