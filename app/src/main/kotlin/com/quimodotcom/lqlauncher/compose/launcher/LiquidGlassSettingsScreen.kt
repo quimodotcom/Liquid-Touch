@@ -68,6 +68,7 @@ fun LiquidGlassSettingsScreen(
     var editingGitHubUrl by remember { mutableStateOf(false) }
     var editingGitHubToken by remember { mutableStateOf(false) }
     var showArtDebugger by remember { mutableStateOf(false) }
+    var showCustomArtManager by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -513,6 +514,17 @@ fun LiquidGlassSettingsScreen(
                                     onSettingsChanged(settings.copy(enableHomeMediaArt = enabled))
                                 }
                             )
+                            SettingsSeparator()
+                            SettingItem(
+                                title = "Custom Album Art",
+                                description = "Override album art for specific songs",
+                                onClick = { showCustomArtManager = true }
+                            )
+
+                            if (showCustomArtManager) {
+                                CustomArtManagerScreen(onDismiss = { showCustomArtManager = false })
+                            }
+
                             SettingsSeparator()
                             // OpenWeather API Key
                             SettingItem(

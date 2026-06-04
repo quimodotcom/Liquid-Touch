@@ -16,6 +16,7 @@ import android.util.Log
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.quimodotcom.lqlauncher.helpers.AppleMusicIntegration
+import com.quimodotcom.lqlauncher.compose.launcher.CustomArtRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MediaListenerService : NotificationListenerService() {
 
@@ -188,30 +190,36 @@ class MediaListenerService : NotificationListenerService() {
         val album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
         val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
 
-        // Check if song changed
-        if (title == lastTitle && artist == lastArtist) {
-            // Update state if changed, but preserve current art if metadata bitmap is null (e.g. URI-loaded art)
-            val currentState = MediaStateRepository.mediaState.value
-            if (currentState != null) {
-                val nextArt = bitmap ?: currentState.art
-                if (nextArt != currentState.art || currentState.isPlaying != isPlaying) {
-                    MediaStateRepository.update(currentState.copy(art = nextArt, isPlaying = isPlaying), controller)
-                }
-            }
-            return
-        }
-
-        lastTitle = title
-        lastArtist = artist
-
         // 1. Cancel previous fetch to prevent race conditions
         currentFetchJob?.cancel()
 
-        // 2. Immediate update for responsiveness (show static art first)
-        MediaStateRepository.update(MediaState(title, artist, bitmap, null, album, isPlaying), controller)
-
-        // 3. Fetch animated cover and URI-based art asynchronously
+        // 2. Async check for custom art followed by standard fetch if needed
         currentFetchJob = serviceScope.launch {
+            val customArt = CustomArtRepository.getCustomArt(this@MediaListenerService, title, artist)
+
+            if (title == lastTitle && artist == lastArtist) {
+                // Update state if changed, but preserve current art if metadata bitmap is null (e.g. URI-loaded art)
+                val currentState = MediaStateRepository.mediaState.value
+                if (currentState != null) {
+                    val nextArt = customArt ?: bitmap ?: currentState.art
+                    if (nextArt != currentState.art || currentState.isPlaying != isPlaying) {
+                        MediaStateRepository.update(currentState.copy(art = nextArt, isPlaying = isPlaying), controller)
+                    }
+                }
+                return@launch
+            }
+
+            lastTitle = title
+            lastArtist = artist
+
+            val initialArt = customArt ?: bitmap
+            MediaStateRepository.update(MediaState(title, artist, initialArt, null, album, isPlaying), controller)
+
+            if (customArt != null) {
+                // If we have custom art, we don't fetch from Apple Music
+                return@launch
+            }
+
             // A. Fetch URI-based art if bitmap is missing
             if (bitmap == null && artUri != null) {
                 try {
@@ -222,10 +230,10 @@ class MediaListenerService : NotificationListenerService() {
                         .build()
                     val result = loader.execute(request)
                     if (result is coil.request.SuccessResult) {
-                        bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                        if (bitmap != null && isActive) {
+                        val uriBitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        if (uriBitmap != null && isActive) {
                             val currentState = MediaStateRepository.mediaState.value
-                            MediaStateRepository.update(currentState?.copy(art = bitmap) ?: MediaState(title, artist, bitmap, null, album, isPlaying), controller)
+                            MediaStateRepository.update(currentState?.copy(art = uriBitmap) ?: MediaState(title, artist, uriBitmap, null, album, isPlaying), controller)
                         }
                     }
                 } catch (e: Exception) {
