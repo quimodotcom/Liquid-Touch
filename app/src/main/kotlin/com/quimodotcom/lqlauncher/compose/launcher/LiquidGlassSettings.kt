@@ -109,7 +109,33 @@ data class LiquidGlassSettings(
 
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
-)
+) {
+    /**
+     * Determines if it is currently "night" based on the scheduled times
+     * or the system theme if times are identical.
+     */
+    fun isCurrentlyNight(context: android.content.Context): Boolean {
+        // Check system theme as a fallback or baseline
+        val uiMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isSystemDark = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        val calendar = java.util.Calendar.getInstance()
+        val currentMinutes = calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + calendar.get(java.util.Calendar.MINUTE)
+        val nightStart = nightStartHour * 60 + nightStartMinute
+        val dayStart = dayStartHour * 60 + dayStartMinute
+
+        return if (nightStart == dayStart) {
+            // If times are identical, defer to system theme
+            isSystemDark
+        } else if (nightStart > dayStart) {
+            // Night spans across midnight (e.g., 20:00 to 07:00)
+            currentMinutes >= nightStart || currentMinutes < dayStart
+        } else {
+            // Night is within the same day (e.g., 00:00 to 07:00)
+            currentMinutes >= nightStart && currentMinutes < dayStart
+        }
+    }
+}
 
 /**
  * Repository for saving/loading liquid glass settings

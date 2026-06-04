@@ -481,7 +481,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                startTickerJob()
 
                 // Launch interactive controls if enabled and locked
                 // Check if media is actually playing/active to avoid blank overlay
@@ -547,7 +546,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isInAmbientMode) {
                     startGifJobIfNeeded()
-                    startTickerJob()
                     android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                     android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
@@ -579,7 +577,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isPowerSaveMode) {
                     startGifJobIfNeeded()
-                    startTickerJob()
                     android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
                     android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
@@ -917,10 +914,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
         }
 
-        private fun startTickerJob() {
-            // Ticker job replaced by ACTION_TIME_TICK receiver
-        }
-
         private fun startGifJobIfNeeded() {
             gifJob?.cancel()
             val uri = currentGifUri ?: return
@@ -974,27 +967,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastSubBitmap: Bitmap? = null
 
         private fun isCurrentlyNight(): Boolean {
-            // Check system theme as a fallback or baseline
-            val uiMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
-            val isSystemDark = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
-
-            val calendar = Calendar.getInstance()
-            val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-            val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
-            val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
-
-            val isNight = if (nightStart == dayStart) {
-                // If times are identical, defer to system theme
-                isSystemDark
-            } else if (nightStart > dayStart) {
-                // Night spans across midnight (e.g., 20:00 to 07:00)
-                currentMinutes >= nightStart || currentMinutes < dayStart
-            } else {
-                // Night is within the same day (e.g., 00:00 to 07:00)
-                currentMinutes >= nightStart && currentMinutes < dayStart
-            }
-
-            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight (systemDark=$isSystemDark, now=$currentMinutes, day=$dayStart, night=$nightStart)")
+            val isNight = settings.isCurrentlyNight(this@LiquidGlassWallpaperService)
+            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight")
             return isNight
         }
 

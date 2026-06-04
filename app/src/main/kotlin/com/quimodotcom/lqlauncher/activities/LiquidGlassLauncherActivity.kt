@@ -271,18 +271,43 @@ private fun EditableLauncherScreen(
         if (gridSize.height > 0) gridSize.height.toFloat() / launcherConfig.gridRows else 0f
     }
 
-    // Theme state
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    // Time tick for scheduled wallpaper switching
+    var timeTick by remember { mutableIntStateOf(0) }
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                timeTick++
+            }
+        }
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_TIME_TICK)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
+
+    // Determine if it's currently "night" based on schedule or system theme
+    val isCurrentlyNight = remember(glassSettings, timeTick) {
+        glassSettings.isCurrentlyNight(context)
+    }
 
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
     // Wallpaper painter (honour permission, theme and secret)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = remember(isDarkTheme, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
+        customUri = remember(isCurrentlyNight, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
             if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
                 launcherConfig.wallpaperSecretUri
-            } else if (isDarkTheme) {
+            } else if (isCurrentlyNight) {
                 launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
             } else {
                 launcherConfig.wallpaperUri
