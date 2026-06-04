@@ -175,8 +175,21 @@ class LiquidGlassWallpaperService : WallpaperService() {
         // Broadcast Receiver for settings updates
         private val configReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == "com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED") {
-                    reloadSettings()
+                when (intent?.action) {
+                    "com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED" -> {
+                        reloadSettings()
+                    }
+                    Intent.ACTION_TIME_TICK, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
+                        // Check if day/night state changed. Only reload if visible to save battery.
+                        if (isVisible) {
+                            val isDark = isCurrentlyNight()
+                            if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
+                                DebugLogger.log("WallpaperService", "Time Broadcast: Day/Night switch detected.")
+                                lastWallpaperThemeIsDark = isDark
+                                reloadSettings()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -223,7 +236,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // videoRenderer?.onSurfaceCreated(surfaceHolder!!) // Removed to fix crash: EGL surface creation must happen in onSurfaceCreated
 
             // Register receivers
-            val filter = IntentFilter("com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED")
+            val filter = IntentFilter().apply {
+                addAction("com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED")
+                addAction(Intent.ACTION_TIME_TICK)
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(configReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
             } else {
@@ -900,19 +918,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         }
 
         private fun startTickerJob() {
-            tickerJob?.cancel()
-            if (isInAmbientMode || isPowerSaveMode || !isVisible) return
-
-            tickerJob = engineScope.launch {
-                while (isActive) {
-                    val isDark = isCurrentlyNight()
-                    if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
-                        DebugLogger.log("WallpaperService", "Ticker: Day/Night switch detected.")
-                        reloadSettings()
-                    }
-                    delay(60000) // Check every minute
-                }
-            }
+            // Ticker job replaced by ACTION_TIME_TICK receiver
         }
 
         private fun startGifJobIfNeeded() {
@@ -968,18 +974,27 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastSubBitmap: Bitmap? = null
 
         private fun isCurrentlyNight(): Boolean {
+            // Check system theme as a fallback or baseline
+            val uiMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            val isSystemDark = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
             val calendar = Calendar.getInstance()
             val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
             val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
             val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
 
-            val isNight = if (nightStart > dayStart) {
+            val isNight = if (nightStart == dayStart) {
+                // If times are identical, defer to system theme
+                isSystemDark
+            } else if (nightStart > dayStart) {
+                // Night spans across midnight (e.g., 20:00 to 07:00)
                 currentMinutes >= nightStart || currentMinutes < dayStart
             } else {
+                // Night is within the same day (e.g., 00:00 to 07:00)
                 currentMinutes >= nightStart && currentMinutes < dayStart
             }
 
-            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight (now=$currentMinutes, day=$dayStart, night=$nightStart)")
+            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight (systemDark=$isSystemDark, now=$currentMinutes, day=$dayStart, night=$nightStart)")
             return isNight
         }
 
@@ -987,11 +1002,13 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Check for Day/Night switch based on current state vs last loaded state
             val isDark = isCurrentlyNight()
 
-            if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
-                DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
-                reloadSettings()
+            if (isDark != lastWallpaperThemeIsDark) {
+                if (lastWallpaperThemeIsDark != null) {
+                    DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
+                    reloadSettings()
+                }
+                lastWallpaperThemeIsDark = isDark
             }
-            lastWallpaperThemeIsDark = isDark
 
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
