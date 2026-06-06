@@ -153,6 +153,7 @@ data class EditModeState(
     val showAppPicker: Boolean = false,
     val showPanelPicker: Boolean = false,
     val showWallpaperPicker: Boolean = false,
+    val isToolbarAtTop: Boolean = false,
     val dragOffset: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero
 )
 

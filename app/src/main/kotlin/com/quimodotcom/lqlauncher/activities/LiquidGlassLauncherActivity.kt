@@ -442,11 +442,16 @@ private fun EditableLauncherScreen(
             )
         }
 
-        // Animate bottom padding when edit mode is active to push grid up
+        // Animate grid padding when edit mode is active to push grid away from toolbar
         val gridBottomPadding by animateDpAsState(
-            targetValue = if (editModeState.isEnabled) 220.dp else 96.dp,
+            targetValue = if (editModeState.isEnabled && !editModeState.isToolbarAtTop) 220.dp else 96.dp,
             animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-            label = "gridPadding"
+            label = "gridBottomPadding"
+        )
+        val gridTopPadding by animateDpAsState(
+            targetValue = if (editModeState.isEnabled && editModeState.isToolbarAtTop) 180.dp else 0.dp,
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+            label = "gridTopPadding"
         )
 
         // Main content - Grid of items
@@ -456,8 +461,8 @@ private fun EditableLauncherScreen(
                 .systemBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp)
                 .onSizeChanged { gridSize = it }
-                // Exclude the bottom handle region from the global gesture detector so the handle can receive input
-                .padding(bottom = gridBottomPadding)
+                // Dynamic padding based on toolbar position
+                .padding(top = gridTopPadding, bottom = gridBottomPadding)
                 .pointerInput(editModeState.isEnabled) {
                     if (!editModeState.isEnabled) {
                         detectTapGestures(
@@ -868,13 +873,17 @@ private fun EditableLauncherScreen(
         // Edit mode toolbar
         AnimatedVisibility(
             visible = editModeState.isEnabled,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            enter = if (editModeState.isToolbarAtTop) slideInVertically(initialOffsetY = { -it }) + fadeIn() else slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = if (editModeState.isToolbarAtTop) slideOutVertically(targetOffsetY = { -it }) + fadeOut() else slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(if (editModeState.isToolbarAtTop) Alignment.TopCenter else Alignment.BottomCenter)
         ) {
             EditModeToolbar(
                 backdrop = backdrop,
                 isEditMode = editModeState.isEnabled,
+                isAtTop = editModeState.isToolbarAtTop,
+                onTogglePosition = {
+                    editModeState = editModeState.copy(isToolbarAtTop = !editModeState.isToolbarAtTop)
+                },
                 onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
                 onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
                 onAddFolder = { showFolderNameDialog = true },

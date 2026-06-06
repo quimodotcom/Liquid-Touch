@@ -279,6 +279,8 @@ private fun ResizeHandle(
 fun EditModeToolbar(
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     isEditMode: Boolean,
+    isAtTop: Boolean,
+    onTogglePosition: () -> Unit,
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
@@ -378,6 +380,13 @@ fun EditModeToolbar(
                 label = "Settings",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenSettings
+            )
+
+            ControlTile(
+                icon = Icons.Rounded.SwapVert,
+                label = if (isAtTop) "Move Down" else "Move Up",
+                modifier = Modifier.weight(1f),
+                onClick = onTogglePosition
             )
 
             // Large Done Button
