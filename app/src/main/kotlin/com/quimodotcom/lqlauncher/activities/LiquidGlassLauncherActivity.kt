@@ -870,22 +870,15 @@ private fun EditableLauncherScreen(
             }
         }
 
-        // Edit mode toolbar - use a key to force reset during position changes to avoid layout/animation crashes
-        val toolbarAtTop = editModeState.isToolbarAtTop
-        key(toolbarAtTop) {
-            AnimatedVisibility(
-                visible = editModeState.isEnabled,
-                enter = if (toolbarAtTop) slideInVertically(initialOffsetY = { -it }) + fadeIn() else slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = if (toolbarAtTop) slideOutVertically(targetOffsetY = { -it }) + fadeOut() else slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                modifier = Modifier.align(if (toolbarAtTop) Alignment.TopCenter else Alignment.BottomCenter)
-            ) {
-                EditModeToolbar(
-                    backdrop = backdrop,
-                    isEditMode = editModeState.isEnabled,
-                    isAtTop = toolbarAtTop,
-                    onTogglePosition = {
-                        editModeState = editModeState.copy(isToolbarAtTop = !toolbarAtTop)
-                    },
+        // Reusable Toolbar Content
+        val toolbarContent: @Composable (Boolean) -> Unit = { isAtTop ->
+            EditModeToolbar(
+                backdrop = backdrop,
+                isEditMode = editModeState.isEnabled,
+                isAtTop = isAtTop,
+                onTogglePosition = {
+                    editModeState = editModeState.copy(isToolbarAtTop = !isAtTop)
+                },
                 onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
                 onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
                 onAddFolder = { showFolderNameDialog = true },
@@ -898,9 +891,28 @@ private fun EditableLauncherScreen(
                 onExitEditMode = {
                     editModeState = EditModeState()
                 },
-                    glassSettings = glassSettings
-                )
-            }
+                glassSettings = glassSettings
+            )
+        }
+
+        // Bottom Edit Mode Toolbar
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            toolbarContent(false)
+        }
+
+        // Top Edit Mode Toolbar
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && editModeState.isToolbarAtTop,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            toolbarContent(true)
         }
 
 

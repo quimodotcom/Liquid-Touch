@@ -634,7 +634,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 settings = LiquidGlassSettingsRepository.loadSettings(this@LiquidGlassWallpaperService)
                 updateLockState()
                 loadWallpapers()
-                draw()
+                // draw() // Redundant: drawing is handled by Choreographer when visible
             }
         }
 
@@ -977,11 +977,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             val isDark = isCurrentlyNight()
 
             if (isDark != lastWallpaperThemeIsDark) {
-                if (lastWallpaperThemeIsDark != null) {
+                val wasNotNull = lastWallpaperThemeIsDark != null
+                lastWallpaperThemeIsDark = isDark
+                if (wasNotNull) {
                     DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
                     reloadSettings()
                 }
-                lastWallpaperThemeIsDark = isDark
             }
 
             // Ambient Mode Handling (Black screen + Simple Clock)
