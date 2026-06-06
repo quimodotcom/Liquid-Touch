@@ -113,6 +113,14 @@ data class LiquidGlassSettings(
     /**
      * Determines if it is currently "night" based on the scheduled times
      * or the system theme if times are identical.
+     *
+     * Logic:
+     * 1. If nightStart and dayStart are the same, follow the system dark mode.
+     * 2. If nightStart > dayStart, night spans midnight (e.g., 20:00 to 07:00).
+     * 3. Otherwise, night is a continuous block in one day (e.g., 00:00 to 07:00).
+     *
+     * @param context Used to check system theme if schedule is disabled.
+     * @return True if the current time falls within the configured "night" range.
      */
     fun isCurrentlyNight(context: android.content.Context): Boolean {
         // Check system theme as a fallback or baseline
@@ -125,13 +133,15 @@ data class LiquidGlassSettings(
         val dayStart = dayStartHour * 60 + dayStartMinute
 
         return if (nightStart == dayStart) {
-            // If times are identical, defer to system theme
+            // If times are identical, the user likely wants to follow the system theme.
             isSystemDark
         } else if (nightStart > dayStart) {
             // Night spans across midnight (e.g., 20:00 to 07:00)
+            // It's night if time is >= 20:00 OR < 07:00
             currentMinutes >= nightStart || currentMinutes < dayStart
         } else {
             // Night is within the same day (e.g., 00:00 to 07:00)
+            // It's night if time is >= 00:00 AND < 07:00
             currentMinutes >= nightStart && currentMinutes < dayStart
         }
     }
