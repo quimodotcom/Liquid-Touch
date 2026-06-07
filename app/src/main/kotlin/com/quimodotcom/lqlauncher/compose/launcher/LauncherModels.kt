@@ -47,7 +47,8 @@ sealed class LauncherItem {
         val blurRadius: Float = 20f,
         val tintColor: Long = 0xFF6366F1L, // Default indigo
         val backgroundAlpha: Float = 0.12f,
-        val panelType: PanelType = PanelType.EMPTY
+        val panelType: PanelType = PanelType.EMPTY,
+        val customImageUri: String? = null
     ) : LauncherItem()
     
     /**
@@ -136,6 +137,28 @@ data class LauncherConfig(
  * Represents a complete launcher setup that can be exported/imported
  */
 @Serializable
+data class LauncherTheme(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val description: String = "",
+    val liquidGlassEnabled: Boolean = true,
+    val blurRadius: Float = 20f,
+    val refractionHeight: Float = 12f,
+    val refractionAmount: Float = 16f,
+    val chromaticAberration: Boolean = true,
+    val vibrancyEnabled: Boolean = true,
+    val panelTintColor: Long = 0xFF6366F1L,
+    val panelBackgroundAlpha: Float = 0.12f,
+    val iconBackgroundAlpha: Float = 0.1f,
+    val panelCornerRadius: Float = 20f,
+    val iconCornerRadius: Float = 16f,
+    val clockStyle: String = "Classic",
+    val weatherStyle: String = "Classic",
+    val batteryStyle: String = "Classic",
+    val cyberpunkTheme: Boolean = false
+)
+
+@Serializable
 data class LauncherSchematic(
     val config: LauncherConfig,
     val settings: LiquidGlassSettings,
@@ -154,6 +177,7 @@ data class EditModeState(
     val showPanelPicker: Boolean = false,
     val showWallpaperPicker: Boolean = false,
     val isToolbarAtTop: Boolean = false,
+    val isUiHidden: Boolean = false,
     val dragOffset: androidx.compose.ui.geometry.Offset = androidx.compose.ui.geometry.Offset.Zero
 )
 

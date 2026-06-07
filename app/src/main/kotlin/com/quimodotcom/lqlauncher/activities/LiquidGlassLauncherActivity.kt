@@ -876,8 +876,8 @@ private fun EditableLauncherScreen(
                 backdrop = backdrop,
                 isEditMode = editModeState.isEnabled,
                 isAtTop = isAtTop,
-                onTogglePosition = {
-                    editModeState = editModeState.copy(isToolbarAtTop = !isAtTop)
+                onHide = {
+                    editModeState = editModeState.copy(isUiHidden = true)
                 },
                 onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
                 onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
@@ -897,7 +897,7 @@ private fun EditableLauncherScreen(
 
         // Bottom Edit Mode Toolbar
         AnimatedVisibility(
-            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop,
+            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop && !editModeState.isUiHidden,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -907,12 +907,29 @@ private fun EditableLauncherScreen(
 
         // Top Edit Mode Toolbar
         AnimatedVisibility(
-            visible = editModeState.isEnabled && editModeState.isToolbarAtTop,
+            visible = editModeState.isEnabled && editModeState.isToolbarAtTop && !editModeState.isUiHidden,
             enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             toolbarContent(true)
+        }
+
+        // Restore UI Button
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && editModeState.isUiHidden,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).systemBarsPadding()
+        ) {
+            FloatingActionButton(
+                onClick = { editModeState = editModeState.copy(isUiHidden = false) },
+                containerColor = Color(0xFF6366F1),
+                contentColor = Color.White,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Rounded.Visibility, "Show Edit UI")
+            }
         }
 
 
@@ -1538,7 +1555,9 @@ private fun GlassPanelBackground(
             .fillMaxSize()
             .clip(RoundedCornerShape(cornerRadius))
             .then(
-                if (glassSettings.liquidGlassEnabled) {
+                if (item.customImageUri != null) {
+                    Modifier
+                } else if (glassSettings.liquidGlassEnabled) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { RoundedRectangle(cornerRadius) },
@@ -1565,7 +1584,26 @@ private fun GlassPanelBackground(
                     )
                 }
             )
-    )
+    ) {
+        if (item.customImageUri != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(item.customImageUri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Add a subtle overlay so content remains readable if image is too bright
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = if (isEditMode) 0.1f else 0.2f))
+            )
+        }
+    }
 }
 
 @Composable

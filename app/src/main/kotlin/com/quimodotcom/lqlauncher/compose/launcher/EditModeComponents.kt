@@ -280,7 +280,7 @@ fun EditModeToolbar(
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     isEditMode: Boolean,
     isAtTop: Boolean,
-    onTogglePosition: () -> Unit,
+    onHide: () -> Unit,
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
@@ -383,10 +383,10 @@ fun EditModeToolbar(
             )
 
             ControlTile(
-                icon = Icons.Rounded.SwapVert,
-                label = if (isAtTop) "Move Down" else "Move Up",
+                icon = Icons.Rounded.VisibilityOff,
+                label = "Hide",
                 modifier = Modifier.weight(1f),
-                onClick = onTogglePosition
+                onClick = onHide
             )
 
             // Large Done Button

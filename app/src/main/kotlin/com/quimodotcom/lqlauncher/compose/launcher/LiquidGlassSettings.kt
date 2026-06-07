@@ -107,12 +107,16 @@ data class LiquidGlassSettings(
     val nightStartHour: Int = 20,
     val nightStartMinute: Int = 0,
 
+    // Theme System
+    val currentThemeId: String = "default",
+    val customThemes: List<LauncherTheme> = emptyList(),
+
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
 ) {
     /**
-     * Determines if it is currently "night" based on the scheduled times
-     * or the system theme if times are identical.
+     * Determines if it is currently "night" based on the scheduled times,
+     * the system theme, or a manual override.
      *
      * Logic:
      * 1. If nightStart and dayStart are the same, follow the system dark mode.
@@ -141,7 +145,7 @@ data class LiquidGlassSettings(
             currentMinutes >= nightStart || currentMinutes < dayStart
         } else {
             // Night is within the same day (e.g., 00:00 to 07:00)
-            // It's night if time is >= 00:00 AND < 07:00
+            // It's night if time is >= nightStart AND < dayStart
             currentMinutes >= nightStart && currentMinutes < dayStart
         }
     }
