@@ -116,15 +116,18 @@ data class LiquidGlassSettings(
 ) {
     /**
      * Determines if it is currently "night" based on the scheduled times,
-     * the system theme, or a manual override.
+     * the system theme, or manual user override.
      *
-     * Logic:
-     * 1. If nightStart and dayStart are the same, follow the system dark mode.
-     * 2. If nightStart > dayStart, night spans midnight (e.g., 20:00 to 07:00).
-     * 3. Otherwise, night is a continuous block in one day (e.g., 00:00 to 07:00).
+     * Detailed logic:
+     * 1. **Default behavior:** If `nightStart` and `dayStart` are set to the same time (default),
+     *    the launcher defers to the system-wide Dark Theme setting.
+     * 2. **Midnight Spanning:** If `nightStart` is greater than `dayStart` (e.g., 22:00 to 07:00),
+     *    the time is considered "night" if it is later than `nightStart` OR earlier than `dayStart`.
+     * 3. **Single Day Range:** If `nightStart` is less than `dayStart` (e.g., 00:00 to 08:00),
+     *    the time is considered "night" if it is between both values.
      *
-     * @param context Used to check system theme if schedule is disabled.
-     * @return True if the current time falls within the configured "night" range.
+     * @param context Used to access the system theme configuration.
+     * @return True if the current theme should be "night" (dark).
      */
     fun isCurrentlyNight(context: android.content.Context): Boolean {
         // Check system theme as a fallback or baseline
@@ -137,15 +140,13 @@ data class LiquidGlassSettings(
         val dayStart = dayStartHour * 60 + dayStartMinute
 
         return if (nightStart == dayStart) {
-            // If times are identical, the user likely wants to follow the system theme.
+            // If times are identical, defer to system theme
             isSystemDark
         } else if (nightStart > dayStart) {
             // Night spans across midnight (e.g., 20:00 to 07:00)
-            // It's night if time is >= 20:00 OR < 07:00
             currentMinutes >= nightStart || currentMinutes < dayStart
         } else {
             // Night is within the same day (e.g., 00:00 to 07:00)
-            // It's night if time is >= nightStart AND < dayStart
             currentMinutes >= nightStart && currentMinutes < dayStart
         }
     }

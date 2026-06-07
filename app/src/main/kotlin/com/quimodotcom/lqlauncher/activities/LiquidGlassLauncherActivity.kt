@@ -864,7 +864,7 @@ private fun EditableLauncherScreen(
             if (showAppDrawer) {
                 showAppDrawer = false
             } else if (editModeState.isEnabled) {
-                editModeState = EditModeState()
+                editModeState = editModeState.copy(isEnabled = false, isUiHidden = false)
             } else {
                 // Do nothing: stay on home screen
             }
@@ -889,7 +889,8 @@ private fun EditableLauncherScreen(
                 onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
                 onOpenSettings = { showSettings = true },
                 onExitEditMode = {
-                    editModeState = EditModeState()
+                    // Only disable, don't reset other state bits to avoid layout crashes during animation
+                    editModeState = editModeState.copy(isEnabled = false, isUiHidden = false)
                 },
                 glassSettings = glassSettings
             )
