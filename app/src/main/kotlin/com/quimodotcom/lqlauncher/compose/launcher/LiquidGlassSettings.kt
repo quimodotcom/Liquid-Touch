@@ -122,9 +122,9 @@ data class LiquidGlassSettings(
      * 1. **Default behavior:** If `nightStart` and `dayStart` are set to the same time (default),
      *    the launcher defers to the system-wide Dark Theme setting.
      * 2. **Midnight Spanning:** If `nightStart` is greater than `dayStart` (e.g., 22:00 to 07:00),
-     *    the time is considered "night" if it is later than `nightStart` OR earlier than `dayStart`.
+     *    the time is considered "night" if current time is >= `nightStart` OR < `dayStart`.
      * 3. **Single Day Range:** If `nightStart` is less than `dayStart` (e.g., 00:00 to 08:00),
-     *    the time is considered "night" if it is between both values.
+     *    the time is considered "night" if current time is >= `nightStart` AND < `dayStart`.
      *
      * @param context Used to access the system theme configuration.
      * @return True if the current theme should be "night" (dark).

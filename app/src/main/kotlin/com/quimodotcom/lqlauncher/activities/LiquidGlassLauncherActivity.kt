@@ -461,8 +461,8 @@ private fun EditableLauncherScreen(
                 .systemBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp)
                 .onSizeChanged { gridSize = it }
-                // Dynamic padding based on toolbar position
-                .padding(top = gridTopPadding, bottom = gridBottomPadding)
+                // Dynamic padding based on toolbar position. Coerce to least 0 to avoid crash on spring overshoot.
+                .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
                 .pointerInput(editModeState.isEnabled) {
                     if (!editModeState.isEnabled) {
                         detectTapGestures(
