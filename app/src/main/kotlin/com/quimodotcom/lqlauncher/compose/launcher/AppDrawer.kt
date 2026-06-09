@@ -182,7 +182,7 @@ fun AppDrawer(
                         )
                     } else {
                         Modifier.background(
-                            color = Color.Black.copy(alpha = 0.9f),
+                            color = Color.Black.copy(alpha = panelAlpha),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                         )
                     }

@@ -1443,7 +1443,7 @@ private fun AppShortcutView(
                     )
                 } else {
                     Modifier.background(
-                        color = Color.Black.copy(alpha = 0.15f),
+                        color = Color.Black.copy(alpha = glassSettings.iconBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }
@@ -2464,7 +2464,7 @@ private fun FolderView(
                     )
                 } else {
                     Modifier.background(
-                        color = Color.Black.copy(alpha = 0.15f),
+                        color = Color.Black.copy(alpha = glassSettings.iconBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }
@@ -2666,7 +2666,7 @@ private fun OpenedFolderDialog(
                         )
                     } else {
                         Modifier.background(
-                            color = Color.Black.copy(alpha = 0.15f),
+                            color = Color.Black.copy(alpha = glassSettings.panelBackgroundAlpha),
                             shape = RoundedCornerShape(cornerRadius)
                         )
                     }
