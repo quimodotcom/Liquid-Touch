@@ -303,7 +303,7 @@ fun AppDrawer(
 
             LazyVerticalGrid(
                 state = listState,
-                columns = GridCells.Adaptive(minSize = 80.dp),
+                columns = GridCells.Fixed(glassSettings.gridColumns),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier

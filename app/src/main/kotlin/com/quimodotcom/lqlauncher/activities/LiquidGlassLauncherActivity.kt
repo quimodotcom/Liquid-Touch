@@ -2070,24 +2070,27 @@ private fun BrowserSearchPanelContent(isEditMode: Boolean = false) {
     val openBrowser: (String?) -> Unit = { q ->
         try {
             if (q == null) {
-                // Launch the default browser app main activity without opening a new tab
+                // Launch the default browser app main activity
                 var launched = false
                 try {
-                    val viewIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("http://"))
-                    val resolveInfo = context.packageManager.resolveActivity(viewIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://"))
+                    val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
                     val pkg = resolveInfo?.activityInfo?.packageName
-                    val launch = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
-                    if (launch != null) {
-                        launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(launch)
+
+                    val launchIntent = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(launchIntent)
                         launched = true
                     }
                 } catch (e: Exception) {
-                    // fallback to opening homepages URL if launch fails
+                    // Ignore and try fallback
                 }
+
                 if (!launched) {
-                    val fallback = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    context.startActivity(fallback)
+                    // Universal fallback: just search for any browser
+                    val viewIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    context.startActivity(viewIntent)
                 }
             } else {
                 val url = java.net.URLEncoder.encode(q, "UTF-8").let { "https://www.google.com/search?q=$it" }
