@@ -2070,27 +2070,37 @@ private fun BrowserSearchPanelContent(isEditMode: Boolean = false) {
     val openBrowser: (String?) -> Unit = { q ->
         try {
             if (q == null) {
-                // Launch the default browser app main activity
+                // Launch the default browser app directly without a URL
                 var launched = false
                 try {
-                    val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://"))
-                    val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-                    val pkg = resolveInfo?.activityInfo?.packageName
-
-                    val launchIntent = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
-                    if (launchIntent != null) {
-                        launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(launchIntent)
-                        launched = true
-                    }
+                    // Method 1: Use Intent.CATEGORY_APP_BROWSER to find the default browser
+                    val browserIntent = android.content.Intent.makeMainSelectorActivity(
+                        android.content.Intent.ACTION_MAIN,
+                        android.content.Intent.CATEGORY_APP_BROWSER
+                    )
+                    browserIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(browserIntent)
+                    launched = true
                 } catch (e: Exception) {
-                    // Ignore and try fallback
+                    // Method 2: Resolve activity for https:// and launch its main intent
+                    try {
+                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://"))
+                        val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                        val pkg = resolveInfo?.activityInfo?.packageName
+                        val launchIntent = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(launchIntent)
+                            launched = true
+                        }
+                    } catch (e2: Exception) {}
                 }
 
                 if (!launched) {
-                    // Universal fallback: just search for any browser
-                    val viewIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    context.startActivity(viewIntent)
+                    // Universal fallback: open Google in whatever can handle it
+                    val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com"))
+                    fallbackIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(fallbackIntent)
                 }
             } else {
                 val url = java.net.URLEncoder.encode(q, "UTF-8").let { "https://www.google.com/search?q=$it" }

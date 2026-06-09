@@ -33,6 +33,7 @@ data class LiquidGlassSettings(
     // Colors and transparency
     val panelTintColor: Long = 0xFF6366F1L,
     val panelBackgroundAlpha: Float = 0.12f,
+    val drawerBackgroundAlpha: Float = 0.85f,
     val iconBackgroundAlpha: Float = 0.1f,
     
     // Corner radius

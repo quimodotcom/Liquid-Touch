@@ -145,7 +145,7 @@ fun AppDrawer(
 
     // Determine panel style
     val panelColor = Color(glassSettings.panelTintColor)
-    val panelAlpha = glassSettings.panelBackgroundAlpha
+    val panelAlpha = glassSettings.drawerBackgroundAlpha
     val blurRadius = glassSettings.blurRadius.dp
 
         Column(

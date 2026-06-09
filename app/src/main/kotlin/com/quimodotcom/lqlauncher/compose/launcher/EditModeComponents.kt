@@ -311,7 +311,7 @@ fun EditModeToolbar(
                             )
                         },
                         onDrawSurface = {
-                            drawRect(Color.White.copy(alpha = 0.05f))
+                            drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha))
                         }
                     )
                 } else {
