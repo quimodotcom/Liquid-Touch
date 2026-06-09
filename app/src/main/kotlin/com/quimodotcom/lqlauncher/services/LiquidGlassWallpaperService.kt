@@ -77,6 +77,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             return if (isLocked) settings.enableLockScreenMediaArt else settings.enableHomeMediaArt
         }
 
+        private fun isAnimating(): Boolean {
+            // Animating if GIF is active or Video is playing
+            val isMpPlaying = try { videoRenderer?.isMediaPlaying() == true } catch (e: Exception) { false }
+            return currentGifUri != null || isMpPlaying
+        }
+
         // Video Renderer
         private var videoRenderer: VideoWallpaperRenderer? = null
         private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -85,7 +91,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
             override fun doFrame(frameTimeNanos: Long) {
                 if (isVisible && !isInAmbientMode && !isPowerSaveMode) {
                     draw()
-                    android.view.Choreographer.getInstance().postFrameCallback(this)
+                    // Only repost if something is actually animating to save CPU
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().postFrameCallback(this)
+                    }
                 }
             }
         }
@@ -187,6 +196,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                 DebugLogger.log("WallpaperService", "Time Broadcast: Day/Night switch detected.")
                                 lastWallpaperThemeIsDark = isDark
                                 reloadSettings()
+                            } else if (!isAnimating()) {
+                                // Just redraw the clock/UI if time changed but theme didn't
+                                draw()
                             }
                         }
                     }
@@ -504,8 +516,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (!isInAmbientMode && !isPowerSaveMode) {
                     startGifJobIfNeeded()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
                 draw()
             } else {
@@ -546,8 +560,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isInAmbientMode) {
                     startGifJobIfNeeded()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
             }
             draw()
@@ -577,8 +593,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isPowerSaveMode) {
                     startGifJobIfNeeded()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
                 // Reset burn-in offset
                 burnInOffsetX = 0f
@@ -602,7 +620,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun updateLockState() {
             try {
+                val wasLocked = isLocked
                 isLocked = keyguardManager.isKeyguardLocked
+                if (isLocked != wasLocked) {
+                    DebugLogger.log("WallpaperService", "Lock state changed: $isLocked")
+                    draw()
+                }
             } catch (e: Exception) {
                 isLocked = false
             }
@@ -634,7 +657,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 settings = LiquidGlassSettingsRepository.loadSettings(this@LiquidGlassWallpaperService)
                 updateLockState()
                 loadWallpapers()
-                // draw() // Redundant: drawing is handled by Choreographer when visible
+
+                withContext(Dispatchers.Main) {
+                    draw()
+                    // Restart animation loop if needed
+                    if (isVisible && !isInAmbientMode && !isPowerSaveMode && isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
+                }
             }
         }
 

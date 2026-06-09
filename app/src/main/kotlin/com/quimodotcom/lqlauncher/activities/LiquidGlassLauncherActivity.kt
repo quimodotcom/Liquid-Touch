@@ -1572,15 +1572,13 @@ private fun GlassPanelBackground(
                             )
                         },
                         onDrawSurface = {
-                            // Lower alpha so grid shows through in edit mode
-                            val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-                            drawRect(panelTintColor.copy(alpha = alpha))
+                            // Respect the user's transparency setting
+                            drawRect(panelTintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
                         }
                     )
                 } else {
-                    val alpha = if (isEditMode) 0.05f else 0.15f
                     Modifier.background(
-                        color = Color.Black.copy(alpha = alpha),
+                        color = Color.Black.copy(alpha = glassSettings.panelBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }

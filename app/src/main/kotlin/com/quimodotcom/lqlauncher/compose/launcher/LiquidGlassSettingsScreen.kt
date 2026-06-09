@@ -263,7 +263,7 @@ fun LiquidGlassSettingsScreen(
                             SliderSetting(
                                 title = "Drawer Transparency",
                                 value = settings.drawerBackgroundAlpha,
-                                valueRange = 0.5f..1.0f,
+                                valueRange = 0.05f..1.0f,
                                 valueLabel = "${(settings.drawerBackgroundAlpha * 100).toInt()}%",
                                 onValueChange = { onSettingsChanged(settings.copy(drawerBackgroundAlpha = it)) }
                             )
