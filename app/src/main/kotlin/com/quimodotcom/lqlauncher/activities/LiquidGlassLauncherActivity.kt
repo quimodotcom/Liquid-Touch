@@ -1746,11 +1746,11 @@ private fun ClockPanelContent(glassSettings: LiquidGlassSettings) {
     val minutes = cal.get(Calendar.MINUTE).toFloat() + cal.get(Calendar.SECOND) / 60f
     val seconds = cal.get(Calendar.SECOND).toFloat() + (cal.get(Calendar.MILLISECOND).toFloat() / 1000f)
 
-    // pick face from user config
-    val cfg = LocalContext.current.config
-    when (cfg.clockFace) {
-        1 -> {
-            // Minimal: big digital time, small date below
+    // pick face from user config or settings
+    val style = glassSettings.clockStyle
+    when (style) {
+        "Headline" -> {
+            // Headline: Large bold time, prominent
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -1759,18 +1759,48 @@ private fun ClockPanelContent(glassSettings: LiquidGlassSettings) {
                 Text(
                     text = timeFormat.format(Date(currentTime)),
                     color = Color.White,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Light
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-2).sp
                 )
-                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = dateFormat.format(Date(currentTime)),
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    text = dateFormat.format(Date(currentTime)).uppercase(),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
                 )
             }
         }
-        2 -> {
+        "Vertical" -> {
+            // Vertical: Hours and minutes stacked
+            val hoursStr = remember(currentTime) { SimpleDateFormat("HH", Locale.getDefault()).format(Date(currentTime)) }
+            val minutesStr = remember(currentTime) { SimpleDateFormat("mm", Locale.getDefault()).format(Date(currentTime)) }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+            ) {
+                Text(text = hoursStr, color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp)
+                Text(text = minutesStr, color = Color(0xFF6366F1), fontSize = 40.sp, fontWeight = FontWeight.Light, lineHeight = 40.sp)
+            }
+        }
+        "Minimal" -> {
+            // Minimal: Very large thin time
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale }
+            ) {
+                Text(
+                    text = timeFormat.format(Date(currentTime)),
+                    color = Color.White,
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Thin
+                )
+            }
+        }
+        "Analog" -> {
             // Modern: circular progress representing minutes + digital time
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

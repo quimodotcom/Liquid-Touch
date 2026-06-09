@@ -377,7 +377,7 @@ fun LiquidGlassSettingsScreen(
                         Spacer(Modifier.height(16.dp))
                         SettingsSection(title = "Widget Styles", icon = Icons.Rounded.Style)
                         SettingsCard {
-                            val styles = listOf("Classic", "Cyberpunk")
+                            val styles = listOf("Classic", "Headline", "Vertical", "Minimal", "Analog", "Cyberpunk")
                             StyleSelector(
                                 title = "Clock Style",
                                 currentStyle = settings.clockStyle,
