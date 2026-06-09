@@ -476,15 +476,29 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
         }
     }
 
-    // Auto-dismiss if unlocked
-    val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-    LaunchedEffect(Unit) {
-        while(true) {
-            if (!keyguardManager.isKeyguardLocked) {
-                onDismiss()
-                break
+    // Auto-dismiss if unlocked - replace polling with event-driven approach
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: android.content.Intent?) {
+                if (intent?.action == android.content.Intent.ACTION_USER_PRESENT) {
+                    onDismiss()
+                }
             }
-            kotlinx.coroutines.delay(1000)
+        }
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_USER_PRESENT)
+        context.registerReceiver(receiver, filter)
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {}
+        }
+    }
+
+    // Final check on composition to ensure we don't stay visible if already unlocked
+    val keyguardManager = remember { context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager }
+    LaunchedEffect(Unit) {
+        if (!keyguardManager.isKeyguardLocked) {
+            onDismiss()
         }
     }
 }

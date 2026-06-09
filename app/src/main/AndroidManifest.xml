@@ -93,7 +93,6 @@
             android:name=".activities.LockScreenOverlayActivity"
             android:theme="@style/LauncherTheme"
             android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleInstance"
