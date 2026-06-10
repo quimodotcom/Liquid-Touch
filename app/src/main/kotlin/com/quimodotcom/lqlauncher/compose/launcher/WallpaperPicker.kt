@@ -196,7 +196,6 @@ fun WallpaperPickerDialog(
                 modifier = Modifier
                     .padding(24.dp)
                     .verticalScroll(androidx.compose.foundation.rememberScrollState())
-                    .graphicsLayer { alpha = contentAlpha }
             ) {
                 // Header Group - hide when interacting
                 if (activeInteraction == InteractionType.None) {
@@ -491,7 +490,7 @@ fun WallpaperPickerDialog(
                                 }
                             }
 
-                            if (currentSubjectUri != null || currentSubjectNightUri != null) {
+                            if ((currentSubjectUri != null || currentSubjectNightUri != null) && activeInteraction == InteractionType.None) {
                                 Spacer(Modifier.height(24.dp))
 
                                 // Mode Selector for adjustments
@@ -569,7 +568,12 @@ fun WallpaperPickerDialog(
 
                             // Scale Slider
                             if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.Scale) {
-                                Text("Scale: ${(currentScale * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Scale: ${(currentScale * 100).toInt()}%",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.Scale || activeInteraction == InteractionType.None) 1f else 0f }
+                                )
 
                                 val scaleInteraction = remember { MutableInteractionSource() }
                                 LaunchedEffect(scaleInteraction) {
@@ -599,13 +603,19 @@ fun WallpaperPickerDialog(
                                         onSubjectConfigChanged?.invoke(currentIsNight, false, it, currentOffX, currentOffY)
                                     },
                                     valueRange = 0.1f..3f,
-                                    interactionSource = scaleInteraction
+                                    interactionSource = scaleInteraction,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.Scale || activeInteraction == InteractionType.None) 1f else 0f }
                                 )
                             }
 
                             // Offset X
                             if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetX) {
-                                Text("Offset X: ${currentOffX.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Offset X: ${currentOffX.toInt()}",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.OffsetX || activeInteraction == InteractionType.None) 1f else 0f }
+                                )
 
                                 val offsetXInteraction = remember { MutableInteractionSource() }
                                 LaunchedEffect(offsetXInteraction) {
@@ -635,13 +645,19 @@ fun WallpaperPickerDialog(
                                         onSubjectConfigChanged?.invoke(currentIsNight, false, currentScale, it, currentOffY)
                                     },
                                     valueRange = -500f..500f,
-                                    interactionSource = offsetXInteraction
+                                    interactionSource = offsetXInteraction,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.OffsetX || activeInteraction == InteractionType.None) 1f else 0f }
                                 )
                             }
 
                             // Offset Y
                             if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetY) {
-                                Text("Offset Y: ${currentOffY.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Offset Y: ${currentOffY.toInt()}",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.OffsetY || activeInteraction == InteractionType.None) 1f else 0f }
+                                )
 
                                 val offsetYInteraction = remember { MutableInteractionSource() }
                                 LaunchedEffect(offsetYInteraction) {
@@ -671,7 +687,8 @@ fun WallpaperPickerDialog(
                                         onSubjectConfigChanged?.invoke(currentIsNight, false, currentScale, currentOffX, it)
                                     },
                                     valueRange = -500f..500f,
-                                    interactionSource = offsetYInteraction
+                                    interactionSource = offsetYInteraction,
+                                    modifier = Modifier.graphicsLayer { alpha = if (activeInteraction == InteractionType.OffsetY || activeInteraction == InteractionType.None) 1f else 0f }
                                 )
                             }
                         }

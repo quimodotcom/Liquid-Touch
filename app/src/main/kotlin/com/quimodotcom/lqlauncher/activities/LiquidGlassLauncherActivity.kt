@@ -494,7 +494,7 @@ private fun EditableLauncherScreen(
 
                     val isSelected = editModeState.selectedItemId == item.id
                     val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
-                    val alpha = if (isSubjectPositioning) 0f else 1f
+                    val alpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f)
 
                     Box(
                         modifier = Modifier
@@ -578,7 +578,7 @@ private fun EditableLauncherScreen(
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -622,7 +622,7 @@ private fun EditableLauncherScreen(
 
                 launcherConfig.items.forEach { item ->
                     val isSelected = editModeState.selectedItemId == item.id
-                val alpha = if (isSubjectPositioning) 0f else 1f
+                val alpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f)
 
                 val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
                 val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
