@@ -123,6 +123,7 @@ data class LauncherConfig(
     val wallpaperNightUri: String? = null,
     val wallpaperSecretUri: String? = null,
     val wallpaperSubjectUri: String? = null,
+    val wallpaperSubjectNightUri: String? = null,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,

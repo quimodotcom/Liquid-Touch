@@ -760,7 +760,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                val subjectUri = config?.wallpaperSubjectUri
+                val subjectUri = if (isDark) (config?.wallpaperSubjectNightUri ?: config?.wallpaperSubjectUri) else config?.wallpaperSubjectUri
                 if (subjectUri != null) {
                     subjectBitmap = loadBitmap(Uri.parse(subjectUri), targetW, targetH)
                 } else {

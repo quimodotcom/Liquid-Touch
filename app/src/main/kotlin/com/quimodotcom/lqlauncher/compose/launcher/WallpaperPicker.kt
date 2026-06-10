@@ -87,11 +87,13 @@ fun WallpaperPickerDialog(
     onWallpaperNightSelected: (String?) -> Unit,
     onWallpaperPermissionGranted: () -> Unit,
     currentSubjectUri: String? = null,
+    currentSubjectNightUri: String? = null,
     subjectMatchWallpaper: Boolean = true,
     subjectScale: Float = 1f,
     subjectOffsetX: Float = 0f,
     subjectOffsetY: Float = 0f,
     onSubjectSelected: ((String?) -> Unit)? = null,
+    onSubjectNightSelected: ((String?) -> Unit)? = null,
     onSubjectConfigChanged: ((Boolean, Float, Float, Float) -> Unit)? = null,
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
@@ -147,6 +149,16 @@ fun WallpaperPickerDialog(
         uri?.let {
             val persistedUri = persistWallpaperUri(context, it)
             onSubjectSelected?.invoke(persistedUri)
+        }
+    }
+
+    // Photo Picker launcher for Subject (Night)
+    val subjectNightPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let {
+            val persistedUri = persistWallpaperUri(context, it)
+            onSubjectNightSelected?.invoke(persistedUri)
         }
     }
 
@@ -406,9 +418,9 @@ fun WallpaperPickerDialog(
                             Spacer(Modifier.height(12.dp))
 
                             WallpaperOption(
-                                icon = Icons.Rounded.PhotoLibrary,
-                                title = "Select Subject Image",
-                                description = "Pick a transparent PNG",
+                                icon = Icons.Rounded.WbSunny,
+                                title = "Day Subject Image",
+                                description = "Pick a transparent PNG for light theme",
                                 isSelected = currentSubjectUri != null,
                                 onClick = {
                                     subjectPickerLauncher.launch(
@@ -419,14 +431,33 @@ fun WallpaperPickerDialog(
                                 }
                             )
 
-                            if (currentSubjectUri != null) {
+                            Spacer(Modifier.height(12.dp))
+
+                            WallpaperOption(
+                                icon = Icons.Rounded.NightsStay,
+                                title = "Night Subject Image",
+                                description = "Pick a transparent PNG for dark theme",
+                                isSelected = currentSubjectNightUri != null,
+                                onClick = {
+                                    subjectNightPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                }
+                            )
+
+                            if (currentSubjectUri != null || currentSubjectNightUri != null) {
                                 Spacer(Modifier.height(12.dp))
                                 WallpaperOption(
                                     icon = Icons.Rounded.Close,
-                                    title = "Clear Subject",
-                                    description = "Remove the foreground layer",
+                                    title = "Clear Subject Layers",
+                                    description = "Remove both foreground layers",
                                     isSelected = false,
-                                    onClick = { onSubjectSelected?.invoke(null) }
+                                    onClick = {
+                                        onSubjectSelected?.invoke(null)
+                                        onSubjectNightSelected?.invoke(null)
+                                    }
                                 )
 
                                 Spacer(Modifier.height(24.dp))
@@ -467,7 +498,7 @@ fun WallpaperPickerDialog(
                         }
                     }
 
-                    if (currentSubjectUri != null && !subjectMatchWallpaper) {
+                    if ((currentSubjectUri != null || currentSubjectNightUri != null) && !subjectMatchWallpaper) {
                         if (activeInteraction == InteractionType.None) Spacer(Modifier.height(16.dp))
 
                         // Scale Slider
@@ -586,24 +617,50 @@ fun WallpaperPickerDialog(
                             Text("Current Subject", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                             Spacer(Modifier.height(8.dp))
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFF2E2E3E)),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(160.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                if (currentSubjectUri != null) {
-                                    // In preview, we always fit so they can see what it is
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(context).data(currentSubjectUri).crossfade(true).build(),
-                                        contentDescription = "Current subject",
-                                        contentScale = ContentScale.Fit,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Text("No subject selected", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                                // Day Subject Preview
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF2E2E3E)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (currentSubjectUri != null) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context).data(currentSubjectUri).crossfade(true).build(),
+                                            contentDescription = "Day subject preview",
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(Icons.Rounded.WbSunny, null, tint = Color.Gray.copy(alpha = 0.5f))
+                                    }
+                                }
+
+                                // Night Subject Preview
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF2E2E3E)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (currentSubjectNightUri != null) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context).data(currentSubjectNightUri).crossfade(true).build(),
+                                            contentDescription = "Night subject preview",
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(Icons.Rounded.NightsStay, null, tint = Color.Gray.copy(alpha = 0.5f))
+                                    }
                                 }
                             }
                         }

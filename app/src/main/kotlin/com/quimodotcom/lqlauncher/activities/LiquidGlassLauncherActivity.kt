@@ -517,11 +517,14 @@ private fun EditableLauncherScreen(
             }
 
             // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
-            if (launcherConfig.wallpaperSubjectUri != null) {
+            val currentSubjectUri = remember(isCurrentlyNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri) {
+                if (isCurrentlyNight) (launcherConfig.wallpaperSubjectNightUri ?: launcherConfig.wallpaperSubjectUri) else launcherConfig.wallpaperSubjectUri
+            }
+            if (currentSubjectUri != null) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(currentSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -559,7 +562,7 @@ private fun EditableLauncherScreen(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(currentSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -1084,6 +1087,7 @@ private fun EditableLauncherScreen(
             currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
+            currentSubjectNightUri = launcherConfig.wallpaperSubjectNightUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
             subjectScale = launcherConfig.subjectScale,
             subjectOffsetX = launcherConfig.subjectOffsetX,
@@ -1214,6 +1218,9 @@ private fun EditableLauncherScreen(
             },
             onSubjectSelected = { uri ->
                 launcherConfig = launcherConfig.copy(wallpaperSubjectUri = uri)
+            },
+            onSubjectNightSelected = { uri ->
+                launcherConfig = launcherConfig.copy(wallpaperSubjectNightUri = uri)
             },
             onSubjectConfigChanged = { match, scale, offX, offY ->
                 launcherConfig = launcherConfig.copy(
