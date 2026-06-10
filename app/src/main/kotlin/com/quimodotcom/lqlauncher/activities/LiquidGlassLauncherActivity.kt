@@ -517,7 +517,7 @@ private fun EditableLauncherScreen(
             }
 
             // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
-            if (launcherConfig.wallpaperSubjectUri != null) {
+            if (launcherConfig.wallpaperSubjectUri != null && !glassSettings.secretWallpaperVisible) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
