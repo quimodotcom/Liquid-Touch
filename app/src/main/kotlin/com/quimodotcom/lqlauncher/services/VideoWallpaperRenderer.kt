@@ -63,6 +63,8 @@ class VideoWallpaperRenderer(private val context: Context) {
     private val stMatrix = FloatArray(16)
     private var videoRatio = 1.777f // Default to 16:9 to avoid initial distortion
     private var subjectScale = 1.0f
+    private var subjectOffsetX = 0f
+    private var subjectOffsetY = 0f
     private var backgroundScale = 1.0f
     private var subjectScaleMode = ScaleMode.CENTER_CROP
 
@@ -73,6 +75,11 @@ class VideoWallpaperRenderer(private val context: Context) {
 
     fun setSubjectScale(scale: Float) {
         subjectScale = scale
+    }
+
+    fun setSubjectOffset(x: Float, y: Float) {
+        subjectOffsetX = x
+        subjectOffsetY = y
     }
 
     fun setBackgroundScale(scale: Float) {
@@ -495,6 +502,13 @@ class VideoWallpaperRenderer(private val context: Context) {
                 } else {
                     Matrix.scaleM(mvpMatrix, 0, (subRatio / screenRatio) * subjectScale, subjectScale, 1f)
                 }
+
+                // Apply Translation for FIT_CENTER mode (custom offsets)
+                // Normalize pixel offsets to GL coordinates (-1 to 1)
+                // Note: This is a rough approximation as density might differ
+                val glOffX = (subjectOffsetX * 2.0f) / width
+                val glOffY = -(subjectOffsetY * 2.0f) / height // GL Y is inverted
+                Matrix.translateM(mvpMatrix, 0, glOffX, glOffY, 0f)
             }
 
             val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")

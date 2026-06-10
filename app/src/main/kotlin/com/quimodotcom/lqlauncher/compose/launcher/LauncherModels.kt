@@ -128,6 +128,10 @@ data class LauncherConfig(
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,
     val subjectOffsetY: Float = 0f,
+    val subjectNightMatchWallpaper: Boolean = true,
+    val subjectNightScale: Float = 1f,
+    val subjectNightOffsetX: Float = 0f,
+    val subjectNightOffsetY: Float = 0f,
     val useSystemWallpaper: Boolean = true,
     val showStatusBar: Boolean = true,
     // Whether the first-open wallpaper permission prompt has been shown

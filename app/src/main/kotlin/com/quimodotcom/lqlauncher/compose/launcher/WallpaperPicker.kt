@@ -92,9 +92,15 @@ fun WallpaperPickerDialog(
     subjectScale: Float = 1f,
     subjectOffsetX: Float = 0f,
     subjectOffsetY: Float = 0f,
+    subjectNightMatchWallpaper: Boolean = true,
+    subjectNightScale: Float = 1f,
+    subjectNightOffsetX: Float = 0f,
+    subjectNightOffsetY: Float = 0f,
+    selectedSubjectMode: Int = 0,
+    onSubjectModeChanged: (Int) -> Unit = {},
     onSubjectSelected: ((String?) -> Unit)? = null,
     onSubjectNightSelected: ((String?) -> Unit)? = null,
-    onSubjectConfigChanged: ((Boolean, Float, Float, Float) -> Unit)? = null,
+    onSubjectConfigChanged: ((Boolean, Boolean, Float, Float, Float) -> Unit)? = null,
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
     onDismiss: () -> Unit
@@ -259,36 +265,54 @@ fun WallpaperPickerDialog(
                     Spacer(Modifier.height(8.dp))
 
                     // Pick Day wallpaper
-                    WallpaperOption(
-                        icon = Icons.Rounded.WbSunny,
-                        title = "Day Wallpaper",
-                        description = "Wallpaper for light theme",
-                        isSelected = !useSystemWallpaper && currentWallpaperUri != null,
-                        onClick = {
-                            backgroundPickerLauncher.launch(
-                                androidx.activity.result.PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            WallpaperOption(
+                                icon = Icons.Rounded.WbSunny,
+                                title = "Day Wallpaper",
+                                description = "Wallpaper for light theme",
+                                isSelected = !useSystemWallpaper && currentWallpaperUri != null,
+                                onClick = {
+                                    backgroundPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                        )
+                                    )
+                                }
                             )
                         }
-                    )
+                        if (currentWallpaperUri != null) {
+                            IconButton(onClick = { onWallpaperSelected(null) }) {
+                                Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(12.dp))
 
                     // Pick Night wallpaper
-                    WallpaperOption(
-                        icon = Icons.Rounded.NightsStay,
-                        title = "Night Wallpaper",
-                        description = "Wallpaper for dark theme",
-                        isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
-                        onClick = {
-                            backgroundNightPickerLauncher.launch(
-                                androidx.activity.result.PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            WallpaperOption(
+                                icon = Icons.Rounded.NightsStay,
+                                title = "Night Wallpaper",
+                                description = "Wallpaper for dark theme",
+                                isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
+                                onClick = {
+                                    backgroundNightPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                                        )
+                                    )
+                                }
                             )
                         }
-                    )
+                        if (currentWallpaperNightUri != null) {
+                            IconButton(onClick = { onWallpaperNightSelected(null) }) {
+                                Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(24.dp))
 
@@ -417,53 +441,88 @@ fun WallpaperPickerDialog(
 
                             Spacer(Modifier.height(12.dp))
 
-                            WallpaperOption(
-                                icon = Icons.Rounded.WbSunny,
-                                title = "Day Subject Image",
-                                description = "Pick a transparent PNG for light theme",
-                                isSelected = currentSubjectUri != null,
-                                onClick = {
-                                    subjectPickerLauncher.launch(
-                                        androidx.activity.result.PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                                        )
+                            // Day Subject
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    WallpaperOption(
+                                        icon = Icons.Rounded.WbSunny,
+                                        title = "Day Subject Image",
+                                        description = "Pick a transparent PNG for light theme",
+                                        isSelected = currentSubjectUri != null,
+                                        onClick = {
+                                            subjectPickerLauncher.launch(
+                                                androidx.activity.result.PickVisualMediaRequest(
+                                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                                )
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                                if (currentSubjectUri != null) {
+                                    IconButton(onClick = { onSubjectSelected?.invoke(null) }) {
+                                        Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
+                                    }
+                                }
+                            }
 
                             Spacer(Modifier.height(12.dp))
 
-                            WallpaperOption(
-                                icon = Icons.Rounded.NightsStay,
-                                title = "Night Subject Image",
-                                description = "Pick a transparent PNG for dark theme",
-                                isSelected = currentSubjectNightUri != null,
-                                onClick = {
-                                    subjectNightPickerLauncher.launch(
-                                        androidx.activity.result.PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                                        )
+                            // Night Subject
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    WallpaperOption(
+                                        icon = Icons.Rounded.NightsStay,
+                                        title = "Night Subject Image",
+                                        description = "Pick a transparent PNG for dark theme",
+                                        isSelected = currentSubjectNightUri != null,
+                                        onClick = {
+                                            subjectNightPickerLauncher.launch(
+                                                androidx.activity.result.PickVisualMediaRequest(
+                                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                                )
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                                if (currentSubjectNightUri != null) {
+                                    IconButton(onClick = { onSubjectNightSelected?.invoke(null) }) {
+                                        Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
+                                    }
+                                }
+                            }
 
                             if (currentSubjectUri != null || currentSubjectNightUri != null) {
-                                Spacer(Modifier.height(12.dp))
-                                WallpaperOption(
-                                    icon = Icons.Rounded.Close,
-                                    title = "Clear Subject Layers",
-                                    description = "Remove both foreground layers",
-                                    isSelected = false,
-                                    onClick = {
-                                        onSubjectSelected?.invoke(null)
-                                        onSubjectNightSelected?.invoke(null)
-                                    }
-                                )
-
                                 Spacer(Modifier.height(24.dp))
 
+                                // Mode Selector for adjustments
+                                Text("Adjusting Mode", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                                Spacer(Modifier.height(8.dp))
+                                TabRow(
+                                    selectedTabIndex = selectedSubjectMode,
+                                    containerColor = Color(0xFF2E2E3E),
+                                    contentColor = Color(0xFF6366F1),
+                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                                    indicator = { tabPositions ->
+                                        TabRowDefaults.Indicator(
+                                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedSubjectMode]),
+                                            color = Color(0xFF6366F1)
+                                        )
+                                    }
+                                ) {
+                                    Tab(selected = selectedSubjectMode == 0, onClick = { onSubjectModeChanged(0) }, text = { Text("Day") })
+                                    Tab(selected = selectedSubjectMode == 1, onClick = { onSubjectModeChanged(1) }, text = { Text("Night") })
+                                }
+
+                                Spacer(Modifier.height(16.dp))
+
+                                val currentIsNight = selectedSubjectMode == 1
+                                val currentMatch = if (currentIsNight) subjectNightMatchWallpaper else subjectMatchWallpaper
+                                val currentScale = if (currentIsNight) subjectNightScale else subjectScale
+                                val currentOffX = if (currentIsNight) subjectNightOffsetX else subjectOffsetX
+                                val currentOffY = if (currentIsNight) subjectNightOffsetY else subjectOffsetY
+
                                 // Alignment Options
-                                Text("Alignment", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                                Text("Alignment (${if(currentIsNight) "Night" else "Day"})", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                                 Spacer(Modifier.height(8.dp))
 
                                 // Match Switch
@@ -473,7 +532,7 @@ fun WallpaperPickerDialog(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(Color(0xFF2E2E3E))
                                         .clickable {
-                                            onSubjectConfigChanged?.invoke(!subjectMatchWallpaper, subjectScale, subjectOffsetX, subjectOffsetY)
+                                            onSubjectConfigChanged?.invoke(currentIsNight, !currentMatch, currentScale, currentOffX, currentOffY)
                                         }
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -487,10 +546,10 @@ fun WallpaperPickerDialog(
                                         )
                                     }
                                     Switch(
-                                        checked = subjectMatchWallpaper,
+                                        checked = currentMatch,
                                         onCheckedChange = {
-                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                            onSubjectConfigChanged?.invoke(it, subjectScale, subjectOffsetX, subjectOffsetY)
+                                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                            onSubjectConfigChanged?.invoke(currentIsNight, it, currentScale, currentOffX, currentOffY)
                                         }
                                     )
                                 }
@@ -498,115 +557,123 @@ fun WallpaperPickerDialog(
                         }
                     }
 
-                    if ((currentSubjectUri != null || currentSubjectNightUri != null) && !subjectMatchWallpaper) {
-                        if (activeInteraction == InteractionType.None) Spacer(Modifier.height(16.dp))
+                    if ((currentSubjectUri != null || currentSubjectNightUri != null)) {
+                        val currentIsNight = selectedSubjectMode == 1
+                        val currentMatch = if (currentIsNight) subjectNightMatchWallpaper else subjectMatchWallpaper
+                        val currentScale = if (currentIsNight) subjectNightScale else subjectScale
+                        val currentOffX = if (currentIsNight) subjectNightOffsetX else subjectOffsetX
+                        val currentOffY = if (currentIsNight) subjectNightOffsetY else subjectOffsetY
 
-                        // Scale Slider
-                        if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.Scale) {
-                            Text("Scale: ${(subjectScale * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                        if (!currentMatch) {
+                            if (activeInteraction == InteractionType.None) Spacer(Modifier.height(16.dp))
 
-                            val scaleInteraction = remember { MutableInteractionSource() }
-                            LaunchedEffect(scaleInteraction) {
-                                scaleInteraction.interactions.collect { interaction ->
-                                    when (interaction) {
-                                        is PressInteraction.Press, is DragInteraction.Start -> {
-                                            activeInteraction = InteractionType.Scale
-                                            onInteractionStart()
-                                        }
-                                        is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
-                                            activeInteraction = InteractionType.None
-                                            onInteractionEnd()
-                                        }
-                                    }
-                                }
-                            }
+                            // Scale Slider
+                            if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.Scale) {
+                                Text("Scale: ${(currentScale * 100).toInt()}%", color = Color.White, style = MaterialTheme.typography.bodyMedium)
 
-                            Slider(
-                                value = subjectScale,
-                                onValueChange = {
-                                    // Tick logic for scale (e.g. every 0.1)
-                                    val oldQuantized = (subjectScale / 0.1f).toInt()
-                                    val newQuantized = (it / 0.1f).toInt()
-                                    if (oldQuantized != newQuantized) {
-                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                    }
-                                    onSubjectConfigChanged?.invoke(false, it, subjectOffsetX, subjectOffsetY)
-                                },
-                                valueRange = 0.1f..3f,
-                                interactionSource = scaleInteraction
-                            )
-                        }
-
-                        // Offset X
-                        if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetX) {
-                            Text("Offset X: ${subjectOffsetX.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
-
-                            val offsetXInteraction = remember { MutableInteractionSource() }
-                            LaunchedEffect(offsetXInteraction) {
-                                offsetXInteraction.interactions.collect { interaction ->
-                                    when (interaction) {
-                                        is PressInteraction.Press, is DragInteraction.Start -> {
-                                            activeInteraction = InteractionType.OffsetX
-                                            onInteractionStart()
-                                        }
-                                        is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
-                                            activeInteraction = InteractionType.None
-                                            onInteractionEnd()
+                                val scaleInteraction = remember { MutableInteractionSource() }
+                                LaunchedEffect(scaleInteraction) {
+                                    scaleInteraction.interactions.collect { interaction ->
+                                        when (interaction) {
+                                            is PressInteraction.Press, is DragInteraction.Start -> {
+                                                activeInteraction = InteractionType.Scale
+                                                onInteractionStart()
+                                            }
+                                            is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                                                activeInteraction = InteractionType.None
+                                                onInteractionEnd()
+                                            }
                                         }
                                     }
                                 }
+
+                                Slider(
+                                    value = currentScale,
+                                    onValueChange = {
+                                        // Tick logic for scale (e.g. every 0.1)
+                                        val oldQuantized = (currentScale / 0.1f).toInt()
+                                        val newQuantized = (it / 0.1f).toInt()
+                                        if (oldQuantized != newQuantized) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        }
+                                        onSubjectConfigChanged?.invoke(currentIsNight, false, it, currentOffX, currentOffY)
+                                    },
+                                    valueRange = 0.1f..3f,
+                                    interactionSource = scaleInteraction
+                                )
                             }
 
-                            Slider(
-                                value = subjectOffsetX,
-                                onValueChange = {
-                                    // Tick logic for offset (e.g. every 10 pixels)
-                                    val oldQuantized = (subjectOffsetX / 10f).toInt()
-                                    val newQuantized = (it / 10f).toInt()
-                                    if (oldQuantized != newQuantized) {
-                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                    }
-                                    onSubjectConfigChanged?.invoke(false, subjectScale, it, subjectOffsetY)
-                                },
-                                valueRange = -500f..500f,
-                                interactionSource = offsetXInteraction
-                            )
-                        }
+                            // Offset X
+                            if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetX) {
+                                Text("Offset X: ${currentOffX.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
 
-                        // Offset Y
-                        if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetY) {
-                            Text("Offset Y: ${subjectOffsetY.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
-
-                            val offsetYInteraction = remember { MutableInteractionSource() }
-                            LaunchedEffect(offsetYInteraction) {
-                                offsetYInteraction.interactions.collect { interaction ->
-                                    when (interaction) {
-                                        is PressInteraction.Press, is DragInteraction.Start -> {
-                                            activeInteraction = InteractionType.OffsetY
-                                            onInteractionStart()
-                                        }
-                                        is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
-                                            activeInteraction = InteractionType.None
-                                            onInteractionEnd()
+                                val offsetXInteraction = remember { MutableInteractionSource() }
+                                LaunchedEffect(offsetXInteraction) {
+                                    offsetXInteraction.interactions.collect { interaction ->
+                                        when (interaction) {
+                                            is PressInteraction.Press, is DragInteraction.Start -> {
+                                                activeInteraction = InteractionType.OffsetX
+                                                onInteractionStart()
+                                            }
+                                            is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                                                activeInteraction = InteractionType.None
+                                                onInteractionEnd()
+                                            }
                                         }
                                     }
                                 }
+
+                                Slider(
+                                    value = currentOffX,
+                                    onValueChange = {
+                                        // Tick logic for offset (e.g. every 10 pixels)
+                                        val oldQuantized = (currentOffX / 10f).toInt()
+                                        val newQuantized = (it / 10f).toInt()
+                                        if (oldQuantized != newQuantized) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        }
+                                        onSubjectConfigChanged?.invoke(currentIsNight, false, currentScale, it, currentOffY)
+                                    },
+                                    valueRange = -500f..500f,
+                                    interactionSource = offsetXInteraction
+                                )
                             }
 
-                            Slider(
-                                value = subjectOffsetY,
-                                onValueChange = {
-                                    // Tick logic for offset (e.g. every 10 pixels)
-                                    val oldQuantized = (subjectOffsetY / 10f).toInt()
-                                    val newQuantized = (it / 10f).toInt()
-                                    if (oldQuantized != newQuantized) {
-                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            // Offset Y
+                            if (activeInteraction == InteractionType.None || activeInteraction == InteractionType.OffsetY) {
+                                Text("Offset Y: ${currentOffY.toInt()}", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+
+                                val offsetYInteraction = remember { MutableInteractionSource() }
+                                LaunchedEffect(offsetYInteraction) {
+                                    offsetYInteraction.interactions.collect { interaction ->
+                                        when (interaction) {
+                                            is PressInteraction.Press, is DragInteraction.Start -> {
+                                                activeInteraction = InteractionType.OffsetY
+                                                onInteractionStart()
+                                            }
+                                            is PressInteraction.Release, is PressInteraction.Cancel, is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                                                activeInteraction = InteractionType.None
+                                                onInteractionEnd()
+                                            }
+                                        }
                                     }
-                                    onSubjectConfigChanged?.invoke(false, subjectScale, subjectOffsetX, it)
-                                },
-                                valueRange = -500f..500f,
-                                interactionSource = offsetYInteraction
-                            )
+                                }
+
+                                Slider(
+                                    value = currentOffY,
+                                    onValueChange = {
+                                        // Tick logic for offset (e.g. every 10 pixels)
+                                        val oldQuantized = (currentOffY / 10f).toInt()
+                                        val newQuantized = (it / 10f).toInt()
+                                        if (oldQuantized != newQuantized) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        }
+                                        onSubjectConfigChanged?.invoke(currentIsNight, false, currentScale, currentOffX, it)
+                                    },
+                                    valueRange = -500f..500f,
+                                    interactionSource = offsetYInteraction
+                                )
+                            }
                         }
                     }
 

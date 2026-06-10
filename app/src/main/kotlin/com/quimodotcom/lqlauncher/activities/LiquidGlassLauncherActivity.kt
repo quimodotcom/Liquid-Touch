@@ -160,6 +160,7 @@ private fun EditableLauncherScreen(
     var showAppDrawer by remember { mutableStateOf(false) }
     var drawerTrigger by remember { mutableIntStateOf(0) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
+    var selectedSubjectAdjustmentMode by remember { mutableIntStateOf(0) } // 0 = Day, 1 = Night
     var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Liquid glass settings state
@@ -517,11 +518,22 @@ private fun EditableLauncherScreen(
             }
 
             // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
-            val currentSubjectUri = remember(isCurrentlyNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri) {
-                if (isCurrentlyNight) (launcherConfig.wallpaperSubjectNightUri ?: launcherConfig.wallpaperSubjectUri) else launcherConfig.wallpaperSubjectUri
+            val effectiveSubjectNight = remember(isCurrentlyNight, editModeState.showWallpaperPicker, selectedSubjectAdjustmentMode) {
+                if (editModeState.showWallpaperPicker) selectedSubjectAdjustmentMode == 1 else isCurrentlyNight
             }
+
+            val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri) {
+                if (effectiveSubjectNight) (launcherConfig.wallpaperSubjectNightUri ?: launcherConfig.wallpaperSubjectUri) else launcherConfig.wallpaperSubjectUri
+            }
+
             if (currentSubjectUri != null) {
-                if (launcherConfig.subjectMatchWallpaper) {
+                val isNightSubject = effectiveSubjectNight && launcherConfig.wallpaperSubjectNightUri != null
+                val matchWallpaper = if (isNightSubject) launcherConfig.subjectNightMatchWallpaper else launcherConfig.subjectMatchWallpaper
+                val scale = if (isNightSubject) launcherConfig.subjectNightScale else launcherConfig.subjectScale
+                val offX = if (isNightSubject) launcherConfig.subjectNightOffsetX else launcherConfig.subjectOffsetX
+                val offY = if (isNightSubject) launcherConfig.subjectNightOffsetY else launcherConfig.subjectOffsetY
+
+                if (matchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(currentSubjectUri)
@@ -572,10 +584,10 @@ private fun EditableLauncherScreen(
                             .graphicsLayer {
                                 val tilt = tiltState.value
                                 val intensity = glassSettings.parallaxIntensity
-                                scaleX = launcherConfig.subjectScale
-                                scaleY = launcherConfig.subjectScale
-                                translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
-                                translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = (offX * density.density) + (tilt.x * 35f * intensity)
+                                translationY = (offY * density.density) + (tilt.y * 35f * intensity)
                             }
                     )
                 }
@@ -1092,6 +1104,12 @@ private fun EditableLauncherScreen(
             subjectScale = launcherConfig.subjectScale,
             subjectOffsetX = launcherConfig.subjectOffsetX,
             subjectOffsetY = launcherConfig.subjectOffsetY,
+            subjectNightMatchWallpaper = launcherConfig.subjectNightMatchWallpaper,
+            subjectNightScale = launcherConfig.subjectNightScale,
+            subjectNightOffsetX = launcherConfig.subjectNightOffsetX,
+            subjectNightOffsetY = launcherConfig.subjectNightOffsetY,
+            selectedSubjectMode = selectedSubjectAdjustmentMode,
+            onSubjectModeChanged = { selectedSubjectAdjustmentMode = it },
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
             onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
@@ -1222,13 +1240,22 @@ private fun EditableLauncherScreen(
             onSubjectNightSelected = { uri ->
                 launcherConfig = launcherConfig.copy(wallpaperSubjectNightUri = uri)
             },
-            onSubjectConfigChanged = { match, scale, offX, offY ->
-                launcherConfig = launcherConfig.copy(
-                    subjectMatchWallpaper = match,
-                    subjectScale = scale,
-                    subjectOffsetX = offX,
-                    subjectOffsetY = offY
-                )
+            onSubjectConfigChanged = { isNight, match, scale, offX, offY ->
+                launcherConfig = if (isNight) {
+                    launcherConfig.copy(
+                        subjectNightMatchWallpaper = match,
+                        subjectNightScale = scale,
+                        subjectNightOffsetX = offX,
+                        subjectNightOffsetY = offY
+                    )
+                } else {
+                    launcherConfig.copy(
+                        subjectMatchWallpaper = match,
+                        subjectScale = scale,
+                        subjectOffsetX = offX,
+                        subjectOffsetY = offY
+                    )
+                }
             },
             onInteractionStart = { isSubjectPositioning = true },
             onInteractionEnd = { isSubjectPositioning = false },
