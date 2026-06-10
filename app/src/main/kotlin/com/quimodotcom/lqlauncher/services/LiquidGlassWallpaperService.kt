@@ -9,10 +9,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -879,7 +881,24 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun loadBitmap(uri: Uri, reqW: Int, reqH: Int): Bitmap? {
             return try {
-                // Decode bounds
+                // 1. Get EXIF rotation
+                var rotation = 0
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        val exif = ExifInterface(input)
+                        val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                        rotation = when (orientation) {
+                            ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                            ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                            ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                            else -> 0
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("WallpaperService", "Could not read EXIF for $uri")
+                }
+
+                // 2. Decode bounds
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
@@ -889,14 +908,29 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     return null
                 }
 
-                options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, reqW, reqH)
+                // Swap dimensions for sample size calculation if rotated 90 or 270
+                val rotatedW = if (rotation == 90 || rotation == 270) options.outHeight else options.outWidth
+                val rotatedH = if (rotation == 90 || rotation == 270) options.outWidth else options.outHeight
+
+                options.inSampleSize = calculateInSampleSize(rotatedW, rotatedH, reqW, reqH)
                 options.inJustDecodeBounds = false
                 options.inPreferredConfig = Bitmap.Config.ARGB_8888
 
-                contentResolver.openInputStream(uri)?.use {
+                val bitmap = contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
                 }
+
+                // 3. Apply rotation if needed
+                if (bitmap != null && rotation != 0) {
+                    val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                    val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    bitmap.recycle()
+                    rotatedBitmap
+                } else {
+                    bitmap
+                }
             } catch (e: Exception) {
+                Log.e("WallpaperService", "Error loading bitmap: $uri", e)
                 null
             }
         }

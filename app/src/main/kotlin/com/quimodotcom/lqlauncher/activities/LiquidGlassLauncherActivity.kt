@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
+import android.graphics.Matrix
+import android.media.ExifInterface
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -2840,6 +2842,26 @@ private fun rememberWallpaperPainter(
             painter = try {
                 if (!useSystem && customUri != null) {
                     // Load custom wallpaper from URI or file path
+                    val uri = android.net.Uri.parse(customUri)
+
+                    // 1. Get EXIF rotation
+                    var rotation = 0
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            val exif = ExifInterface(input)
+                            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                            rotation = when (orientation) {
+                                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                                else -> 0
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("LiquidGlassLauncher", "Could not read EXIF for $customUri")
+                    }
+
+                    // 2. Load the bitmap
                     val bitmap = if (customUri.startsWith("/")) {
                         // It's a file path
                         val options = android.graphics.BitmapFactory.Options().apply {
@@ -2848,12 +2870,22 @@ private fun rememberWallpaperPainter(
                         android.graphics.BitmapFactory.decodeFile(customUri, options)
                     } else {
                         // It's a content URI
-                        val uri = android.net.Uri.parse(customUri)
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             android.graphics.BitmapFactory.decodeStream(inputStream)
                         }
                     }
-                    bitmap?.asImageBitmap()?.let { BitmapPainter(it) }
+
+                    // 3. Apply rotation if needed
+                    val finalBitmap = if (bitmap != null && rotation != 0) {
+                        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                        val rotated = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                        bitmap.recycle()
+                        rotated
+                    } else {
+                        bitmap
+                    }
+
+                    finalBitmap?.asImageBitmap()?.let { BitmapPainter(it) }
                 } else {
                     // Use system wallpaper with fallback only if permission is granted
                     if (permissionGranted) loadSystemWallpaper(context) else null
