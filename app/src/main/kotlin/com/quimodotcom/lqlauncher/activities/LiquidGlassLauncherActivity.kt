@@ -517,7 +517,7 @@ private fun EditableLauncherScreen(
             }
 
             // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
-            if (launcherConfig.wallpaperSubjectUri != null && !glassSettings.secretWallpaperVisible) {
+            if (launcherConfig.wallpaperSubjectUri != null) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -586,26 +586,23 @@ private fun EditableLauncherScreen(
             ) {
                 // Render grid cells (empty indicators in edit mode)
                 if (editModeState.isEnabled && cellWidth > 0 && cellHeight > 0) {
-                    Box(modifier = Modifier.graphicsLayer { alpha = if (isSubjectPositioning) 0f else 1f }) {
-                        EmptyGridCells(
-                            gridColumns = launcherConfig.gridColumns,
-                            gridRows = launcherConfig.gridRows,
-                            cellWidth = cellWidth,
-                            cellHeight = cellHeight,
-                            occupiedCells = launcherConfig.items.flatMap { item ->
-                                (0 until item.spanX).flatMap { dx ->
-                                    (0 until item.spanY).map { dy ->
-                                        (item.gridX + dx) to (item.gridY + dy)
-                                    }
+                    EmptyGridCells(
+                        gridColumns = launcherConfig.gridColumns,
+                        gridRows = launcherConfig.gridRows,
+                        cellWidth = cellWidth,
+                        cellHeight = cellHeight,
+                        occupiedCells = launcherConfig.items.flatMap { item ->
+                            (0 until item.spanX).flatMap { dx ->
+                                (0 until item.spanY).map { dy ->
+                                    (item.gridX + dx) to (item.gridY + dy)
                                 }
-                            }.toSet(),
-                            onCellClick = { x, y ->
-                                pendingGridPosition = x to y
-                                editModeState =
-                                    editModeState.copy(showAppPicker = false, showPanelPicker = false)
                             }
-                        )
-                    }
+                        }.toSet(),
+                        onCellClick = { x, y ->
+                            pendingGridPosition = x to y
+                            editModeState = editModeState.copy(showAppPicker = false, showPanelPicker = false)
+                        }
+                    )
                 }
 
                 launcherConfig.items.forEach { item ->

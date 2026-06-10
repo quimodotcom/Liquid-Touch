@@ -934,7 +934,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 } else {
                     bitmap
                 }
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 Log.e("WallpaperService", "Error loading bitmap: $uri", e)
                 null
             }
