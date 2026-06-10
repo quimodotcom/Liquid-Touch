@@ -182,48 +182,51 @@ fun WallpaperPickerDialog(
             ) {
                 // Header Group - hide when interacting
                 if (activeInteraction == InteractionType.None) {
-                    Text(
-                        "Background & Layers",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White
-                    )
+                    Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
+                        Text(
+                            "Background & Layers",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White
+                        )
 
-                    Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
 
-                    // Tabs
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
-                        contentColor = Color(0xFF6366F1),
-                        indicator = { tabPositions ->
-                            TabRowDefaults.Indicator(
-                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                                color = Color(0xFF6366F1)
+                        // Tabs
+                        TabRow(
+                            selectedTabIndex = selectedTab,
+                            containerColor = Color.Transparent,
+                            contentColor = Color(0xFF6366F1),
+                            indicator = { tabPositions ->
+                                TabRowDefaults.Indicator(
+                                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                                    color = Color(0xFF6366F1)
+                                )
+                            }
+                        ) {
+                            Tab(
+                                selected = selectedTab == 0,
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                    selectedTab = 0
+                                },
+                                text = { Text("Background") }
+                            )
+                            Tab(
+                                selected = selectedTab == 1,
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                    selectedTab = 1
+                                },
+                                text = { Text("Subject Layer") }
                             )
                         }
-                    ) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                selectedTab = 0
-                            },
-                            text = { Text("Background") }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                                selectedTab = 1
-                            },
-                            text = { Text("Subject Layer") }
-                        )
-                    }
 
-                    Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
 
                 if (selectedTab == 0 && activeInteraction == InteractionType.None) {
+                    Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
                     // === BACKGROUND TAB ===
 
                     // Reset wallpaper option
@@ -386,77 +389,80 @@ fun WallpaperPickerDialog(
                                 Icon(Icons.Rounded.NightsStay, null, tint = Color.Gray.copy(alpha = 0.5f))
                             }
                         }
+                        }
                     }
 
                 } else {
                     // === SUBJECT TAB ===
 
                     if (activeInteraction == InteractionType.None) {
-                        Text(
-                            "The subject layer sits between panels and app icons, creating a depth effect.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-
-                        WallpaperOption(
-                            icon = Icons.Rounded.PhotoLibrary,
-                            title = "Select Subject Image",
-                            description = "Pick a transparent PNG",
-                            isSelected = currentSubjectUri != null,
-                            onClick = {
-                                subjectPickerLauncher.launch(
-                                    androidx.activity.result.PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
-                                )
-                            }
-                        )
-
-                        if (currentSubjectUri != null) {
-                            Spacer(Modifier.height(12.dp))
-                            WallpaperOption(
-                                icon = Icons.Rounded.Close,
-                                title = "Clear Subject",
-                                description = "Remove the foreground layer",
-                                isSelected = false,
-                                onClick = { onSubjectSelected?.invoke(null) }
+                        Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
+                            Text(
+                                "The subject layer sits between panels and app icons, creating a depth effect.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
                             )
 
-                            Spacer(Modifier.height(24.dp))
+                            Spacer(Modifier.height(12.dp))
 
-                            // Alignment Options
-                            Text("Alignment", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
-                            Spacer(Modifier.height(8.dp))
-
-                            // Match Switch
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF2E2E3E))
-                                    .clickable {
-                                        onSubjectConfigChanged?.invoke(!subjectMatchWallpaper, subjectScale, subjectOffsetX, subjectOffsetY)
-                                    }
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Match Wallpaper Alignment", color = Color.White, style = MaterialTheme.typography.bodyLarge)
-                                    Text(
-                                        "Best for cutouts from the original wallpaper",
-                                        color = Color.Gray,
-                                        style = MaterialTheme.typography.bodySmall
+                            WallpaperOption(
+                                icon = Icons.Rounded.PhotoLibrary,
+                                title = "Select Subject Image",
+                                description = "Pick a transparent PNG",
+                                isSelected = currentSubjectUri != null,
+                                onClick = {
+                                    subjectPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
                                     )
                                 }
-                                Switch(
-                                    checked = subjectMatchWallpaper,
-                                    onCheckedChange = {
-                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                        onSubjectConfigChanged?.invoke(it, subjectScale, subjectOffsetX, subjectOffsetY)
-                                    }
+                            )
+
+                            if (currentSubjectUri != null) {
+                                Spacer(Modifier.height(12.dp))
+                                WallpaperOption(
+                                    icon = Icons.Rounded.Close,
+                                    title = "Clear Subject",
+                                    description = "Remove the foreground layer",
+                                    isSelected = false,
+                                    onClick = { onSubjectSelected?.invoke(null) }
                                 )
+
+                                Spacer(Modifier.height(24.dp))
+
+                                // Alignment Options
+                                Text("Alignment", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                                Spacer(Modifier.height(8.dp))
+
+                                // Match Switch
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF2E2E3E))
+                                        .clickable {
+                                            onSubjectConfigChanged?.invoke(!subjectMatchWallpaper, subjectScale, subjectOffsetX, subjectOffsetY)
+                                        }
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Match Wallpaper Alignment", color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                                        Text(
+                                            "Best for cutouts from the original wallpaper",
+                                            color = Color.Gray,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    Switch(
+                                        checked = subjectMatchWallpaper,
+                                        onCheckedChange = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                            onSubjectConfigChanged?.invoke(it, subjectScale, subjectOffsetX, subjectOffsetY)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -574,29 +580,31 @@ fun WallpaperPickerDialog(
                     }
 
                     if (activeInteraction == InteractionType.None) {
-                        Spacer(Modifier.height(24.dp))
+                        Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
+                            Spacer(Modifier.height(24.dp))
 
-                        Text("Current Subject", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
-                        Spacer(Modifier.height(8.dp))
+                            Text("Current Subject", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                            Spacer(Modifier.height(8.dp))
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFF2E2E3E)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (currentSubjectUri != null) {
-                                // In preview, we always fit so they can see what it is
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context).data(currentSubjectUri).crossfade(true).build(),
-                                    contentDescription = "Current subject",
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Text("No subject selected", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF2E2E3E)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (currentSubjectUri != null) {
+                                    // In preview, we always fit so they can see what it is
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context).data(currentSubjectUri).crossfade(true).build(),
+                                        contentDescription = "Current subject",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Text("No subject selected", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                         }
                     }
@@ -607,7 +615,7 @@ fun WallpaperPickerDialog(
 
                     // Buttons
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = contentAlpha },
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = {
