@@ -445,67 +445,6 @@ private fun EditableLauncherScreen(
             )
         }
 
-        // Subject Layer (Full Screen, outside of grid padding Box)
-        if (launcherConfig.wallpaperSubjectUri != null) {
-            if (launcherConfig.subjectMatchWallpaper) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(launcherConfig.wallpaperSubjectUri)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            if (glassSettings.enableParallax) {
-                                val tilt = tiltState.value
-                                val intensity = glassSettings.parallaxIntensity
-
-                                // Dynamic safe scaling
-                                val maxTilt = 5f
-                                val factor = 35f
-                                val maxShift = maxTilt * factor * intensity
-
-                                val safeScaleX = if (size.width > 0) 1f + (2 * maxShift / size.width) else 1f
-                                val safeScaleY = if (size.height > 0) 1f + (2 * maxShift / size.height) else 1f
-                                val safeScale = maxOf(1.05f, safeScaleX, safeScaleY)
-
-                                scaleX = safeScale
-                                scaleY = safeScale
-
-                                translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
-                                translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
-                            } else {
-                                // Match the background scaling (1.0f)
-                                scaleX = 1.0f
-                                scaleY = 1.0f
-                                translationX = 0f
-                                translationY = 0f
-                            }
-                        }
-                )
-            } else {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(launcherConfig.wallpaperSubjectUri)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val tilt = tiltState.value
-                            val intensity = glassSettings.parallaxIntensity
-                            scaleX = launcherConfig.subjectScale
-                            scaleY = launcherConfig.subjectScale
-                            translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
-                            translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
-                        }
-                )
-            }
-        }
 
         // Animate grid padding when edit mode is active to push grid away from toolbar
         val gridBottomPadding by animateDpAsState(
@@ -519,15 +458,13 @@ private fun EditableLauncherScreen(
             label = "gridTopPadding"
         )
 
-        // Main content - Grid of items
+        // Root content container
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp)
                 .onSizeChanged { gridSize = it }
-                // Dynamic padding based on toolbar position. Coerce to least 0 to avoid crash on spring overshoot.
-                .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
                 .pointerInput(editModeState.isEnabled) {
                     if (!editModeState.isEnabled) {
                         detectTapGestures(
@@ -538,73 +475,137 @@ private fun EditableLauncherScreen(
                     }
                 }
         ) {
-            // Render grid cells (empty indicators in edit mode)
-            if (editModeState.isEnabled && cellWidth > 0 && cellHeight > 0) {
-                EmptyGridCells(
-                    gridColumns = launcherConfig.gridColumns,
-                    gridRows = launcherConfig.gridRows,
-                    cellWidth = cellWidth,
-                    cellHeight = cellHeight,
-                    occupiedCells = launcherConfig.items.flatMap { item ->
-                        (0 until item.spanX).flatMap { dx ->
-                            (0 until item.spanY).map { dy ->
-                                (item.gridX + dx) to (item.gridY + dy)
+            // Layer 1: Glass Panel Backgrounds (Padded)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
+            ) {
+                val glassPanels = remember(launcherConfig.items) {
+                    launcherConfig.items.filterIsInstance<LauncherItem.GlassPanel>()
+                }
+
+                glassPanels.forEach { item ->
+                    val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
+                    val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
+                    val width = with(density) { (item.spanX * cellWidth).toDp() }
+                    val height = with(density) { (item.spanY * cellHeight).toDp() }
+
+                    val isSelected = editModeState.selectedItemId == item.id
+                    val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
+                    val alpha = if (isSubjectPositioning) 0f else 1f
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = offsetX, y = offsetY)
+                            .graphicsLayer {
+                                translationX = dragTranslation.x
+                                translationY = dragTranslation.y
+                                this.alpha = alpha
                             }
-                        }
-                    }.toSet(),
-                    onCellClick = { x, y ->
-                        pendingGridPosition = x to y
-                        editModeState = editModeState.copy(showAppPicker = false, showPanelPicker = false)
+                            .size(width, height)
+                            .padding(4.dp)
+                    ) {
+                        GlassPanelBackground(
+                            item = item,
+                            backdrop = backdrop,
+                            glassSettings = glassSettings,
+                            isEditMode = editModeState.isEnabled
+                        )
                     }
-                )
+                }
             }
 
-            // Render items in layers: Panels -> Subject -> Apps/Folders
+            // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
+            if (launcherConfig.wallpaperSubjectUri != null) {
+                if (launcherConfig.subjectMatchWallpaper) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(launcherConfig.wallpaperSubjectUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                if (glassSettings.enableParallax) {
+                                    val tilt = tiltState.value
+                                    val intensity = glassSettings.parallaxIntensity
 
-            // 1. Glass Panel Backgrounds (Bottom)
-            val glassPanels = remember(launcherConfig.items) {
-                launcherConfig.items.filterIsInstance<LauncherItem.GlassPanel>()
-            }
+                                    // Dynamic safe scaling
+                                    val maxTilt = 5f
+                                    val factor = 35f
+                                    val maxShift = maxTilt * factor * intensity
 
-            glassPanels.forEach { item ->
-                // Calculate position and size manually since we are not using EditModeWrapper here
-                val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
-                val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
-                val width = with(density) { (item.spanX * cellWidth).toDp() }
-                val height = with(density) { (item.spanY * cellHeight).toDp() }
+                                    val safeScaleX = if (size.width > 0) 1f + (2 * maxShift / size.width) else 1f
+                                    val safeScaleY = if (size.height > 0) 1f + (2 * maxShift / size.height) else 1f
+                                    val safeScale = maxOf(1.05f, safeScaleX, safeScaleY)
 
-                val isSelected = editModeState.selectedItemId == item.id
-                val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
+                                    scaleX = safeScale
+                                    scaleY = safeScale
 
-                // If positioning subject, hide panels
-                val alpha = if (isSubjectPositioning) 0f else 1f
-
-                Box(
-                    modifier = Modifier
-                        .offset(x = offsetX, y = offsetY)
-                        .graphicsLayer {
-                            translationX = dragTranslation.x
-                            translationY = dragTranslation.y
-                            this.alpha = alpha
-                        }
-                        .size(width, height)
-                        .padding(4.dp)
-                ) {
-                    GlassPanelBackground(
-                        item = item,
-                        backdrop = backdrop,
-                        glassSettings = glassSettings,
-                        isEditMode = editModeState.isEnabled
+                                    translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
+                                    translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
+                                } else {
+                                    // Match the background scaling (1.0f)
+                                    scaleX = 1.0f
+                                    scaleY = 1.0f
+                                    translationX = 0f
+                                    translationY = 0f
+                                }
+                            }
+                    )
+                } else {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(launcherConfig.wallpaperSubjectUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val tilt = tiltState.value
+                                val intensity = glassSettings.parallaxIntensity
+                                scaleX = launcherConfig.subjectScale
+                                scaleY = launcherConfig.subjectScale
+                                translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
+                                translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
+                            }
                     )
                 }
             }
 
+            // Layer 3: Glass Panel Content + Apps/Folders (Padded)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
+            ) {
+                // Render grid cells (empty indicators in edit mode)
+                if (editModeState.isEnabled && cellWidth > 0 && cellHeight > 0) {
+                    EmptyGridCells(
+                        gridColumns = launcherConfig.gridColumns,
+                        gridRows = launcherConfig.gridRows,
+                        cellWidth = cellWidth,
+                        cellHeight = cellHeight,
+                        occupiedCells = launcherConfig.items.flatMap { item ->
+                            (0 until item.spanX).flatMap { dx ->
+                                (0 until item.spanY).map { dy ->
+                                    (item.gridX + dx) to (item.gridY + dy)
+                                }
+                            }
+                        }.toSet(),
+                        onCellClick = { x, y ->
+                            pendingGridPosition = x to y
+                            editModeState = editModeState.copy(showAppPicker = false, showPanelPicker = false)
+                        }
+                    )
+                }
 
-            // 3. Glass Panel Content + Apps/Folders (Top)
-            // We reuse the standard LauncherItemView logic but split content
-            // NOTE: For Glass Panels, we now render CONTENT only. For Apps, we render FULL.
-
-            launcherConfig.items.forEach { item ->
+                launcherConfig.items.forEach { item ->
                 val isSelected = editModeState.selectedItemId == item.id
                 val alpha = if (isSubjectPositioning) 0f else 1f
 

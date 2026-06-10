@@ -177,6 +177,7 @@ fun WallpaperPickerDialog(
                 modifier = Modifier
                     .padding(24.dp)
                     .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                    .graphicsLayer { alpha = contentAlpha }
             ) {
                 // Header Group - hide when interacting
                 if (activeInteraction == InteractionType.None) {
