@@ -435,13 +435,76 @@ private fun EditableLauncherScreen(
                             translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
                             translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
                         } else {
-                            scaleX = 1.05f
-                            scaleY = 1.05f
+                            // No scaling when parallax is off to ensure pixel-perfect match
+                            scaleX = 1.0f
+                            scaleY = 1.0f
                             translationX = 0f
                             translationY = 0f
                         }
                     }
             )
+        }
+
+        // Subject Layer (Full Screen, outside of grid padding Box)
+        if (launcherConfig.wallpaperSubjectUri != null) {
+            if (launcherConfig.subjectMatchWallpaper) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(launcherConfig.wallpaperSubjectUri)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            if (glassSettings.enableParallax) {
+                                val tilt = tiltState.value
+                                val intensity = glassSettings.parallaxIntensity
+
+                                // Dynamic safe scaling
+                                val maxTilt = 5f
+                                val factor = 35f
+                                val maxShift = maxTilt * factor * intensity
+
+                                val safeScaleX = if (size.width > 0) 1f + (2 * maxShift / size.width) else 1f
+                                val safeScaleY = if (size.height > 0) 1f + (2 * maxShift / size.height) else 1f
+                                val safeScale = maxOf(1.05f, safeScaleX, safeScaleY)
+
+                                scaleX = safeScale
+                                scaleY = safeScale
+
+                                translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
+                                translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
+                            } else {
+                                // Match the background scaling (1.0f)
+                                scaleX = 1.0f
+                                scaleY = 1.0f
+                                translationX = 0f
+                                translationY = 0f
+                            }
+                        }
+                )
+            } else {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(launcherConfig.wallpaperSubjectUri)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val tilt = tiltState.value
+                            val intensity = glassSettings.parallaxIntensity
+                            scaleX = launcherConfig.subjectScale
+                            scaleY = launcherConfig.subjectScale
+                            translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
+                            translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
+                        }
+                )
+            }
         }
 
         // Animate grid padding when edit mode is active to push grid away from toolbar
@@ -536,66 +599,6 @@ private fun EditableLauncherScreen(
                 }
             }
 
-            // 2. Subject Layer (Middle)
-            if (launcherConfig.wallpaperSubjectUri != null) {
-                if (launcherConfig.subjectMatchWallpaper) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                if (glassSettings.enableParallax) {
-                                    val tilt = tiltState.value
-                                    val intensity = glassSettings.parallaxIntensity
-
-                                    // Dynamic safe scaling
-                                    val maxTilt = 5f
-                                    val factor = 35f
-                                    val maxShift = maxTilt * factor * intensity
-
-                                    val safeScaleX = if (size.width > 0) 1f + (2 * maxShift / size.width) else 1f
-                                    val safeScaleY = if (size.height > 0) 1f + (2 * maxShift / size.height) else 1f
-                                    val safeScale = maxOf(1.05f, safeScaleX, safeScaleY)
-
-                                    scaleX = safeScale
-                                    scaleY = safeScale
-
-                                    translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
-                                    translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
-                                } else {
-                                    scaleX = 1.05f
-                                    scaleY = 1.05f
-                                    translationX = 0f
-                                    translationY = 0f
-                                }
-                            }
-                    )
-                } else {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val tilt = tiltState.value
-                                val intensity = glassSettings.parallaxIntensity
-                                scaleX = launcherConfig.subjectScale
-                                scaleY = launcherConfig.subjectScale
-                                translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
-                                translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
-                            }
-                    )
-                }
-            }
 
             // 3. Glass Panel Content + Apps/Folders (Top)
             // We reuse the standard LauncherItemView logic but split content
@@ -900,7 +903,7 @@ private fun EditableLauncherScreen(
 
         // Bottom Edit Mode Toolbar
         AnimatedVisibility(
-            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop && !editModeState.isUiHidden,
+            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop && !editModeState.isUiHidden && !isSubjectPositioning,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -910,7 +913,7 @@ private fun EditableLauncherScreen(
 
         // Top Edit Mode Toolbar
         AnimatedVisibility(
-            visible = editModeState.isEnabled && editModeState.isToolbarAtTop && !editModeState.isUiHidden,
+            visible = editModeState.isEnabled && editModeState.isToolbarAtTop && !editModeState.isUiHidden && !isSubjectPositioning,
             enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
@@ -920,7 +923,7 @@ private fun EditableLauncherScreen(
 
         // Restore UI Button
         AnimatedVisibility(
-            visible = editModeState.isEnabled && editModeState.isUiHidden,
+            visible = editModeState.isEnabled && editModeState.isUiHidden && !isSubjectPositioning,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).systemBarsPadding()
