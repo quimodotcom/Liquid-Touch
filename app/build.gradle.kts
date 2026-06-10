@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.Base64
 
 // --------------------------------------------------------------------------
 // Helper to read plain‑text credential files from app/keystore
@@ -53,27 +54,45 @@ android {
 
     /* --------------------------- signingConfigs --------------------------- */
     signingConfigs {
-        create("release") {
-            // 1️⃣ Prefer CI environment variables (used by GitHub Actions)
-            val storeFileEnv = System.getenv("SIGNING_STORE_FILE")
-            if (storeFileEnv != null) {
-                storeFile = file(storeFileEnv)
-                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
-            } else {
-                // 2️⃣ Fallback to local text‑file credentials
-                storeFile = file("keystore/myrelease.jks")
-                storePassword = readCredential("storePassword.txt")
-                ?: throw GradleException("Missing storePassword.txt in app/keystore")
-                keyAlias = readCredential("keyAlias.txt")
-                ?: throw GradleException("Missing keyAlias.txt in app/keystore")
-                keyPassword = readCredential("keyPassword.txt")
-                ?: throw GradleException("Missing keyPassword.txt in app/keystore")
-            }
+        val keystoreBase64 = System.getenv("SIGNING_KEYSTORE_BASE64")
+        val storeFileEnv = System.getenv("SIGNING_STORE_FILE")
+        val localStoreFile = file("keystore/myrelease.jks")
 
-            enableV1Signing = true
-            enableV2Signing = true
+        val hasCiBase64Signing = keystoreBase64 != null
+        val hasCiFileSigning = storeFileEnv != null
+        val hasLocalSigning = localStoreFile.exists() &&
+            readCredential("storePassword.txt") != null &&
+            readCredential("keyAlias.txt") != null &&
+            readCredential("keyPassword.txt") != null
+
+        if (hasCiBase64Signing || hasCiFileSigning || hasLocalSigning) {
+            create("release") {
+                when {
+                    hasCiBase64Signing -> {
+                        val keystoreFile = layout.buildDirectory.file("keystore.jks").get().asFile
+                        keystoreFile.parentFile.mkdirs()
+                        keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+                        storeFile = keystoreFile
+                        storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                        keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                        keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+                    }
+                    hasCiFileSigning -> {
+                        storeFile = file(storeFileEnv!!)
+                        storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                        keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                        keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+                    }
+                    else -> {
+                        storeFile = localStoreFile
+                        storePassword = readCredential("storePassword.txt")
+                        keyAlias = readCredential("keyAlias.txt")
+                        keyPassword = readCredential("keyPassword.txt")
+                    }
+                }
+                enableV1Signing = true
+                enableV2Signing = true
+            }
         }
     }
     /* -------------------------------------------------------------------- */
@@ -87,19 +106,20 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            // Use consistent signing for debug builds to allow OTA updates from CI
-            signingConfig = signingConfigs.getByName("release")
+            // Use consistent signing for debug builds if available
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                          "proguard-rules.pro"
+                "proguard-rules.pro"
             )
-            // Always apply the signing config; it will be populated either from CI env vars
-            // or from the local text‑file fallback defined above.
-            signingConfig = signingConfigs.getByName("release")
+            // Apply the release signing config if available
+            signingConfigs.findByName("release")?.let {
+                signingConfig = it
+            }
         }
     }
 
