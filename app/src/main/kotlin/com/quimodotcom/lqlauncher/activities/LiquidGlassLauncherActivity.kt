@@ -606,7 +606,7 @@ private fun EditableLauncherScreen(
                 }
 
                 launcherConfig.items.forEach { item ->
-                val isSelected = editModeState.selectedItemId == item.id
+                    val isSelected = editModeState.selectedItemId == item.id
                 val alpha = if (isSubjectPositioning) 0f else 1f
 
                 val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
@@ -746,11 +746,13 @@ private fun EditableLauncherScreen(
                             showLabel = glassSettings.showAppLabels,
                             cellWidth = cellWidth
                         )
+
                         is LauncherItem.GlassPanel -> GlassPanelContent(
                             item = item,
                             glassSettings = glassSettings,
                             isEditMode = editModeState.isEnabled
                         )
+
                         is LauncherItem.Folder -> {
                             val hasNotification = item.apps.any { activeNotifications.contains(it) }
                             FolderView(
@@ -764,6 +766,7 @@ private fun EditableLauncherScreen(
                                 cellWidth = cellWidth
                             )
                         }
+
                         is LauncherItem.InvisibleButton -> {
                             val view = LocalView.current
                             Box(
@@ -790,12 +793,19 @@ private fun EditableLauncherScreen(
                                                 when (item.action) {
                                                     LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
                                                         val newState = !glassSettings.secretWallpaperVisible
-                                                        glassSettings = glassSettings.copy(secretWallpaperVisible = newState)
+                                                        glassSettings =
+                                                            glassSettings.copy(secretWallpaperVisible = newState)
                                                         // Ensure immediate reload for wallpaper service when visibility changes
                                                         scope.launch {
-                                                            LiquidGlassSettingsRepository.saveSettings(context, glassSettings.copy(secretWallpaperVisible = newState))
+                                                            LiquidGlassSettingsRepository.saveSettings(
+                                                                context,
+                                                                glassSettings.copy(
+                                                                    secretWallpaperVisible = newState
+                                                                )
+                                                            )
                                                         }
                                                     }
+
                                                     LauncherAction.OPEN_APP -> {
                                                         item.targetPackageName?.let {
                                                             launchApp(
@@ -804,12 +814,15 @@ private fun EditableLauncherScreen(
                                                             )
                                                         }
                                                     }
+
                                                     LauncherAction.OPEN_APP_DRAWER -> {
                                                         showAppDrawer = true
                                                     }
+
                                                     LauncherAction.OPEN_SETTINGS -> {
                                                         showSettings = true
                                                     }
+
                                                     else -> {}
                                                 }
                                             })
@@ -832,10 +845,12 @@ private fun EditableLauncherScreen(
                                 }
                             }
                         }
+
                         else -> {}
                     }
                 }
             }
+        }
 
             // Edit mode hint
             AnimatedVisibility(
