@@ -37,6 +37,7 @@ import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfigRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
@@ -53,7 +54,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
     inner class LiquidGlassEngine : Engine() {
 
-        private val engineScope = CoroutineScope(Dispatchers.Main + Job())
+        private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         private var wallpaperBitmap: Bitmap? = null
         private var gifBitmap: Bitmap? = null
         private var subjectBitmap: Bitmap? = null
@@ -308,6 +309,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Observe media state
             engineScope.launch {
                 MediaStateRepository.mediaState.collectLatest { state ->
+                  try {
                     if (state != null) {
                         DebugLogger.log("WallpaperService", "Media: ${state.title} - ${state.artist}")
                         mediaTitle = state.title
@@ -430,7 +432,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                     if (small != art && small != blurred) {
                                         small.recycle()
                                     }
-                                } catch (e: Exception) {
+                                } catch (e: Throwable) {
                                     Log.e("LiquidGlassWallpaper", "Error generating blur", e)
                                 }
                             } else {
@@ -457,6 +459,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                             draw()
                         }
                     }
+                  } catch (t: Throwable) {
+                      Log.e("LiquidGlassWallpaper", "Error in media state collection", t)
+                  }
                 }
             }
         }
@@ -873,7 +878,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     DebugLogger.log("WallpaperService", "System wallpaper drawable is null")
                     null
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("LiquidGlassWallpaper", "Error loading system wallpaper", e)
                 null
             }
@@ -929,7 +934,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 } else {
                     bitmap
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("WallpaperService", "Error loading bitmap: $uri", e)
                 null
             }
@@ -1057,6 +1062,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Let's use the existing GL renderer but set background to black (null)
                 videoRenderer?.setBackground(null)
                 videoRenderer?.setSubject(null)
+                lastBgBitmap = null
+                lastSubBitmap = null
 
                 val calendar = Calendar.getInstance()
                 // Update burn-in protection offsets randomly every minute
