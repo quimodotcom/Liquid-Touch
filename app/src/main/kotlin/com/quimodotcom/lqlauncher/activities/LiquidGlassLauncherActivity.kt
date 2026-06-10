@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
+import android.graphics.Matrix
+import android.media.ExifInterface
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -271,18 +273,43 @@ private fun EditableLauncherScreen(
         if (gridSize.height > 0) gridSize.height.toFloat() / launcherConfig.gridRows else 0f
     }
 
-    // Theme state
-    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+    // Time tick for scheduled wallpaper switching
+    var timeTick by remember { mutableIntStateOf(0) }
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                timeTick++
+            }
+        }
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_TIME_TICK)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
+
+    // Determine if it's currently "night" based on schedule or system theme
+    val isCurrentlyNight = remember(glassSettings, timeTick) {
+        glassSettings.isCurrentlyNight(context)
+    }
 
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
     // Wallpaper painter (honour permission, theme and secret)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = remember(isDarkTheme, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
+        customUri = remember(isCurrentlyNight, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
             if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
                 launcherConfig.wallpaperSecretUri
-            } else if (isDarkTheme) {
+            } else if (isCurrentlyNight) {
                 launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
             } else {
                 launcherConfig.wallpaperUri
@@ -408,8 +435,9 @@ private fun EditableLauncherScreen(
                             translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
                             translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
                         } else {
-                            scaleX = 1.05f
-                            scaleY = 1.05f
+                            // No scaling when parallax is off to ensure pixel-perfect match
+                            scaleX = 1.0f
+                            scaleY = 1.0f
                             translationX = 0f
                             translationY = 0f
                         }
@@ -417,22 +445,26 @@ private fun EditableLauncherScreen(
             )
         }
 
-        // Animate bottom padding when edit mode is active to push grid up
+
+        // Animate grid padding when edit mode is active to push grid away from toolbar
         val gridBottomPadding by animateDpAsState(
-            targetValue = if (editModeState.isEnabled) 220.dp else 96.dp,
+            targetValue = if (editModeState.isEnabled && !editModeState.isToolbarAtTop) 220.dp else 0.dp,
             animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-            label = "gridPadding"
+            label = "gridBottomPadding"
+        )
+        val gridTopPadding by animateDpAsState(
+            targetValue = if (editModeState.isEnabled && editModeState.isToolbarAtTop) 180.dp else 0.dp,
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+            label = "gridTopPadding"
         )
 
-        // Main content - Grid of items
+        // Root content container
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp)
                 .onSizeChanged { gridSize = it }
-                // Exclude the bottom handle region from the global gesture detector so the handle can receive input
-                .padding(bottom = gridBottomPadding)
                 .pointerInput(editModeState.isEnabled) {
                     if (!editModeState.isEnabled) {
                         detectTapGestures(
@@ -443,69 +475,49 @@ private fun EditableLauncherScreen(
                     }
                 }
         ) {
-            // Render grid cells (empty indicators in edit mode)
-            if (editModeState.isEnabled && cellWidth > 0 && cellHeight > 0) {
-                EmptyGridCells(
-                    gridColumns = launcherConfig.gridColumns,
-                    gridRows = launcherConfig.gridRows,
-                    cellWidth = cellWidth,
-                    cellHeight = cellHeight,
-                    occupiedCells = launcherConfig.items.flatMap { item ->
-                        (0 until item.spanX).flatMap { dx ->
-                            (0 until item.spanY).map { dy ->
-                                (item.gridX + dx) to (item.gridY + dy)
+            // Layer 1: Glass Panel Backgrounds (Padded)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
+            ) {
+                val glassPanels = remember(launcherConfig.items) {
+                    launcherConfig.items.filterIsInstance<LauncherItem.GlassPanel>()
+                }
+
+                glassPanels.forEach { item ->
+                    val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
+                    val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
+                    val width = with(density) { (item.spanX * cellWidth).toDp() }
+                    val height = with(density) { (item.spanY * cellHeight).toDp() }
+
+                    val isSelected = editModeState.selectedItemId == item.id
+                    val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
+                    val alpha = if (isSubjectPositioning) 0f else 1f
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = offsetX, y = offsetY)
+                            .graphicsLayer {
+                                translationX = dragTranslation.x
+                                translationY = dragTranslation.y
+                                this.alpha = alpha
                             }
-                        }
-                    }.toSet(),
-                    onCellClick = { x, y ->
-                        pendingGridPosition = x to y
-                        editModeState = editModeState.copy(showAppPicker = false, showPanelPicker = false)
+                            .size(width, height)
+                            .padding(4.dp)
+                    ) {
+                        GlassPanelBackground(
+                            item = item,
+                            backdrop = backdrop,
+                            glassSettings = glassSettings,
+                            isEditMode = editModeState.isEnabled
+                        )
                     }
-                )
-            }
-
-            // Render items in layers: Panels -> Subject -> Apps/Folders
-
-            // 1. Glass Panel Backgrounds (Bottom)
-            val glassPanels = remember(launcherConfig.items) {
-                launcherConfig.items.filterIsInstance<LauncherItem.GlassPanel>()
-            }
-
-            glassPanels.forEach { item ->
-                // Calculate position and size manually since we are not using EditModeWrapper here
-                val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
-                val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
-                val width = with(density) { (item.spanX * cellWidth).toDp() }
-                val height = with(density) { (item.spanY * cellHeight).toDp() }
-
-                val isSelected = editModeState.selectedItemId == item.id
-                val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
-
-                // If positioning subject, hide panels
-                val alpha = if (isSubjectPositioning) 0f else 1f
-
-                Box(
-                    modifier = Modifier
-                        .offset(x = offsetX, y = offsetY)
-                        .graphicsLayer {
-                            translationX = dragTranslation.x
-                            translationY = dragTranslation.y
-                            this.alpha = alpha
-                        }
-                        .size(width, height)
-                        .padding(4.dp)
-                ) {
-                    GlassPanelBackground(
-                        item = item,
-                        backdrop = backdrop,
-                        glassSettings = glassSettings,
-                        isEditMode = editModeState.isEnabled
-                    )
                 }
             }
 
-            // 2. Subject Layer (Middle)
-            if (launcherConfig.wallpaperSubjectUri != null) {
+            // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
+            if (launcherConfig.wallpaperSubjectUri != null && !glassSettings.secretWallpaperVisible) {
                 if (launcherConfig.subjectMatchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -536,8 +548,9 @@ private fun EditableLauncherScreen(
                                     translationX = tilt.x.coerceIn(-maxTilt, maxTilt) * factor * intensity
                                     translationY = tilt.y.coerceIn(-maxTilt, maxTilt) * factor * intensity
                                 } else {
-                                    scaleX = 1.05f
-                                    scaleY = 1.05f
+                                    // Match the background scaling (1.0f)
+                                    scaleX = 1.0f
+                                    scaleY = 1.0f
                                     translationX = 0f
                                     translationY = 0f
                                 }
@@ -565,12 +578,38 @@ private fun EditableLauncherScreen(
                 }
             }
 
-            // 3. Glass Panel Content + Apps/Folders (Top)
-            // We reuse the standard LauncherItemView logic but split content
-            // NOTE: For Glass Panels, we now render CONTENT only. For Apps, we render FULL.
+            // Layer 3: Glass Panel Content + Apps/Folders (Padded)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = gridTopPadding.coerceAtLeast(0.dp), bottom = gridBottomPadding.coerceAtLeast(0.dp))
+            ) {
+                // Render grid cells (empty indicators in edit mode)
+                if (editModeState.isEnabled && cellWidth > 0 && cellHeight > 0) {
+                    Box(modifier = Modifier.graphicsLayer { alpha = if (isSubjectPositioning) 0f else 1f }) {
+                        EmptyGridCells(
+                            gridColumns = launcherConfig.gridColumns,
+                            gridRows = launcherConfig.gridRows,
+                            cellWidth = cellWidth,
+                            cellHeight = cellHeight,
+                            occupiedCells = launcherConfig.items.flatMap { item ->
+                                (0 until item.spanX).flatMap { dx ->
+                                    (0 until item.spanY).map { dy ->
+                                        (item.gridX + dx) to (item.gridY + dy)
+                                    }
+                                }
+                            }.toSet(),
+                            onCellClick = { x, y ->
+                                pendingGridPosition = x to y
+                                editModeState =
+                                    editModeState.copy(showAppPicker = false, showPanelPicker = false)
+                            }
+                        )
+                    }
+                }
 
-            launcherConfig.items.forEach { item ->
-                val isSelected = editModeState.selectedItemId == item.id
+                launcherConfig.items.forEach { item ->
+                    val isSelected = editModeState.selectedItemId == item.id
                 val alpha = if (isSubjectPositioning) 0f else 1f
 
                 val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
@@ -710,11 +749,13 @@ private fun EditableLauncherScreen(
                             showLabel = glassSettings.showAppLabels,
                             cellWidth = cellWidth
                         )
+
                         is LauncherItem.GlassPanel -> GlassPanelContent(
                             item = item,
                             glassSettings = glassSettings,
                             isEditMode = editModeState.isEnabled
                         )
+
                         is LauncherItem.Folder -> {
                             val hasNotification = item.apps.any { activeNotifications.contains(it) }
                             FolderView(
@@ -728,6 +769,7 @@ private fun EditableLauncherScreen(
                                 cellWidth = cellWidth
                             )
                         }
+
                         is LauncherItem.InvisibleButton -> {
                             val view = LocalView.current
                             Box(
@@ -754,12 +796,19 @@ private fun EditableLauncherScreen(
                                                 when (item.action) {
                                                     LauncherAction.TOGGLE_SECRET_WALLPAPER -> {
                                                         val newState = !glassSettings.secretWallpaperVisible
-                                                        glassSettings = glassSettings.copy(secretWallpaperVisible = newState)
+                                                        glassSettings =
+                                                            glassSettings.copy(secretWallpaperVisible = newState)
                                                         // Ensure immediate reload for wallpaper service when visibility changes
                                                         scope.launch {
-                                                            LiquidGlassSettingsRepository.saveSettings(context, glassSettings.copy(secretWallpaperVisible = newState))
+                                                            LiquidGlassSettingsRepository.saveSettings(
+                                                                context,
+                                                                glassSettings.copy(
+                                                                    secretWallpaperVisible = newState
+                                                                )
+                                                            )
                                                         }
                                                     }
+
                                                     LauncherAction.OPEN_APP -> {
                                                         item.targetPackageName?.let {
                                                             launchApp(
@@ -768,12 +817,15 @@ private fun EditableLauncherScreen(
                                                             )
                                                         }
                                                     }
+
                                                     LauncherAction.OPEN_APP_DRAWER -> {
                                                         showAppDrawer = true
                                                     }
+
                                                     LauncherAction.OPEN_SETTINGS -> {
                                                         showSettings = true
                                                     }
+
                                                     else -> {}
                                                 }
                                             })
@@ -796,10 +848,12 @@ private fun EditableLauncherScreen(
                                 }
                             }
                         }
+
                         else -> {}
                     }
                 }
             }
+        }
 
             // Edit mode hint
             AnimatedVisibility(
@@ -834,22 +888,21 @@ private fun EditableLauncherScreen(
             if (showAppDrawer) {
                 showAppDrawer = false
             } else if (editModeState.isEnabled) {
-                editModeState = EditModeState()
+                editModeState = editModeState.copy(isEnabled = false, isUiHidden = false)
             } else {
                 // Do nothing: stay on home screen
             }
         }
 
-        // Edit mode toolbar
-        AnimatedVisibility(
-            visible = editModeState.isEnabled,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
+        // Reusable Toolbar Content
+        val toolbarContent: @Composable (Boolean) -> Unit = { isAtTop ->
             EditModeToolbar(
                 backdrop = backdrop,
                 isEditMode = editModeState.isEnabled,
+                isAtTop = isAtTop,
+                onHide = {
+                    editModeState = editModeState.copy(isUiHidden = true)
+                },
                 onAddApp = { editModeState = editModeState.copy(showAppPicker = true) },
                 onAddPanel = { editModeState = editModeState.copy(showPanelPicker = true) },
                 onAddFolder = { showFolderNameDialog = true },
@@ -860,10 +913,48 @@ private fun EditableLauncherScreen(
                 onChangeWallpaper = { editModeState = editModeState.copy(showWallpaperPicker = true) },
                 onOpenSettings = { showSettings = true },
                 onExitEditMode = {
-                    editModeState = EditModeState()
+                    // Only disable, don't reset other state bits to avoid layout crashes during animation
+                    editModeState = editModeState.copy(isEnabled = false, isUiHidden = false)
                 },
                 glassSettings = glassSettings
             )
+        }
+
+        // Bottom Edit Mode Toolbar
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && !editModeState.isToolbarAtTop && !editModeState.isUiHidden && !isSubjectPositioning,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            toolbarContent(false)
+        }
+
+        // Top Edit Mode Toolbar
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && editModeState.isToolbarAtTop && !editModeState.isUiHidden && !isSubjectPositioning,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            toolbarContent(true)
+        }
+
+        // Restore UI Button
+        AnimatedVisibility(
+            visible = editModeState.isEnabled && editModeState.isUiHidden && !isSubjectPositioning,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).systemBarsPadding()
+        ) {
+            FloatingActionButton(
+                onClick = { editModeState = editModeState.copy(isUiHidden = false) },
+                containerColor = Color(0xFF6366F1),
+                contentColor = Color.White,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Rounded.Visibility, "Show Edit UI")
+            }
         }
 
 
@@ -1376,7 +1467,7 @@ private fun AppShortcutView(
                     )
                 } else {
                     Modifier.background(
-                        color = Color.Black.copy(alpha = 0.15f),
+                        color = Color.Black.copy(alpha = glassSettings.iconBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }
@@ -1489,7 +1580,9 @@ private fun GlassPanelBackground(
             .fillMaxSize()
             .clip(RoundedCornerShape(cornerRadius))
             .then(
-                if (glassSettings.liquidGlassEnabled) {
+                if (item.customImageUri != null) {
+                    Modifier
+                } else if (glassSettings.liquidGlassEnabled) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { RoundedRectangle(cornerRadius) },
@@ -1503,20 +1596,37 @@ private fun GlassPanelBackground(
                             )
                         },
                         onDrawSurface = {
-                            // Lower alpha so grid shows through in edit mode
-                            val alpha = if (isEditMode) 0.05f else glassSettings.panelBackgroundAlpha
-                            drawRect(panelTintColor.copy(alpha = alpha))
+                            // Respect the user's transparency setting
+                            drawRect(panelTintColor.copy(alpha = glassSettings.panelBackgroundAlpha))
                         }
                     )
                 } else {
-                    val alpha = if (isEditMode) 0.05f else 0.15f
                     Modifier.background(
-                        color = Color.Black.copy(alpha = alpha),
+                        color = Color.Black.copy(alpha = glassSettings.panelBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }
             )
-    )
+    ) {
+        if (item.customImageUri != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(item.customImageUri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Add a subtle overlay so content remains readable if image is too bright
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = if (isEditMode) 0.1f else 0.2f))
+            )
+        }
+    }
 }
 
 @Composable
@@ -1660,11 +1770,11 @@ private fun ClockPanelContent(glassSettings: LiquidGlassSettings) {
     val minutes = cal.get(Calendar.MINUTE).toFloat() + cal.get(Calendar.SECOND) / 60f
     val seconds = cal.get(Calendar.SECOND).toFloat() + (cal.get(Calendar.MILLISECOND).toFloat() / 1000f)
 
-    // pick face from user config
-    val cfg = LocalContext.current.config
-    when (cfg.clockFace) {
-        1 -> {
-            // Minimal: big digital time, small date below
+    // pick face from user config or settings
+    val style = glassSettings.clockStyle
+    when (style) {
+        "Headline" -> {
+            // Headline: Large bold time, prominent
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -1673,18 +1783,48 @@ private fun ClockPanelContent(glassSettings: LiquidGlassSettings) {
                 Text(
                     text = timeFormat.format(Date(currentTime)),
                     color = Color.White,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Light
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-2).sp
                 )
-                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = dateFormat.format(Date(currentTime)),
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    text = dateFormat.format(Date(currentTime)).uppercase(),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp
                 )
             }
         }
-        2 -> {
+        "Vertical" -> {
+            // Vertical: Hours and minutes stacked
+            val hoursStr = remember(currentTime) { SimpleDateFormat("HH", Locale.getDefault()).format(Date(currentTime)) }
+            val minutesStr = remember(currentTime) { SimpleDateFormat("mm", Locale.getDefault()).format(Date(currentTime)) }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
+            ) {
+                Text(text = hoursStr, color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Bold, lineHeight = 40.sp)
+                Text(text = minutesStr, color = Color(0xFF6366F1), fontSize = 40.sp, fontWeight = FontWeight.Light, lineHeight = 40.sp)
+            }
+        }
+        "Minimal" -> {
+            // Minimal: Very large thin time
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale }
+            ) {
+                Text(
+                    text = timeFormat.format(Date(currentTime)),
+                    color = Color.White,
+                    fontSize = 56.sp,
+                    fontWeight = FontWeight.Thin
+                )
+            }
+        }
+        "Analog" -> {
             // Modern: circular progress representing minutes + digital time
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1982,24 +2122,37 @@ private fun BrowserSearchPanelContent(isEditMode: Boolean = false) {
     val openBrowser: (String?) -> Unit = { q ->
         try {
             if (q == null) {
-                // Launch the default browser app main activity without opening a new tab
+                // Launch the default browser app directly without a URL
                 var launched = false
                 try {
-                    val viewIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("http://"))
-                    val resolveInfo = context.packageManager.resolveActivity(viewIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-                    val pkg = resolveInfo?.activityInfo?.packageName
-                    val launch = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
-                    if (launch != null) {
-                        launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(launch)
-                        launched = true
-                    }
+                    // Method 1: Use Intent.CATEGORY_APP_BROWSER to find the default browser
+                    val browserIntent = android.content.Intent.makeMainSelectorActivity(
+                        android.content.Intent.ACTION_MAIN,
+                        android.content.Intent.CATEGORY_APP_BROWSER
+                    )
+                    browserIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(browserIntent)
+                    launched = true
                 } catch (e: Exception) {
-                    // fallback to opening homepages URL if launch fails
+                    // Method 2: Resolve activity for https:// and launch its main intent
+                    try {
+                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://"))
+                        val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                        val pkg = resolveInfo?.activityInfo?.packageName
+                        val launchIntent = pkg?.let { context.packageManager.getLaunchIntentForPackage(it) }
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(launchIntent)
+                            launched = true
+                        }
+                    } catch (e2: Exception) {}
                 }
+
                 if (!launched) {
-                    val fallback = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    context.startActivity(fallback)
+                    // Universal fallback: open Google in whatever can handle it
+                    val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com"))
+                    fallbackIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(fallbackIntent)
                 }
             } else {
                 val url = java.net.URLEncoder.encode(q, "UTF-8").let { "https://www.google.com/search?q=$it" }
@@ -2365,7 +2518,7 @@ private fun FolderView(
                     )
                 } else {
                     Modifier.background(
-                        color = Color.Black.copy(alpha = 0.15f),
+                        color = Color.Black.copy(alpha = glassSettings.iconBackgroundAlpha),
                         shape = RoundedCornerShape(cornerRadius)
                     )
                 }
@@ -2567,7 +2720,7 @@ private fun OpenedFolderDialog(
                         )
                     } else {
                         Modifier.background(
-                            color = Color.Black.copy(alpha = 0.15f),
+                            color = Color.Black.copy(alpha = glassSettings.panelBackgroundAlpha),
                             shape = RoundedCornerShape(cornerRadius)
                         )
                     }
@@ -2711,6 +2864,26 @@ private fun rememberWallpaperPainter(
             painter = try {
                 if (!useSystem && customUri != null) {
                     // Load custom wallpaper from URI or file path
+                    val uri = android.net.Uri.parse(customUri)
+
+                    // 1. Get EXIF rotation
+                    var rotation = 0
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            val exif = ExifInterface(input)
+                            val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                            rotation = when (orientation) {
+                                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                                else -> 0
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("LiquidGlassLauncher", "Could not read EXIF for $customUri")
+                    }
+
+                    // 2. Load the bitmap
                     val bitmap = if (customUri.startsWith("/")) {
                         // It's a file path
                         val options = android.graphics.BitmapFactory.Options().apply {
@@ -2719,12 +2892,22 @@ private fun rememberWallpaperPainter(
                         android.graphics.BitmapFactory.decodeFile(customUri, options)
                     } else {
                         // It's a content URI
-                        val uri = android.net.Uri.parse(customUri)
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             android.graphics.BitmapFactory.decodeStream(inputStream)
                         }
                     }
-                    bitmap?.asImageBitmap()?.let { BitmapPainter(it) }
+
+                    // 3. Apply rotation if needed
+                    val finalBitmap = if (bitmap != null && rotation != 0) {
+                        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                        val rotated = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                        bitmap.recycle()
+                        rotated
+                    } else {
+                        bitmap
+                    }
+
+                    finalBitmap?.asImageBitmap()?.let { BitmapPainter(it) }
                 } else {
                     // Use system wallpaper with fallback only if permission is granted
                     if (permissionGranted) loadSystemWallpaper(context) else null

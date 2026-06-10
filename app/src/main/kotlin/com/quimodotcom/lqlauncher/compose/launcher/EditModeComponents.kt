@@ -173,7 +173,7 @@ fun EditModeWrapper(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 12.dp, y = (-12).dp)
+                    .offset(x = (-4).dp, y = 4.dp)
                     .size(36.dp)
                     .background(Color(0xFFEF4444), CircleShape)
                     .pointerInput(Unit) { detectTapGestures(onTap = { onDelete() }) },
@@ -229,7 +229,7 @@ private fun ResizeHandle(
 
     Box(
         modifier = modifier
-            .offset(x = 8.dp, y = 8.dp)
+            .offset(x = (-4).dp, y = (-4).dp)
             .size(handleSize)
             .background(handleColor, RoundedCornerShape(8.dp))
             .pointerInput(cellWidth, cellHeight, item.spanX, item.spanY) {
@@ -247,8 +247,8 @@ private fun ResizeHandle(
                             val cellsX = (resizeOffset.x / cellWidth).roundToInt()
                             val cellsY = (resizeOffset.y / cellHeight).roundToInt()
 
-                            val newSpanX = (item.spanX + cellsX).coerceIn(1, minOf(4, gridColumns - item.gridX))
-                            val newSpanY = (item.spanY + cellsY).coerceIn(1, minOf(6, gridRows - item.gridY))
+                            val newSpanX = (item.spanX + cellsX).coerceIn(1, gridColumns - item.gridX)
+                            val newSpanY = (item.spanY + cellsY).coerceIn(1, gridRows - item.gridY)
 
                             if (newSpanX != item.spanX || newSpanY != item.spanY) {
                                 onResize(newSpanX, newSpanY)
@@ -279,6 +279,8 @@ private fun ResizeHandle(
 fun EditModeToolbar(
     backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
     isEditMode: Boolean,
+    isAtTop: Boolean,
+    onHide: () -> Unit,
     onAddApp: () -> Unit,
     onAddPanel: () -> Unit,
     onAddFolder: () -> Unit,
@@ -309,7 +311,7 @@ fun EditModeToolbar(
                             )
                         },
                         onDrawSurface = {
-                            drawRect(Color.White.copy(alpha = 0.05f))
+                            drawRect(Color.White.copy(alpha = glassSettings.panelBackgroundAlpha))
                         }
                     )
                 } else {
@@ -378,6 +380,13 @@ fun EditModeToolbar(
                 label = "Settings",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenSettings
+            )
+
+            ControlTile(
+                icon = Icons.Rounded.VisibilityOff,
+                label = "Hide",
+                modifier = Modifier.weight(1f),
+                onClick = onHide
             )
 
             // Large Done Button

@@ -144,6 +144,10 @@ class VideoWallpaperRenderer(private val context: Context) {
         }
     }
 
+    fun isMediaPlaying(): Boolean {
+        return try { mediaPlayer?.isPlaying == true } catch (e: Exception) { false }
+    }
+
     fun setVideoSource(file: java.io.File) {
         synchronized(this) {
             try {

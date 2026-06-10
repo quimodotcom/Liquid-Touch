@@ -9,10 +9,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -35,6 +37,7 @@ import com.quimodotcom.lqlauncher.compose.launcher.LauncherConfigRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
@@ -51,7 +54,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
     inner class LiquidGlassEngine : Engine() {
 
-        private val engineScope = CoroutineScope(Dispatchers.Main + Job())
+        private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         private var wallpaperBitmap: Bitmap? = null
         private var gifBitmap: Bitmap? = null
         private var subjectBitmap: Bitmap? = null
@@ -77,6 +80,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             return if (isLocked) settings.enableLockScreenMediaArt else settings.enableHomeMediaArt
         }
 
+        private fun isAnimating(): Boolean {
+            // Animating if GIF is active or Video is playing
+            val isMpPlaying = try { videoRenderer?.isMediaPlaying() == true } catch (e: Exception) { false }
+            return currentGifUri != null || isMpPlaying
+        }
+
         // Video Renderer
         private var videoRenderer: VideoWallpaperRenderer? = null
         private val handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -85,7 +94,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
             override fun doFrame(frameTimeNanos: Long) {
                 if (isVisible && !isInAmbientMode && !isPowerSaveMode) {
                     draw()
-                    android.view.Choreographer.getInstance().postFrameCallback(this)
+                    // Only repost if something is actually animating to save CPU
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().postFrameCallback(this)
+                    }
                 }
             }
         }
@@ -175,8 +187,24 @@ class LiquidGlassWallpaperService : WallpaperService() {
         // Broadcast Receiver for settings updates
         private val configReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == "com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED") {
-                    reloadSettings()
+                when (intent?.action) {
+                    "com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED" -> {
+                        reloadSettings()
+                    }
+                    Intent.ACTION_TIME_TICK, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
+                        // Check if day/night state changed. Only reload if visible to save battery.
+                        if (isVisible) {
+                            val isDark = isCurrentlyNight()
+                            if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
+                                DebugLogger.log("WallpaperService", "Time Broadcast: Day/Night switch detected.")
+                                lastWallpaperThemeIsDark = isDark
+                                reloadSettings()
+                            } else if (!isAnimating()) {
+                                // Just redraw the clock/UI if time changed but theme didn't
+                                draw()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -223,7 +251,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // videoRenderer?.onSurfaceCreated(surfaceHolder!!) // Removed to fix crash: EGL surface creation must happen in onSurfaceCreated
 
             // Register receivers
-            val filter = IntentFilter("com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED")
+            val filter = IntentFilter().apply {
+                addAction("com.quimodotcom.lqlauncher.ACTION_CONFIG_CHANGED")
+                addAction(Intent.ACTION_TIME_TICK)
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(configReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
             } else {
@@ -276,6 +309,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Observe media state
             engineScope.launch {
                 MediaStateRepository.mediaState.collectLatest { state ->
+                  try {
                     if (state != null) {
                         DebugLogger.log("WallpaperService", "Media: ${state.title} - ${state.artist}")
                         mediaTitle = state.title
@@ -398,7 +432,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                                     if (small != art && small != blurred) {
                                         small.recycle()
                                     }
-                                } catch (e: Exception) {
+                                } catch (e: Throwable) {
                                     Log.e("LiquidGlassWallpaper", "Error generating blur", e)
                                 }
                             } else {
@@ -425,6 +459,9 @@ class LiquidGlassWallpaperService : WallpaperService() {
                             draw()
                         }
                     }
+                  } catch (t: Throwable) {
+                      Log.e("LiquidGlassWallpaper", "Error in media state collection", t)
+                  }
                 }
             }
         }
@@ -463,7 +500,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             if (visible) {
                 reloadSettings()
-                startTickerJob()
 
                 // Launch interactive controls if enabled and locked
                 // Check if media is actually playing/active to avoid blank overlay
@@ -487,8 +523,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (!isInAmbientMode && !isPowerSaveMode) {
                     startGifJobIfNeeded()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
                 draw()
             } else {
@@ -529,9 +567,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isInAmbientMode) {
                     startGifJobIfNeeded()
-                    startTickerJob()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
             }
             draw()
@@ -561,9 +600,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
                 if (isVisible && !isPowerSaveMode) {
                     startGifJobIfNeeded()
-                    startTickerJob()
-                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    if (isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
                 }
                 // Reset burn-in offset
                 burnInOffsetX = 0f
@@ -587,7 +627,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun updateLockState() {
             try {
+                val wasLocked = isLocked
                 isLocked = keyguardManager.isKeyguardLocked
+                if (isLocked != wasLocked) {
+                    DebugLogger.log("WallpaperService", "Lock state changed: $isLocked")
+                    draw()
+                }
             } catch (e: Exception) {
                 isLocked = false
             }
@@ -619,7 +664,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 settings = LiquidGlassSettingsRepository.loadSettings(this@LiquidGlassWallpaperService)
                 updateLockState()
                 loadWallpapers()
-                draw()
+
+                withContext(Dispatchers.Main) {
+                    draw()
+                    // Restart animation loop if needed
+                    if (isVisible && !isInAmbientMode && !isPowerSaveMode && isAnimating()) {
+                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
+                    }
+                }
             }
         }
 
@@ -825,7 +878,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     DebugLogger.log("WallpaperService", "System wallpaper drawable is null")
                     null
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("LiquidGlassWallpaper", "Error loading system wallpaper", e)
                 null
             }
@@ -833,7 +886,24 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun loadBitmap(uri: Uri, reqW: Int, reqH: Int): Bitmap? {
             return try {
-                // Decode bounds
+                // 1. Get EXIF rotation
+                var rotation = 0
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        val exif = ExifInterface(input)
+                        val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                        rotation = when (orientation) {
+                            ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                            ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                            ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                            else -> 0
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("WallpaperService", "Could not read EXIF for $uri")
+                }
+
+                // 2. Decode bounds
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
@@ -843,14 +913,29 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     return null
                 }
 
-                options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, reqW, reqH)
+                // Swap dimensions for sample size calculation if rotated 90 or 270
+                val rotatedW = if (rotation == 90 || rotation == 270) options.outHeight else options.outWidth
+                val rotatedH = if (rotation == 90 || rotation == 270) options.outWidth else options.outHeight
+
+                options.inSampleSize = calculateInSampleSize(rotatedW, rotatedH, reqW, reqH)
                 options.inJustDecodeBounds = false
                 options.inPreferredConfig = Bitmap.Config.ARGB_8888
 
-                contentResolver.openInputStream(uri)?.use {
+                val bitmap = contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
                 }
-            } catch (e: Exception) {
+
+                // 3. Apply rotation if needed
+                if (bitmap != null && rotation != 0) {
+                    val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                    val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    bitmap.recycle()
+                    rotatedBitmap
+                } else {
+                    bitmap
+                }
+            } catch (e: Throwable) {
+                Log.e("WallpaperService", "Error loading bitmap: $uri", e)
                 null
             }
         }
@@ -896,22 +981,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
             } else {
                 // videoRenderer?.reset() // Be careful not to stop media art video
-            }
-        }
-
-        private fun startTickerJob() {
-            tickerJob?.cancel()
-            if (isInAmbientMode || isPowerSaveMode || !isVisible) return
-
-            tickerJob = engineScope.launch {
-                while (isActive) {
-                    val isDark = isCurrentlyNight()
-                    if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
-                        DebugLogger.log("WallpaperService", "Ticker: Day/Night switch detected.")
-                        reloadSettings()
-                    }
-                    delay(60000) // Check every minute
-                }
             }
         }
 
@@ -968,18 +1037,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var lastSubBitmap: Bitmap? = null
 
         private fun isCurrentlyNight(): Boolean {
-            val calendar = Calendar.getInstance()
-            val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-            val nightStart = settings.nightStartHour * 60 + settings.nightStartMinute
-            val dayStart = settings.dayStartHour * 60 + settings.dayStartMinute
-
-            val isNight = if (nightStart > dayStart) {
-                currentMinutes >= nightStart || currentMinutes < dayStart
-            } else {
-                currentMinutes >= nightStart && currentMinutes < dayStart
-            }
-
-            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight (now=$currentMinutes, day=$dayStart, night=$nightStart)")
+            val isNight = settings.isCurrentlyNight(this@LiquidGlassWallpaperService)
+            DebugLogger.log("WallpaperService", "isCurrentlyNight: $isNight")
             return isNight
         }
 
@@ -987,11 +1046,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Check for Day/Night switch based on current state vs last loaded state
             val isDark = isCurrentlyNight()
 
-            if (lastWallpaperThemeIsDark != null && isDark != lastWallpaperThemeIsDark) {
-                DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
-                reloadSettings()
+            if (isDark != lastWallpaperThemeIsDark) {
+                val wasNotNull = lastWallpaperThemeIsDark != null
+                lastWallpaperThemeIsDark = isDark
+                if (wasNotNull) {
+                    DebugLogger.log("WallpaperService", "Day/Night theme transition detected. Reloading.")
+                    reloadSettings()
+                }
             }
-            lastWallpaperThemeIsDark = isDark
 
             // Ambient Mode Handling (Black screen + Simple Clock)
             if (isInAmbientMode) {
@@ -1000,6 +1062,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Let's use the existing GL renderer but set background to black (null)
                 videoRenderer?.setBackground(null)
                 videoRenderer?.setSubject(null)
+                lastBgBitmap = null
+                lastSubBitmap = null
 
                 val calendar = Calendar.getInstance()
                 // Update burn-in protection offsets randomly every minute

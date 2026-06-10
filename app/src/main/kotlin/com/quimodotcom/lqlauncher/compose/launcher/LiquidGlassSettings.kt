@@ -33,6 +33,7 @@ data class LiquidGlassSettings(
     // Colors and transparency
     val panelTintColor: Long = 0xFF6366F1L,
     val panelBackgroundAlpha: Float = 0.12f,
+    val drawerBackgroundAlpha: Float = 0.85f,
     val iconBackgroundAlpha: Float = 0.1f,
     
     // Corner radius
@@ -107,9 +108,50 @@ data class LiquidGlassSettings(
     val nightStartHour: Int = 20,
     val nightStartMinute: Int = 0,
 
+    // Theme System
+    val currentThemeId: String = "default",
+    val customThemes: List<LauncherTheme> = emptyList(),
+
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
-)
+) {
+    /**
+     * Determines if it is currently "night" based on the scheduled times,
+     * the system theme, or manual user override.
+     *
+     * Detailed logic:
+     * 1. **Default behavior:** If `nightStart` and `dayStart` are set to the same time (default),
+     *    the launcher defers to the system-wide Dark Theme setting.
+     * 2. **Midnight Spanning:** If `nightStart` is greater than `dayStart` (e.g., 22:00 to 07:00),
+     *    the time is considered "night" if current time is >= `nightStart` OR < `dayStart`.
+     * 3. **Single Day Range:** If `nightStart` is less than `dayStart` (e.g., 00:00 to 08:00),
+     *    the time is considered "night" if current time is >= `nightStart` AND < `dayStart`.
+     *
+     * @param context Used to access the system theme configuration.
+     * @return True if the current theme should be "night" (dark).
+     */
+    fun isCurrentlyNight(context: android.content.Context): Boolean {
+        // Check system theme as a fallback or baseline
+        val uiMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isSystemDark = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        val calendar = java.util.Calendar.getInstance()
+        val currentMinutes = calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + calendar.get(java.util.Calendar.MINUTE)
+        val nightStart = nightStartHour * 60 + nightStartMinute
+        val dayStart = dayStartHour * 60 + dayStartMinute
+
+        return if (nightStart == dayStart) {
+            // If times are identical, defer to system theme
+            isSystemDark
+        } else if (nightStart > dayStart) {
+            // Night spans across midnight (e.g., 20:00 to 07:00)
+            currentMinutes >= nightStart || currentMinutes < dayStart
+        } else {
+            // Night is within the same day (e.g., 00:00 to 07:00)
+            currentMinutes >= nightStart && currentMinutes < dayStart
+        }
+    }
+}
 
 /**
  * Repository for saving/loading liquid glass settings

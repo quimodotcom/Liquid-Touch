@@ -145,7 +145,7 @@ fun AppDrawer(
 
     // Determine panel style
     val panelColor = Color(glassSettings.panelTintColor)
-    val panelAlpha = glassSettings.panelBackgroundAlpha
+    val panelAlpha = glassSettings.drawerBackgroundAlpha
     val blurRadius = glassSettings.blurRadius.dp
 
         Column(
@@ -182,7 +182,7 @@ fun AppDrawer(
                         )
                     } else {
                         Modifier.background(
-                            color = Color.Black.copy(alpha = 0.9f),
+                            color = Color.Black.copy(alpha = panelAlpha),
                             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                         )
                     }
@@ -303,7 +303,7 @@ fun AppDrawer(
 
             LazyVerticalGrid(
                 state = listState,
-                columns = GridCells.Adaptive(minSize = 80.dp),
+                columns = GridCells.Fixed(glassSettings.gridColumns),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
