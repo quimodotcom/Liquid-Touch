@@ -762,8 +762,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                val isNightSubject = isDark && config?.wallpaperSubjectNightUri != null
-                val subjectUri = if (isNightSubject) config?.wallpaperSubjectNightUri else config?.wallpaperSubjectUri
+                val daySubject = config?.wallpaperSubjectUri
+                val nightSubject = config?.wallpaperSubjectNightUri
+
+                // Rule: Day subject layer should never show if there's no night layer
+                val subjectUri = if (nightSubject != null) {
+                    if (isDark) nightSubject else daySubject
+                } else {
+                    null
+                }
 
                 if (subjectUri != null) {
                     subjectBitmap = loadBitmap(Uri.parse(subjectUri), targetW, targetH)

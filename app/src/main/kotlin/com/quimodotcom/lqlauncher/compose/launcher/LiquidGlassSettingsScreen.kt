@@ -338,9 +338,17 @@ fun LiquidGlassSettingsScreen(
                         SettingsCard {
                             SwitchSetting(
                                 title = "Cyberpunk Theme",
-                                subtitle = "Dark mode with high-contrast neon accents",
+                                subtitle = "Force all widgets to use neon aesthetics",
                                 checked = settings.cyberpunkTheme,
-                                onCheckedChange = { onSettingsChanged(settings.copy(cyberpunkTheme = it)) }
+                                onCheckedChange = {
+                                    val newTheme = it
+                                    onSettingsChanged(settings.copy(
+                                        cyberpunkTheme = newTheme,
+                                        clockStyle = if (newTheme) "Cyberpunk" else settings.clockStyle,
+                                        weatherStyle = if (newTheme) "Cyberpunk" else settings.weatherStyle,
+                                        batteryStyle = if (newTheme) "Cyberpunk" else settings.batteryStyle
+                                    ))
+                                }
                             )
                             SettingsSeparator()
                             // Icon Pack Picker

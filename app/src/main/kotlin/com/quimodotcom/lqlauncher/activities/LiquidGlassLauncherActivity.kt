@@ -160,6 +160,7 @@ private fun EditableLauncherScreen(
     var showAppDrawer by remember { mutableStateOf(false) }
     var drawerTrigger by remember { mutableIntStateOf(0) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
+    val itemsAlpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f, label = "itemsAlpha")
     var selectedSubjectAdjustmentMode by remember { mutableIntStateOf(0) } // 0 = Day, 1 = Night
     var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -494,7 +495,6 @@ private fun EditableLauncherScreen(
 
                     val isSelected = editModeState.selectedItemId == item.id
                     val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
-                    val alpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f)
 
                     Box(
                         modifier = Modifier
@@ -502,7 +502,7 @@ private fun EditableLauncherScreen(
                             .graphicsLayer {
                                 translationX = dragTranslation.x
                                 translationY = dragTranslation.y
-                                this.alpha = alpha
+                                this.alpha = itemsAlpha
                             }
                             .size(width, height)
                             .padding(4.dp)
@@ -522,8 +522,21 @@ private fun EditableLauncherScreen(
                 if (editModeState.showWallpaperPicker) selectedSubjectAdjustmentMode == 1 else isCurrentlyNight
             }
 
-            val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri) {
-                if (effectiveSubjectNight) (launcherConfig.wallpaperSubjectNightUri ?: launcherConfig.wallpaperSubjectUri) else launcherConfig.wallpaperSubjectUri
+            val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri, editModeState.showWallpaperPicker) {
+                // Rule: Day subject layer should never show if there's no night layer.
+                // UNLESS we are in the picker (so the user can see what they are doing).
+                val daySubject = launcherConfig.wallpaperSubjectUri
+                val nightSubject = launcherConfig.wallpaperSubjectNightUri
+
+                if (editModeState.showWallpaperPicker) {
+                    if (effectiveSubjectNight) nightSubject else daySubject
+                } else {
+                    if (nightSubject != null) {
+                        if (effectiveSubjectNight) nightSubject else daySubject
+                    } else {
+                        null
+                    }
+                }
             }
 
             if (currentSubjectUri != null) {
@@ -622,7 +635,6 @@ private fun EditableLauncherScreen(
 
                 launcherConfig.items.forEach { item ->
                     val isSelected = editModeState.selectedItemId == item.id
-                val alpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f)
 
                 val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
                 val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
@@ -746,7 +758,7 @@ private fun EditableLauncherScreen(
                         .offset(x = offsetX, y = offsetY)
                         .size(width = width, height = height)
                         .padding(4.dp)
-                        .graphicsLayer { this.alpha = alpha }
+                        .graphicsLayer { this.alpha = itemsAlpha }
                 ) {
                     when (item) {
                         is LauncherItem.AppShortcut -> AppShortcutView(
