@@ -112,6 +112,89 @@ fun LiquidGlassSettingsScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // === 0. GLOBAL THEMES ===
+                    item {
+                        SettingsSection(title = "Global Themes", icon = Icons.Rounded.Palette)
+                        val themes = listOf(
+                            LauncherTheme.Default,
+                            LauncherTheme.Cyberpunk,
+                            LauncherTheme.Frosted,
+                            LauncherTheme.Minimal
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            themes.forEach { theme ->
+                                val isSelected = settings.currentThemeId == theme.id
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) Color(0xFF6366F1).copy(alpha = 0.2f) else Color(0xFF1A1A24))
+                                        .border(
+                                            width = 2.dp,
+                                            color = if (isSelected) Color(0xFF6366F1) else Color.Transparent,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable {
+                                            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                                            val newSettings = settings.copy(
+                                                currentThemeId = theme.id,
+                                                liquidGlassEnabled = theme.liquidGlassEnabled,
+                                                blurRadius = theme.blurRadius,
+                                                refractionHeight = theme.refractionHeight,
+                                                refractionAmount = theme.refractionAmount,
+                                                chromaticAberration = theme.chromaticAberration,
+                                                vibrancyEnabled = theme.vibrancyEnabled,
+                                                panelTintColor = theme.panelTintColor,
+                                                panelBackgroundAlpha = theme.panelBackgroundAlpha,
+                                                iconBackgroundAlpha = theme.iconBackgroundAlpha,
+                                                panelCornerRadius = theme.panelCornerRadius,
+                                                iconCornerRadius = theme.iconCornerRadius,
+                                                clockStyle = theme.clockStyle,
+                                                weatherStyle = theme.weatherStyle,
+                                                batteryStyle = theme.batteryStyle,
+                                                cyberpunkTheme = theme.cyberpunkTheme,
+                                                windowBlurEnabled = theme.windowBlurEnabled,
+                                                windowBlurRadius = theme.windowBlurRadius,
+                                                panelBlurEnabled = theme.panelBlurEnabled,
+                                                drawerBlurEnabled = theme.drawerBlurEnabled,
+                                                drawerBlurRadius = theme.drawerBlurRadius
+                                            )
+                                            onSettingsChanged(newSettings)
+                                        }
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(theme.panelTintColor.toInt()))
+                                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isSelected) {
+                                            Icon(Icons.Rounded.Check, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                                        }
+                                    }
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        theme.name,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // === 1. WALLPAPER & LAYERS ===
                     item {
                         SettingsSection(title = "Wallpaper & Layers", icon = Icons.Rounded.Wallpaper)
@@ -274,6 +357,42 @@ fun LiquidGlassSettingsScreen(
                                 valueRange = 8f..32f,
                                 valueLabel = "${settings.panelCornerRadius.toInt()}dp",
                                 onValueChange = { onSettingsChanged(settings.copy(panelCornerRadius = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Panel Blur",
+                                subtitle = "Enable background blur for home screen panels",
+                                checked = settings.panelBlurEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(panelBlurEnabled = it)) }
+                            )
+                            SwitchSetting(
+                                title = "App Drawer Blur",
+                                subtitle = "Blur effect for the application list",
+                                checked = settings.drawerBlurEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(drawerBlurEnabled = it)) }
+                            )
+                            SliderSetting(
+                                title = "Drawer Blur Radius",
+                                value = settings.drawerBlurRadius,
+                                valueRange = 4f..60f,
+                                enabled = settings.drawerBlurEnabled,
+                                valueLabel = "${settings.drawerBlurRadius.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(drawerBlurRadius = it)) }
+                            )
+                            SettingsSeparator()
+                            SwitchSetting(
+                                title = "Window Blur",
+                                subtitle = "Blur the background wallpaper globally",
+                                checked = settings.windowBlurEnabled,
+                                onCheckedChange = { onSettingsChanged(settings.copy(windowBlurEnabled = it)) }
+                            )
+                            SliderSetting(
+                                title = "Window Blur Radius",
+                                value = settings.windowBlurRadius,
+                                valueRange = 4f..60f,
+                                enabled = settings.windowBlurEnabled,
+                                valueLabel = "${settings.windowBlurRadius.toInt()}dp",
+                                onValueChange = { onSettingsChanged(settings.copy(windowBlurRadius = it)) }
                             )
                         }
                     }

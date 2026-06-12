@@ -417,6 +417,17 @@ private fun EditableLauncherScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(
+                        if (glassSettings.windowBlurEnabled) {
+                            Modifier.drawBackdrop(
+                                backdrop = backdrop,
+                                shape = { com.kyant.shapes.RoundedRectangle(0f) },
+                                effects = {
+                                    blur(glassSettings.windowBlurRadius.dp.toPx())
+                                }
+                            )
+                        } else Modifier
+                    )
                     .graphicsLayer {
                         if (glassSettings.enableParallax) {
                             val tilt = tiltState.value
@@ -529,7 +540,7 @@ private fun EditableLauncherScreen(
                 val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
                 if (editModeState.showWallpaperPicker) {
-                    if (effectiveSubjectNight) nightSubject else daySubject
+                    if (effectiveSubjectNight) nightSubject ?: daySubject else daySubject
                 } else {
                     if (nightSubject != null) {
                         if (effectiveSubjectNight) nightSubject else daySubject
@@ -1486,7 +1497,7 @@ private fun AppShortcutView(
     val iconDrawable = iconDrawableState.value
     val view = LocalView.current
 
-    Column(
+    Box(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
@@ -1525,14 +1536,13 @@ private fun AppShortcutView(
                     )
                 }
             }
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // App icon - fills most of the tile
+        // App icon - perfectly centered in the tile
         Box(
             modifier = Modifier
-                .fillMaxSize(0.85f)
+                .fillMaxSize(if (showLabel) 0.65f else 0.85f)
                 .clip(RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1553,16 +1563,18 @@ private fun AppShortcutView(
         }
 
         if (showLabel) {
-            Spacer(Modifier.height(4.dp))
-
-            // App label
+            // App label - at the bottom
             Text(
                 text = item.label,
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 maxLines = 1,
+                lineHeight = 10.sp,
                 overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp)
             )
         }
     }
@@ -1625,13 +1637,13 @@ private fun GlassPanelBackground(
             .then(
                 if (item.customImageUri != null) {
                     Modifier
-                } else if (glassSettings.liquidGlassEnabled) {
+                } else if (glassSettings.panelBlurEnabled) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { RoundedRectangle(cornerRadius) },
                         effects = {
                             if (glassSettings.vibrancyEnabled) vibrancy()
-                            if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                            blur(blurRadius.toPx())
                             if (glassSettings.lensEnabled) lens(
                                 refractionHeight = glassSettings.refractionHeight.dp.toPx(),
                                 refractionAmount = glassSettings.refractionAmount.dp.toPx(),
