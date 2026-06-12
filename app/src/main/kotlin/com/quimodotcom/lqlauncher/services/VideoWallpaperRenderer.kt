@@ -63,6 +63,8 @@ class VideoWallpaperRenderer(private val context: Context) {
     private val stMatrix = FloatArray(16)
     private var videoRatio = 1.777f // Default to 16:9 to avoid initial distortion
     private var subjectScale = 1.0f
+    private var subjectOffsetX = 0f
+    private var subjectOffsetY = 0f
     private var backgroundScale = 1.0f
     private var subjectScaleMode = ScaleMode.CENTER_CROP
 
@@ -73,6 +75,11 @@ class VideoWallpaperRenderer(private val context: Context) {
 
     fun setSubjectScale(scale: Float) {
         subjectScale = scale
+    }
+
+    fun setSubjectOffset(x: Float, y: Float) {
+        subjectOffsetX = x
+        subjectOffsetY = y
     }
 
     fun setBackgroundScale(scale: Float) {
@@ -482,19 +489,20 @@ class VideoWallpaperRenderer(private val context: Context) {
             val subRatio = if (subH > 0) subW.toFloat() / subH else 1f
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
-            if (subjectScaleMode == ScaleMode.CENTER_CROP) {
-                if (subRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, (subRatio / screenRatio) * subjectScale, subjectScale, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, subjectScale, (screenRatio / subRatio) * subjectScale, 1f)
-                }
+            // Always use Center Crop base for Subject to maintain scale accuracy relative to wallpaper
+            if (subRatio > screenRatio) {
+                Matrix.scaleM(mvpMatrix, 0, (subRatio / screenRatio) * subjectScale, subjectScale, 1f)
             } else {
-                // FIT_CENTER
-                if (subRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, subjectScale, (screenRatio / subRatio) * subjectScale, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, (subRatio / screenRatio) * subjectScale, subjectScale, 1f)
-                }
+                Matrix.scaleM(mvpMatrix, 0, subjectScale, (screenRatio / subRatio) * subjectScale, 1f)
+            }
+
+            if (subjectScaleMode == ScaleMode.FIT_CENTER) {
+                // Apply Translation for manual mode (custom offsets)
+                // Normalize pixel offsets to GL coordinates (-1 to 1)
+                // Note: This is a rough approximation as density might differ
+                val glOffX = (subjectOffsetX * 2.0f) / width
+                val glOffY = -(subjectOffsetY * 2.0f) / height // GL Y is inverted
+                Matrix.translateM(mvpMatrix, 0, glOffX, glOffY, 0f)
             }
 
             val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")

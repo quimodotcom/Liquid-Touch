@@ -112,6 +112,13 @@ data class LiquidGlassSettings(
     val currentThemeId: String = "default",
     val customThemes: List<LauncherTheme> = emptyList(),
 
+    // Visual Effects extension
+    val windowBlurEnabled: Boolean = false,
+    val windowBlurRadius: Float = 20f,
+    val panelBlurEnabled: Boolean = false,
+    val drawerBlurEnabled: Boolean = true,
+    val drawerBlurRadius: Float = 25f,
+
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
 ) {
@@ -182,15 +189,18 @@ object LiquidGlassSettingsRepository {
     
     suspend fun loadSettings(context: Context): LiquidGlassSettings {
         return withContext(Dispatchers.IO) {
-            try {
-                val file = File(context.filesDir, SETTINGS_FILE)
-                if (file.exists()) {
-                    json.decodeFromString<LiquidGlassSettings>(file.readText())
-                } else {
-                    LiquidGlassSettings()
+            val file = File(context.filesDir, SETTINGS_FILE)
+            if (file.exists()) {
+                val jsonString = file.readText()
+                if (jsonString.isBlank()) return@withContext LiquidGlassSettings()
+
+                try {
+                    json.decodeFromString<LiquidGlassSettings>(jsonString)
+                } catch (e: Exception) {
+                    // Re-throw to prevent returning defaults on corruption
+                    throw Exception("Failed to decode LiquidGlassSettings: ${e.message}", e)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else {
                 LiquidGlassSettings()
             }
         }
