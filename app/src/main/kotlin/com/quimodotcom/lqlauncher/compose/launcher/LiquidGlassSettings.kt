@@ -177,7 +177,14 @@ object LiquidGlassSettingsRepository {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(context.filesDir, SETTINGS_FILE)
-                file.writeText(json.encodeToString(settings))
+                val tempFile = File(context.filesDir, "$SETTINGS_FILE.tmp")
+
+                val jsonString = json.encodeToString(settings)
+                tempFile.writeText(jsonString)
+
+                if (tempFile.exists() && tempFile.length() > 0) {
+                    tempFile.renameTo(file)
+                }
 
                 // Notify service (WallpaperService) to reload settings
                 context.sendBroadcast(Intent(ACTION_CONFIG_CHANGED))

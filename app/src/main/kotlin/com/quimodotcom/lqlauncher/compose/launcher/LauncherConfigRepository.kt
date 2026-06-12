@@ -29,8 +29,14 @@ object LauncherConfigRepository {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(context.filesDir, CONFIG_FILE_NAME)
+                val tempFile = File(context.filesDir, "$CONFIG_FILE_NAME.tmp")
+
                 val jsonString = json.encodeToString(config)
-                file.writeText(jsonString)
+                tempFile.writeText(jsonString)
+
+                if (tempFile.exists() && tempFile.length() > 0) {
+                    tempFile.renameTo(file)
+                }
 
                 // Notify service (WallpaperService) to reload config
                 context.sendBroadcast(Intent(ACTION_CONFIG_CHANGED))

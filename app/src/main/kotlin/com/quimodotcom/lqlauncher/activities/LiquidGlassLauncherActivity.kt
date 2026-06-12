@@ -222,10 +222,11 @@ private fun EditableLauncherScreen(
                 // Load glass settings first
                 val savedSettings = LiquidGlassSettingsRepository.loadSettings(context)
                 glassSettings = savedSettings
-                isSettingsLoaded = true
             } catch (e: Exception) {
                 android.util.Log.e("Launcher", "CRITICAL: Settings corruption detected", e)
-                // Do NOT set isSettingsLoaded = true here to prevent overwrite
+            } finally {
+                // Allow user changes to fix the state even if load failed
+                isSettingsLoaded = true
             }
 
             // Icon pack system removed — delete any residual icon pack caches
@@ -250,10 +251,10 @@ private fun EditableLauncherScreen(
                         items = createDefaultItems(availableApps)
                     )
                 }
-                isConfigLoaded = true
             } catch (e: Exception) {
                 android.util.Log.e("Launcher", "CRITICAL: Config corruption detected", e)
-                // Do NOT set isConfigLoaded = true here to prevent overwrite
+            } finally {
+                isConfigLoaded = true
             }
         }
     }
@@ -429,7 +430,7 @@ private fun EditableLauncherScreen(
                         if (glassSettings.windowBlurEnabled) {
                             Modifier.drawBackdrop(
                                 backdrop = backdrop,
-                                shape = { com.kyant.shapes.RoundedRectangle(0f) },
+                                shape = { com.kyant.shapes.RoundedRectangle(0.dp) },
                                 effects = {
                                     blur(glassSettings.windowBlurRadius.dp.toPx())
                                 }
@@ -542,14 +543,13 @@ private fun EditableLauncherScreen(
             }
 
             val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri, editModeState.showWallpaperPicker) {
-                // Rule: Day subject layer should never show if there's no night layer.
-                // UNLESS we are in the picker (so the user can see what they are doing).
                 val daySubject = launcherConfig.wallpaperSubjectUri
                 val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
                 if (editModeState.showWallpaperPicker) {
                     if (effectiveSubjectNight) nightSubject ?: daySubject else daySubject
                 } else {
+                    // Rule: Day subject layer should never show if there's no night layer.
                     if (nightSubject != null) {
                         if (effectiveSubjectNight) nightSubject else daySubject
                     } else {
@@ -1550,7 +1550,7 @@ private fun AppShortcutView(
         // App icon - perfectly centered in the tile
         Box(
             modifier = Modifier
-                .fillMaxSize(if (showLabel) 0.65f else 0.85f)
+                .fillMaxSize(if (showLabel) 0.6f else 0.8f)
                 .clip(RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
