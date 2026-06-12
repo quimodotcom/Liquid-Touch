@@ -112,6 +112,13 @@ data class LiquidGlassSettings(
     val currentThemeId: String = "default",
     val customThemes: List<LauncherTheme> = emptyList(),
 
+    // Visual Effects extension
+    val windowBlurEnabled: Boolean = false,
+    val windowBlurRadius: Float = 20f,
+    val panelBlurEnabled: Boolean = false,
+    val drawerBlurEnabled: Boolean = true,
+    val drawerBlurRadius: Float = 25f,
+
     // Runtime state (persisted for convenience)
     val secretWallpaperVisible: Boolean = true
 ) {

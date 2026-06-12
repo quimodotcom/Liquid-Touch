@@ -160,6 +160,8 @@ private fun EditableLauncherScreen(
     var showAppDrawer by remember { mutableStateOf(false) }
     var drawerTrigger by remember { mutableIntStateOf(0) }
     var isSubjectPositioning by remember { mutableStateOf(false) }
+    val itemsAlpha by animateFloatAsState(if (isSubjectPositioning) 0f else 1f, label = "itemsAlpha")
+    var selectedSubjectAdjustmentMode by remember { mutableIntStateOf(0) } // 0 = Day, 1 = Night
     var showInvisibleButtonActionPicker by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Liquid glass settings state
@@ -415,6 +417,17 @@ private fun EditableLauncherScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(
+                        if (glassSettings.windowBlurEnabled) {
+                            Modifier.drawBackdrop(
+                                backdrop = backdrop,
+                                shape = { com.kyant.shapes.RoundedRectangle(0f) },
+                                effects = {
+                                    blur(glassSettings.windowBlurRadius.dp.toPx())
+                                }
+                            )
+                        } else Modifier
+                    )
                     .graphicsLayer {
                         if (glassSettings.enableParallax) {
                             val tilt = tiltState.value
@@ -493,7 +506,6 @@ private fun EditableLauncherScreen(
 
                     val isSelected = editModeState.selectedItemId == item.id
                     val dragTranslation = if (isSelected && editModeState.isDragging) editModeState.dragOffset else Offset.Zero
-                    val alpha = if (isSubjectPositioning) 0f else 1f
 
                     Box(
                         modifier = Modifier
@@ -501,7 +513,7 @@ private fun EditableLauncherScreen(
                             .graphicsLayer {
                                 translationX = dragTranslation.x
                                 translationY = dragTranslation.y
-                                this.alpha = alpha
+                                this.alpha = itemsAlpha
                             }
                             .size(width, height)
                             .padding(4.dp)
@@ -517,11 +529,38 @@ private fun EditableLauncherScreen(
             }
 
             // Layer 2: Subject Layer (Fixed, already rendered outside) - NO, let's render it HERE for correct Z-order
-            if (launcherConfig.wallpaperSubjectUri != null) {
-                if (launcherConfig.subjectMatchWallpaper) {
+            val effectiveSubjectNight = remember(isCurrentlyNight, editModeState.showWallpaperPicker, selectedSubjectAdjustmentMode) {
+                if (editModeState.showWallpaperPicker) selectedSubjectAdjustmentMode == 1 else isCurrentlyNight
+            }
+
+            val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri, editModeState.showWallpaperPicker) {
+                // Rule: Day subject layer should never show if there's no night layer.
+                // UNLESS we are in the picker (so the user can see what they are doing).
+                val daySubject = launcherConfig.wallpaperSubjectUri
+                val nightSubject = launcherConfig.wallpaperSubjectNightUri
+
+                if (editModeState.showWallpaperPicker) {
+                    if (effectiveSubjectNight) nightSubject ?: daySubject else daySubject
+                } else {
+                    if (nightSubject != null) {
+                        if (effectiveSubjectNight) nightSubject else daySubject
+                    } else {
+                        null
+                    }
+                }
+            }
+
+            if (currentSubjectUri != null) {
+                val isNightSubject = effectiveSubjectNight && launcherConfig.wallpaperSubjectNightUri != null
+                val matchWallpaper = if (isNightSubject) launcherConfig.subjectNightMatchWallpaper else launcherConfig.subjectMatchWallpaper
+                val scale = if (isNightSubject) launcherConfig.subjectNightScale else launcherConfig.subjectScale
+                val offX = if (isNightSubject) launcherConfig.subjectNightOffsetX else launcherConfig.subjectOffsetX
+                val offY = if (isNightSubject) launcherConfig.subjectNightOffsetY else launcherConfig.subjectOffsetY
+
+                if (matchWallpaper) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(currentSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
@@ -559,20 +598,20 @@ private fun EditableLauncherScreen(
                 } else {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(launcherConfig.wallpaperSubjectUri)
+                            .data(currentSubjectUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
                                 val tilt = tiltState.value
                                 val intensity = glassSettings.parallaxIntensity
-                                scaleX = launcherConfig.subjectScale
-                                scaleY = launcherConfig.subjectScale
-                                translationX = (launcherConfig.subjectOffsetX * density.density) + (tilt.x * 35f * intensity)
-                                translationY = (launcherConfig.subjectOffsetY * density.density) + (tilt.y * 35f * intensity)
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = (offX * density.density) + (tilt.x * 35f * intensity)
+                                translationY = (offY * density.density) + (tilt.y * 35f * intensity)
                             }
                     )
                 }
@@ -607,7 +646,6 @@ private fun EditableLauncherScreen(
 
                 launcherConfig.items.forEach { item ->
                     val isSelected = editModeState.selectedItemId == item.id
-                val alpha = if (isSubjectPositioning) 0f else 1f
 
                 val offsetX = with(density) { (item.gridX * cellWidth).toDp() }
                 val offsetY = with(density) { (item.gridY * cellHeight).toDp() }
@@ -731,7 +769,7 @@ private fun EditableLauncherScreen(
                         .offset(x = offsetX, y = offsetY)
                         .size(width = width, height = height)
                         .padding(4.dp)
-                        .graphicsLayer { this.alpha = alpha }
+                        .graphicsLayer { this.alpha = itemsAlpha }
                 ) {
                     when (item) {
                         is LauncherItem.AppShortcut -> AppShortcutView(
@@ -1084,10 +1122,17 @@ private fun EditableLauncherScreen(
             currentWallpaperNightUri = launcherConfig.wallpaperNightUri,
             useSystemWallpaper = launcherConfig.useSystemWallpaper,
             currentSubjectUri = launcherConfig.wallpaperSubjectUri,
+            currentSubjectNightUri = launcherConfig.wallpaperSubjectNightUri,
             subjectMatchWallpaper = launcherConfig.subjectMatchWallpaper,
             subjectScale = launcherConfig.subjectScale,
             subjectOffsetX = launcherConfig.subjectOffsetX,
             subjectOffsetY = launcherConfig.subjectOffsetY,
+            subjectNightMatchWallpaper = launcherConfig.subjectNightMatchWallpaper,
+            subjectNightScale = launcherConfig.subjectNightScale,
+            subjectNightOffsetX = launcherConfig.subjectNightOffsetX,
+            subjectNightOffsetY = launcherConfig.subjectNightOffsetY,
+            selectedSubjectMode = selectedSubjectAdjustmentMode,
+            onSubjectModeChanged = { selectedSubjectAdjustmentMode = it },
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
             onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
@@ -1215,13 +1260,25 @@ private fun EditableLauncherScreen(
             onSubjectSelected = { uri ->
                 launcherConfig = launcherConfig.copy(wallpaperSubjectUri = uri)
             },
-            onSubjectConfigChanged = { match, scale, offX, offY ->
-                launcherConfig = launcherConfig.copy(
-                    subjectMatchWallpaper = match,
-                    subjectScale = scale,
-                    subjectOffsetX = offX,
-                    subjectOffsetY = offY
-                )
+            onSubjectNightSelected = { uri ->
+                launcherConfig = launcherConfig.copy(wallpaperSubjectNightUri = uri)
+            },
+            onSubjectConfigChanged = { isNight, match, scale, offX, offY ->
+                launcherConfig = if (isNight) {
+                    launcherConfig.copy(
+                        subjectNightMatchWallpaper = match,
+                        subjectNightScale = scale,
+                        subjectNightOffsetX = offX,
+                        subjectNightOffsetY = offY
+                    )
+                } else {
+                    launcherConfig.copy(
+                        subjectMatchWallpaper = match,
+                        subjectScale = scale,
+                        subjectOffsetX = offX,
+                        subjectOffsetY = offY
+                    )
+                }
             },
             onInteractionStart = { isSubjectPositioning = true },
             onInteractionEnd = { isSubjectPositioning = false },
@@ -1440,7 +1497,7 @@ private fun AppShortcutView(
     val iconDrawable = iconDrawableState.value
     val view = LocalView.current
 
-    Column(
+    Box(
         modifier = Modifier
             .size(scaledSize)
             .clip(RoundedCornerShape(cornerRadius))
@@ -1479,14 +1536,13 @@ private fun AppShortcutView(
                     )
                 }
             }
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(4.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // App icon - fills most of the tile
+        // App icon - perfectly centered in the tile
         Box(
             modifier = Modifier
-                .fillMaxSize(0.85f)
+                .fillMaxSize(if (showLabel) 0.65f else 0.85f)
                 .clip(RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1507,16 +1563,18 @@ private fun AppShortcutView(
         }
 
         if (showLabel) {
-            Spacer(Modifier.height(4.dp))
-
-            // App label
+            // App label - at the bottom
             Text(
                 text = item.label,
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 maxLines = 1,
+                lineHeight = 10.sp,
                 overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp)
             )
         }
     }
@@ -1579,13 +1637,13 @@ private fun GlassPanelBackground(
             .then(
                 if (item.customImageUri != null) {
                     Modifier
-                } else if (glassSettings.liquidGlassEnabled) {
+                } else if (glassSettings.panelBlurEnabled) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { RoundedRectangle(cornerRadius) },
                         effects = {
                             if (glassSettings.vibrancyEnabled) vibrancy()
-                            if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                            blur(blurRadius.toPx())
                             if (glassSettings.lensEnabled) lens(
                                 refractionHeight = glassSettings.refractionHeight.dp.toPx(),
                                 refractionAmount = glassSettings.refractionAmount.dp.toPx(),

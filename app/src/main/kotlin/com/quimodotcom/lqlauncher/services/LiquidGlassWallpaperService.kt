@@ -73,6 +73,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var mediaArtist: String = ""
 
         private var settings: LiquidGlassSettings = LiquidGlassSettings()
+        private var launcherConfig: com.quimodotcom.lqlauncher.compose.launcher.LauncherConfig = com.quimodotcom.lqlauncher.compose.launcher.LauncherConfig()
         private var settingsJob: Job? = null
         private var tickerJob: Job? = null
 
@@ -697,6 +698,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
+                if (config != null) launcherConfig = config
 
                 // Determine if it's currently "night" based on custom settings or system theme
                 val calendar = Calendar.getInstance()
@@ -760,7 +762,16 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                val subjectUri = config?.wallpaperSubjectUri
+                val daySubject = config?.wallpaperSubjectUri
+                val nightSubject = config?.wallpaperSubjectNightUri
+
+                // Rule: Day subject layer should never show if there's no night layer
+                val subjectUri = if (nightSubject != null) {
+                    if (isDark) nightSubject else daySubject
+                } else {
+                    null
+                }
+
                 if (subjectUri != null) {
                     subjectBitmap = loadBitmap(Uri.parse(subjectUri), targetW, targetH)
                 } else {
@@ -1146,14 +1157,28 @@ class LiquidGlassWallpaperService : WallpaperService() {
             if (currentSub != lastSubBitmap) {
                 videoRenderer?.setSubject(currentSub)
                 lastSubBitmap = currentSub
+            }
 
-                // Update Subject Scale Mode
+            // Always update Subject transformations if currentSub is present
+            if (currentSub != null) {
                 if (useGlowEffect) {
                     videoRenderer?.setSubjectScale(0.85f)
+                    videoRenderer?.setSubjectOffset(0f, 0f)
                     videoRenderer?.setSubjectScaleMode(VideoWallpaperRenderer.ScaleMode.FIT_CENTER)
                 } else {
-                    videoRenderer?.setSubjectScale(1.0f)
-                    videoRenderer?.setSubjectScaleMode(VideoWallpaperRenderer.ScaleMode.CENTER_CROP)
+                    val config = launcherConfig
+                    val isDark = isCurrentlyNight()
+                    val isNightSubject = isDark && config.wallpaperSubjectNightUri != null
+
+                    val match = if (isNightSubject) config.subjectNightMatchWallpaper else config.subjectMatchWallpaper
+                    val scale = if (isNightSubject) config.subjectNightScale else config.subjectScale
+                    val offX = if (isNightSubject) config.subjectNightOffsetX else config.subjectOffsetX
+                    val offY = if (isNightSubject) config.subjectNightOffsetY else config.subjectOffsetY
+                    val density = resources.displayMetrics.density
+
+                    videoRenderer?.setSubjectScale(scale)
+                    videoRenderer?.setSubjectOffset(offX * density, offY * density)
+                    videoRenderer?.setSubjectScaleMode(if (match) VideoWallpaperRenderer.ScaleMode.CENTER_CROP else VideoWallpaperRenderer.ScaleMode.FIT_CENTER)
                 }
             }
 

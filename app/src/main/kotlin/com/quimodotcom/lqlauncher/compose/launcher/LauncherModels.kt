@@ -123,10 +123,15 @@ data class LauncherConfig(
     val wallpaperNightUri: String? = null,
     val wallpaperSecretUri: String? = null,
     val wallpaperSubjectUri: String? = null,
+    val wallpaperSubjectNightUri: String? = null,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,
     val subjectOffsetY: Float = 0f,
+    val subjectNightMatchWallpaper: Boolean = true,
+    val subjectNightScale: Float = 1f,
+    val subjectNightOffsetX: Float = 0f,
+    val subjectNightOffsetY: Float = 0f,
     val useSystemWallpaper: Boolean = true,
     val showStatusBar: Boolean = true,
     // Whether the first-open wallpaper permission prompt has been shown
@@ -155,8 +160,78 @@ data class LauncherTheme(
     val clockStyle: String = "Classic",
     val weatherStyle: String = "Classic",
     val batteryStyle: String = "Classic",
-    val cyberpunkTheme: Boolean = false
-)
+    val cyberpunkTheme: Boolean = false,
+    val windowBlurEnabled: Boolean = false,
+    val windowBlurRadius: Float = 20f,
+    val panelBlurEnabled: Boolean = false,
+    val drawerBlurEnabled: Boolean = true,
+    val drawerBlurRadius: Float = 25f
+) {
+    companion object {
+        val Default = LauncherTheme(
+            id = "default",
+            name = "Liquid Glass",
+            description = "The classic frosted glass experience",
+            liquidGlassEnabled = true,
+            blurRadius = 20f,
+            panelBackgroundAlpha = 0.12f,
+            iconBackgroundAlpha = 0.1f,
+            panelCornerRadius = 20f,
+            iconCornerRadius = 16f,
+            clockStyle = "Classic",
+            cyberpunkTheme = false,
+            drawerBlurRadius = 25f
+        )
+
+        val Cyberpunk = LauncherTheme(
+            id = "cyberpunk",
+            name = "Cyberpunk",
+            description = "Neon aesthetics and sharp edges",
+            liquidGlassEnabled = true,
+            blurRadius = 15f,
+            panelTintColor = 0xFFEC4899L, // Pink
+            panelBackgroundAlpha = 0.15f,
+            iconBackgroundAlpha = 0.15f,
+            panelCornerRadius = 4f,
+            iconCornerRadius = 4f,
+            clockStyle = "Cyberpunk",
+            weatherStyle = "Cyberpunk",
+            batteryStyle = "Cyberpunk",
+            cyberpunkTheme = true,
+            drawerBlurRadius = 15f
+        )
+
+        val Frosted = LauncherTheme(
+            id = "frosted",
+            name = "Deep Frost",
+            description = "High opacity and heavy blur",
+            liquidGlassEnabled = true,
+            blurRadius = 45f,
+            panelBackgroundAlpha = 0.35f,
+            iconBackgroundAlpha = 0.25f,
+            panelCornerRadius = 24f,
+            iconCornerRadius = 20f,
+            clockStyle = "Minimal",
+            drawerBlurRadius = 50f
+        )
+
+        val Minimal = LauncherTheme(
+            id = "minimal",
+            name = "Minimal",
+            description = "Clean, sharp, and transparent",
+            liquidGlassEnabled = false,
+            blurRadius = 0f,
+            panelBackgroundAlpha = 0.05f,
+            iconBackgroundAlpha = 0.05f,
+            panelCornerRadius = 12f,
+            iconCornerRadius = 12f,
+            clockStyle = "Minimal",
+            windowBlurEnabled = false,
+            panelBlurEnabled = false,
+            drawerBlurEnabled = false
+        )
+    }
+}
 
 @Serializable
 data class LauncherSchematic(

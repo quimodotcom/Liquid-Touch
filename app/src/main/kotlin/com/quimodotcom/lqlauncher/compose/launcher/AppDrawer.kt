@@ -146,7 +146,7 @@ fun AppDrawer(
     // Determine panel style
     val panelColor = Color(glassSettings.panelTintColor)
     val panelAlpha = glassSettings.drawerBackgroundAlpha
-    val blurRadius = glassSettings.blurRadius.dp
+    val blurRadius = glassSettings.drawerBlurRadius.dp
 
         Column(
             modifier = Modifier
@@ -161,15 +161,13 @@ fun AppDrawer(
                 )
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .then(
-                    if (glassSettings.liquidGlassEnabled) {
+                    if (glassSettings.drawerBlurEnabled) {
                         Modifier.drawBackdrop(
                             backdrop = backdrop,
                             shape = { RoundedRectangle(glassSettings.panelCornerRadius.dp) },
                             effects = {
-                                 // Optimization removed: Deferring expensive blur effects until the drawer is nearly static/open
-                                 // causes RenderEffect crashes on custom ROMs like LineageOS.
                                  if (glassSettings.vibrancyEnabled) vibrancy()
-                                 if (glassSettings.blurEnabled) blur(blurRadius.toPx())
+                                 blur(blurRadius.toPx())
                                  if (glassSettings.lensEnabled) lens(
                                      refractionHeight = glassSettings.refractionHeight.dp.toPx(),
                                      refractionAmount = glassSettings.refractionAmount.dp.toPx(),
@@ -379,9 +377,8 @@ fun AppDrawerItem(
     val cornerRadius = glassSettings.iconCornerRadius.dp
     val tintColor = Color(glassSettings.panelTintColor)
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(80.dp)
             .clip(RoundedCornerShape(cornerRadius))
@@ -413,10 +410,10 @@ fun AppDrawerItem(
              }
         }
 
-        // Icon content
+        // Icon content - centered
         Box(
             modifier = Modifier
-                .fillMaxSize(0.7f)
+                .fillMaxSize(if (glassSettings.showAppLabels) 0.6f else 0.8f)
                 .clip(RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -433,14 +430,17 @@ fun AppDrawerItem(
         }
 
         if (glassSettings.showAppLabels) {
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = app.label,
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
+                lineHeight = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp)
             )
         }
     }
