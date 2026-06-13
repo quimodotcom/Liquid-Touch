@@ -205,6 +205,19 @@ fun LiquidGlassSettingsScreen(
                                 onClick = onOpenWallpaperPicker
                             )
                             SettingsSeparator()
+                            SettingItem(
+                                title = "Secret Wallpaper",
+                                description = "Shown on home screen after unlocking",
+                                onClick = { showSecretPicker = true }
+                            )
+
+                            if (showSecretPicker) {
+                                SecretWallpaperPickerDialog(
+                                    currentConfig = launcherConfig,
+                                    onConfigChanged = onConfigChanged,
+                                    onDismiss = { showSecretPicker = false }
+                                )
+                            }
                         }
                     }
 

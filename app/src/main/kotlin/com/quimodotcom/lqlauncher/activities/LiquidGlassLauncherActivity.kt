@@ -315,10 +315,18 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    // Wallpaper painter (Strictly use System Wallpaper for device consistency)
+    // Wallpaper painter (honour permission, theme and secret)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = null,
-        useSystem = true,
+        customUri = remember(isCurrentlyNight, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
+            if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
+                launcherConfig.wallpaperSecretUri
+            } else if (isCurrentlyNight) {
+                launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
+            } else {
+                launcherConfig.wallpaperUri
+            }
+        },
+        useSystem = launcherConfig.useSystemWallpaper && (!glassSettings.secretWallpaperVisible || launcherConfig.wallpaperSecretUri == null),
         permissionGranted = hasWallpaperPermission
     )
 

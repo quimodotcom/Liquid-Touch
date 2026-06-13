@@ -696,22 +696,64 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val targetW = dm.widthPixels
                 val targetH = dm.heightPixels
 
-                // Refresh Config
+                // Use LauncherConfig for wallpaper URI
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
                 if (config != null) launcherConfig = config
 
                 val isDark = isCurrentlyNight()
-                DebugLogger.log("WallpaperService", "Loading wallpapers (Strict System Mode): isDark=$isDark")
+                DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark")
 
-                // ALWAYS use system wallpaper for the background layer
-                wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
+                val mainUri = if (isLocked) {
+                    if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
+                } else {
+                    if (settings.secretWallpaperVisible) {
+                        launcherConfig.wallpaperSecretUri ?: (if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri)
+                    } else {
+                        if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
+                    }
+                }
+
+                // Prioritize specialized URIs (GIF/Video) if set
+                val gifUri = launcherConfig.wallpaperGifUri
+                val videoUri = launcherConfig.wallpaperVideoUri
+
+                var resolvedGif: String? = null
+                var resolvedVideo: String? = null
+                var resolvedImage: String? = mainUri
+
+                if (!isLocked) {
+                    if (videoUri != null) resolvedVideo = videoUri
+                    else if (gifUri != null) resolvedGif = gifUri
+                }
+
+                // Process resolveImage for Bitmaps
+                var bitmapLoaded = false
+                if (resolvedImage != null && (!launcherConfig.useSystemWallpaper || (resolvedImage == launcherConfig.wallpaperSecretUri))) {
+                    val type = getMimeType(resolvedImage)
+                    if (type?.startsWith("video/") == true) {
+                        resolvedVideo = resolvedImage
+                        wallpaperBitmap = null
+                        bitmapLoaded = true
+                    } else if (type?.contains("gif") == true) {
+                        resolvedGif = resolvedImage
+                        wallpaperBitmap = null
+                        bitmapLoaded = true
+                    } else {
+                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
+                        if (wallpaperBitmap != null) bitmapLoaded = true
+                    }
+                }
+
+                if (!bitmapLoaded) {
+                    // Fallback to system wallpaper if custom failed or useSystemWallpaper is true
+                    wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
+                }
 
                 // Initial clock color update if no media playing
                 if (mediaArtBitmap == null) {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                // Subject Layer logic remains intact
                 val daySubject = launcherConfig.wallpaperSubjectUri
                 val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
@@ -728,12 +770,20 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     subjectBitmap = null
                 }
 
-                // Video/GIF background features are removed to prioritize device wallpaper consistency
-                currentVideoWallpaperPath = null
-                currentGifUri = null
-                withContext(Dispatchers.Main) {
-                    videoRenderer?.reset()
-                    gifJob?.cancel()
+                // Handle Video background (not media art)
+                if (resolvedVideo != currentVideoWallpaperPath) {
+                    currentVideoWallpaperPath = resolvedVideo
+                    withContext(Dispatchers.Main) {
+                        updateVideoBackground()
+                    }
+                }
+
+                // Handle GIF background
+                if (resolvedGif != currentGifUri) {
+                    currentGifUri = resolvedGif
+                    withContext(Dispatchers.Main) {
+                        startGifJobIfNeeded()
+                    }
                 }
 
                 // Update scaled versions immediately after loading
