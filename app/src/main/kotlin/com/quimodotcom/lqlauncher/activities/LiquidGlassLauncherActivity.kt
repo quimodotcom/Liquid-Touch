@@ -1712,6 +1712,7 @@ private fun GlassPanelContent(
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
             PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
             PanelType.PLAY_INTEGRITY -> PlayIntegrityPanelContent(glassSettings)
+            PanelType.APPS -> AppGridPanelContent(item, glassSettings)
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1721,6 +1722,79 @@ private fun GlassPanelContent(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AppGridPanelContent(item: LauncherItem.GlassPanel, glassSettings: LiquidGlassSettings) {
+    val context = LocalContext.current
+    val apps = item.apps
+    if (apps.isEmpty()) {
+        Text(
+            text = "No apps in panel",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+        return
+    }
+
+    // Dynamic grid calculation to "fit" the number of apps
+    // We aim for a balanced square-ish grid
+    val count = apps.size
+    val cols = when {
+        count <= 1 -> 1
+        count <= 4 -> 2
+        count <= 9 -> 3
+        else -> 4
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(cols),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        userScrollEnabled = false // Usually panels are small, don't scroll
+    ) {
+        items(apps) { pkg ->
+            MiniAppIcon(pkg) { launchApp(context, pkg) }
+        }
+    }
+}
+
+@Composable
+private fun MiniAppIcon(packageName: String, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val icon = remember(packageName) {
+        try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon.toBitmap(96, 96).asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(0.85f)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Rounded.Android,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize(0.6f)
+            )
         }
     }
 }

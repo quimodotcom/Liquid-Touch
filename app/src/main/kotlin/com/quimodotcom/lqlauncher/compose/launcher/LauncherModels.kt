@@ -48,7 +48,8 @@ sealed class LauncherItem {
         val tintColor: Long = 0xFF6366F1L, // Default indigo
         val backgroundAlpha: Float = 0.12f,
         val panelType: PanelType = PanelType.EMPTY,
-        val customImageUri: String? = null
+        val customImageUri: String? = null,
+        val apps: List<String> = emptyList() // Package names for APPS type
     ) : LauncherItem()
     
     /**
@@ -106,6 +107,7 @@ enum class PanelType {
     SEARCH,     // One-row browser search
     MEDIA_CONTROL, // Interactive media controls
     PLAY_INTEGRITY, // Device Integrity Testing
+    APPS,       // Mini-grid of apps
     CUSTOM      // User-defined content
 }
 
