@@ -2995,11 +2995,11 @@ private fun rememberWallpaperPainter(
     var painter by remember { mutableStateOf<Painter?>(null) }
     var retryCount by remember { mutableStateOf(0) }
 
-    // Retry loading wallpaper after a short delay if initial load fails
+    // Aggressive retry logic for wallpaper loading (essential for boot performance)
     LaunchedEffect(customUri, useSystem, retryCount, permissionGranted) {
         withContext(Dispatchers.IO) {
-            painter = try {
-                if (!useSystem && customUri != null) {
+            try {
+                val newPainter = if (!useSystem && customUri != null) {
                     // Load custom wallpaper from URI or file path
                     val uri = android.net.Uri.parse(customUri)
 
@@ -3045,18 +3045,31 @@ private fun rememberWallpaperPainter(
                     }
 
                     finalBitmap?.asImageBitmap()?.let { BitmapPainter(it) }
+                } else if (permissionGranted) {
+                    // Aggressive system wallpaper loading with internal retries
+                    var sysPainter: Painter? = null
+                    for (i in 0..2) {
+                        sysPainter = loadSystemWallpaper(context)
+                        if (sysPainter != null) break
+                        delay(300)
+                    }
+                    sysPainter
                 } else {
-                    // Use system wallpaper with fallback only if permission is granted
-                    if (permissionGranted) loadSystemWallpaper(context) else null
+                    null
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // Retry once after delay
-                if (retryCount == 0) {
-                    delay(500)
+
+                if (newPainter != null) {
+                    painter = newPainter
+                } else if (retryCount < 2) {
+                    delay(1000)
                     retryCount++
                 }
-                null
+            } catch (e: Exception) {
+                android.util.Log.e("LiquidGlassLauncher", "Wallpaper load error", e)
+                if (retryCount < 2) {
+                    delay(1000)
+                    retryCount++
+                }
             }
         }
     }
@@ -3113,13 +3126,13 @@ private class GradientPainter : Painter() {
     override val intrinsicSize = Size.Unspecified
 
     override fun DrawScope.onDraw() {
+        // High-quality multi-stop gradient for a polished "Liquid Glass" look when no wallpaper is loaded
         drawRect(
             brush = Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFF0F0C29),
-                    Color(0xFF302B63),
-                    Color(0xFF24243E)
-                ),
+                0.0f to Color(0xFF0F0C29),
+                0.4f to Color(0xFF302B63),
+                0.7f to Color(0xFF533483),
+                1.0f to Color(0xFF24243E),
                 start = Offset.Zero,
                 end = Offset(size.width, size.height)
             )
