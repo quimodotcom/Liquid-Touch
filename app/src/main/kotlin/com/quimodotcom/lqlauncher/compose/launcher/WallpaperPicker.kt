@@ -245,75 +245,13 @@ fun WallpaperPickerDialog(
                 if (selectedTab == 0 && activeInteraction == InteractionType.None) {
                     Column(modifier = Modifier.graphicsLayer { alpha = contentAlpha }) {
                     // === BACKGROUND TAB ===
-
-                    // Reset wallpaper option
-                    WallpaperOption(
-                        icon = Icons.Rounded.RestartAlt,
-                        title = "Reset Wallpaper",
-                        description = "Use device default wallpaper",
-                        isSelected = useSystemWallpaper,
-                        onClick = {
-                            onWallpaperSelected(null)
-                            onWallpaperNightSelected(null)
-                        }
+                    Text(
+                        "The launcher strictly uses the device's system wallpaper for consistency.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
                     )
 
                     Spacer(Modifier.height(16.dp))
-
-                    Text("Custom Backgrounds", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
-                    Spacer(Modifier.height(8.dp))
-
-                    // Pick Day wallpaper
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            WallpaperOption(
-                                icon = Icons.Rounded.WbSunny,
-                                title = "Day Wallpaper",
-                                description = "Wallpaper for light theme",
-                                isSelected = !useSystemWallpaper && currentWallpaperUri != null,
-                                onClick = {
-                                    backgroundPickerLauncher.launch(
-                                        androidx.activity.result.PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                        if (currentWallpaperUri != null) {
-                            IconButton(onClick = { onWallpaperSelected(null) }) {
-                                Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // Pick Night wallpaper
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            WallpaperOption(
-                                icon = Icons.Rounded.NightsStay,
-                                title = "Night Wallpaper",
-                                description = "Wallpaper for dark theme",
-                                isSelected = !useSystemWallpaper && currentWallpaperNightUri != null,
-                                onClick = {
-                                    backgroundNightPickerLauncher.launch(
-                                        androidx.activity.result.PickVisualMediaRequest(
-                                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                        if (currentWallpaperNightUri != null) {
-                            IconButton(onClick = { onWallpaperNightSelected(null) }) {
-                                Icon(Icons.Rounded.Delete, "Clear", tint = Color.Red)
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(24.dp))
 
                     Text("Schedule", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                     Spacer(Modifier.height(8.dp))
@@ -371,60 +309,6 @@ fun WallpaperPickerDialog(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Preview section
-                    Text("Previews", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(160.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Day Preview
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF2E2E3E)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (useSystemWallpaper) {
-                                Icon(Icons.Rounded.Smartphone, null, tint = Color.Gray)
-                            } else if (currentWallpaperUri != null) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context).data(currentWallpaperUri).crossfade(true).build(),
-                                    contentDescription = "Day preview",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Icon(Icons.Rounded.WbSunny, null, tint = Color.Gray.copy(alpha = 0.5f))
-                            }
-                        }
-
-                        // Night Preview
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF2E2E3E)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (useSystemWallpaper) {
-                                Icon(Icons.Rounded.Smartphone, null, tint = Color.Gray)
-                            } else if (currentWallpaperNightUri != null) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context).data(currentWallpaperNightUri).crossfade(true).build(),
-                                    contentDescription = "Night preview",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Icon(Icons.Rounded.NightsStay, null, tint = Color.Gray.copy(alpha = 0.5f))
-                            }
-                        }
-                        }
                     }
 
                 } else {

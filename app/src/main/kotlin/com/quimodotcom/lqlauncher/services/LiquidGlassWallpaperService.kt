@@ -696,74 +696,24 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val targetW = dm.widthPixels
                 val targetH = dm.heightPixels
 
-                // Use LauncherConfig for wallpaper URI
+                // Refresh Config
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
                 if (config != null) launcherConfig = config
 
-                // Determine if it's currently "night" based on custom settings or system theme
-                val calendar = Calendar.getInstance()
-                val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-
                 val isDark = isCurrentlyNight()
-                DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark (min=$currentMinutes)")
+                DebugLogger.log("WallpaperService", "Loading wallpapers (Strict System Mode): isDark=$isDark")
 
-                val mainUri = if (isLocked) {
-                    if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
-                } else {
-                    if (settings.secretWallpaperVisible) {
-                        config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
-                    } else {
-                        if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
-                    }
-                }
-
-                // Prioritize specialized URIs (GIF/Video) if set
-                val gifUri = config?.wallpaperGifUri
-                val videoUri = config?.wallpaperVideoUri
-
-                // Determine effective wallpaper mode
-                // If isLocked, media art takes priority.
-                // Otherwise, check if user has a global GIF or Video.
-
-                var resolvedGif: String? = null
-                var resolvedVideo: String? = null
-                var resolvedImage: String? = mainUri
-
-                if (!isLocked) {
-                    if (videoUri != null) resolvedVideo = videoUri
-                    else if (gifUri != null) resolvedGif = gifUri
-                }
-
-                // Process resolveImage for Bitmaps
-                var bitmapLoaded = false
-                if (resolvedImage != null && config != null && (!config.useSystemWallpaper || (resolvedImage == config.wallpaperSecretUri))) {
-                    val type = getMimeType(resolvedImage)
-                    if (type?.startsWith("video/") == true) {
-                        resolvedVideo = resolvedImage
-                        wallpaperBitmap = null
-                        bitmapLoaded = true
-                    } else if (type?.contains("gif") == true) {
-                        resolvedGif = resolvedImage
-                        wallpaperBitmap = null
-                        bitmapLoaded = true
-                    } else {
-                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
-                        if (wallpaperBitmap != null) bitmapLoaded = true
-                    }
-                }
-
-                if (!bitmapLoaded) {
-                    // Fallback to system wallpaper if custom failed or useSystemWallpaper is true
-                    wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
-                }
+                // ALWAYS use system wallpaper for the background layer
+                wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
 
                 // Initial clock color update if no media playing
                 if (mediaArtBitmap == null) {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                val daySubject = config?.wallpaperSubjectUri
-                val nightSubject = config?.wallpaperSubjectNightUri
+                // Subject Layer logic remains intact
+                val daySubject = launcherConfig.wallpaperSubjectUri
+                val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
                 // Rule: Day subject layer should never show if there's no night layer
                 val subjectUri = if (nightSubject != null) {
@@ -778,20 +728,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     subjectBitmap = null
                 }
 
-                // Handle Video background (not media art)
-                if (resolvedVideo != currentVideoWallpaperPath) {
-                    currentVideoWallpaperPath = resolvedVideo
-                    withContext(Dispatchers.Main) {
-                        updateVideoBackground()
-                    }
-                }
-
-                // Handle GIF background
-                if (resolvedGif != currentGifUri) {
-                    currentGifUri = resolvedGif
-                    withContext(Dispatchers.Main) {
-                        startGifJobIfNeeded()
-                    }
+                // Video/GIF background features are removed to prioritize device wallpaper consistency
+                currentVideoWallpaperPath = null
+                currentGifUri = null
+                withContext(Dispatchers.Main) {
+                    videoRenderer?.reset()
+                    gifJob?.cancel()
                 }
 
                 // Update scaled versions immediately after loading

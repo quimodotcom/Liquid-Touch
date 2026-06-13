@@ -315,18 +315,10 @@ private fun EditableLauncherScreen(
     // Parallax state
     val tiltState = rememberTiltState(glassSettings.enableParallax)
 
-    // Wallpaper painter (honour permission, theme and secret)
+    // Wallpaper painter (Strictly use System Wallpaper for device consistency)
     val wallpaperPainter = rememberWallpaperPainter(
-        customUri = remember(isCurrentlyNight, glassSettings.secretWallpaperVisible, launcherConfig.wallpaperSecretUri, launcherConfig.wallpaperUri, launcherConfig.wallpaperNightUri) {
-            if (glassSettings.secretWallpaperVisible && launcherConfig.wallpaperSecretUri != null) {
-                launcherConfig.wallpaperSecretUri
-            } else if (isCurrentlyNight) {
-                launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
-            } else {
-                launcherConfig.wallpaperUri
-            }
-        },
-        useSystem = launcherConfig.useSystemWallpaper && (!glassSettings.secretWallpaperVisible || launcherConfig.wallpaperSecretUri == null),
+        customUri = null,
+        useSystem = true,
         permissionGranted = hasWallpaperPermission
     )
 
@@ -1786,7 +1778,7 @@ private fun MiniAppIcon(packageName: String, onClick: () -> Unit) {
             Image(
                 bitmap = icon.toBitmap(96, 96).asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(0.85f)
+                modifier = Modifier.fillMaxSize(0.8f)
             )
         } else {
             Icon(
