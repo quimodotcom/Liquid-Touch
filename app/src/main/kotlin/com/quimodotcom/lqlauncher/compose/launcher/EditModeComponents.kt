@@ -304,7 +304,9 @@ fun EditModeToolbar(
                         shape = { RoundedRectangle(24.dp) },
                         effects = {
                             if (glassSettings.vibrancyEnabled) vibrancy()
-                            if (glassSettings.blurEnabled) blur(glassSettings.blurRadius.dp.toPx())
+                            if (glassSettings.blurEnabled && glassSettings.panelBlurEnabled) {
+                                blur(glassSettings.blurRadius.dp.toPx())
+                            }
                             if (glassSettings.lensEnabled) lens(
                                 refractionHeight = glassSettings.refractionHeight.dp.toPx(),
                                 refractionAmount = glassSettings.refractionAmount.dp.toPx()

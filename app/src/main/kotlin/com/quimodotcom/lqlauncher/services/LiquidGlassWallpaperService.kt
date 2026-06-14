@@ -665,6 +665,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 loadWallpapers()
 
                 withContext(Dispatchers.Main) {
+                    // Refresh the display immediately on settings change
                     draw()
                     // Restart animation loop if needed
                     if (isVisible && !isInAmbientMode && !isPowerSaveMode && isAnimating()) {
