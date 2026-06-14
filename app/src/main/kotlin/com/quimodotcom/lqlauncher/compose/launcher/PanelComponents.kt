@@ -190,7 +190,7 @@ private fun CyberpunkWeatherPanelContent(glassSettings: LiquidGlassSettings) {
         }
     }
     val temp = weatherData?.currentTemp ?: "22°C"
-    val desc = "Sunny"
+    val desc = weatherData?.location ?: "Sunny"
     CyberpunkWeather(temp, Icons.Rounded.WbSunny, desc)
 }
 
@@ -432,6 +432,18 @@ fun WeatherPanelContent(glassSettings: LiquidGlassSettings) {
     )
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (fetched?.location != null) {
+            Text(
+                text = fetched?.location ?: "",
+                color = Color.White.copy(0.9f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+
         val current = forecasts.getOrNull(index) ?: forecasts[0]
         Icon(
             imageVector = current.icon,
@@ -470,6 +482,18 @@ fun WeatherPanelContent(glassSettings: LiquidGlassSettings) {
                     }
                 }
             }
+        }
+
+        if (fetched?.lastUpdated != null) {
+            Spacer(Modifier.height(4.dp))
+            val timeStr = remember(fetched?.lastUpdated) {
+                SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(fetched?.lastUpdated ?: 0L))
+            }
+            Text(
+                text = "Updated: $timeStr",
+                color = Color.White.copy(0.4f),
+                fontSize = 9.sp
+            )
         }
     }
 }
