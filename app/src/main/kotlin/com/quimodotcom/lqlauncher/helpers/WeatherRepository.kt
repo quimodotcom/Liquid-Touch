@@ -112,7 +112,9 @@ object WeatherRepository {
             finalHourly.add(ForecastItem("Now", currentTemp, currentIcon))
             finalHourly.addAll(hourlyList)
 
-            WeatherData(currentTemp, currentIcon, finalHourly)
+            val result = WeatherData(currentTemp, currentIcon, finalHourly)
+            WeatherStateRepository.update(result)
+            result
 
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) android.util.Log.e("WeatherRepository", "Failed to fetch weather: ${e.message}")

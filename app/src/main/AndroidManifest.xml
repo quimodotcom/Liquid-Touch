@@ -104,5 +104,13 @@
             android:launchMode="singleInstance"
             android:screenOrientation="portrait" />
 
+        <receiver
+            android:name=".helpers.BreezyWeatherReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="nodomain.freeyourgadget.gadgetbridge.ACTION_GENERIC_WEATHER" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

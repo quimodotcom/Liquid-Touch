@@ -660,30 +660,40 @@ fun LiquidGlassSettingsScreen(
                             }
 
                             SettingsSeparator()
-                            // OpenWeather API Key
-                            SettingItem(
-                                title = "OpenWeather API Key",
-                                description = if (settings.openWeatherApiKey.isBlank()) "Not set" else "********",
-                                onClick = { editingWeatherKey = true }
+                            StyleSelector(
+                                title = "Weather Source",
+                                currentStyle = settings.weatherSource,
+                                options = listOf("OpenWeather", "BreezyWeather"),
+                                onStyleSelected = { onSettingsChanged(settings.copy(weatherSource = it)) }
                             )
 
-                            if (editingWeatherKey) {
-                                Dialog(onDismissRequest = { editingWeatherKey = false }) {
-                                    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            Text("OpenWeather API Key", color = Color.White)
-                                            Spacer(Modifier.height(8.dp))
-                                            var keyText by remember { mutableStateOf(settings.openWeatherApiKey) }
-                                            OutlinedTextField(
-                                                value = keyText,
-                                                onValueChange = { keyText = it },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                singleLine = true
-                                            )
-                                            Spacer(Modifier.height(12.dp))
-                                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                                TextButton(onClick = { editingWeatherKey = false }) { Text("Cancel") }
-                                                TextButton(onClick = { onSettingsChanged(settings.copy(openWeatherApiKey = keyText)); editingWeatherKey = false }) { Text("Save") }
+                            if (settings.weatherSource == "OpenWeather") {
+                                SettingsSeparator()
+                                // OpenWeather API Key
+                                SettingItem(
+                                    title = "OpenWeather API Key",
+                                    description = if (settings.openWeatherApiKey.isBlank()) "Not set" else "********",
+                                    onClick = { editingWeatherKey = true }
+                                )
+
+                                if (editingWeatherKey) {
+                                    Dialog(onDismissRequest = { editingWeatherKey = false }) {
+                                        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF1A1A24)) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text("OpenWeather API Key", color = Color.White)
+                                                Spacer(Modifier.height(8.dp))
+                                                var keyText by remember { mutableStateOf(settings.openWeatherApiKey) }
+                                                OutlinedTextField(
+                                                    value = keyText,
+                                                    onValueChange = { keyText = it },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    singleLine = true
+                                                )
+                                                Spacer(Modifier.height(12.dp))
+                                                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                                    TextButton(onClick = { editingWeatherKey = false }) { Text("Cancel") }
+                                                    TextButton(onClick = { onSettingsChanged(settings.copy(openWeatherApiKey = keyText)); editingWeatherKey = false }) { Text("Save") }
+                                                }
                                             }
                                         }
                                     }
