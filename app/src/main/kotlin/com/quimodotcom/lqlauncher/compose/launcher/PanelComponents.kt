@@ -56,6 +56,7 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.shapes.RoundedRectangle
 import com.quimodotcom.lqlauncher.helpers.WeatherRepository
+import com.quimodotcom.lqlauncher.helpers.WeatherStateRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -175,11 +176,12 @@ private fun StandardPanelRouter(
 
 @Composable
 private fun CyberpunkWeatherPanelContent(glassSettings: LiquidGlassSettings) {
-    var weatherData by remember { mutableStateOf<WeatherRepository.WeatherData?>(null) }
-    LaunchedEffect(glassSettings.openWeatherApiKey) {
-        if (glassSettings.openWeatherApiKey.isNotBlank()) {
+    val weatherData by WeatherStateRepository.weatherData.collectAsState()
+
+    LaunchedEffect(glassSettings.openWeatherApiKey, glassSettings.weatherSource, glassSettings.weatherUnit) {
+        if (glassSettings.weatherSource == "OpenWeather" && glassSettings.openWeatherApiKey.isNotBlank()) {
             withContext(Dispatchers.IO) {
-                weatherData = WeatherRepository.fetchForecast(
+                WeatherRepository.fetchForecast(
                     lat = 0.0, lon = 0.0,
                     units = if (glassSettings.weatherUnit == "C") "metric" else "imperial",
                     apiKey = glassSettings.openWeatherApiKey
@@ -386,14 +388,14 @@ fun ClockPanelContent(glassSettings: LiquidGlassSettings) {
 
 @Composable
 fun WeatherPanelContent(glassSettings: LiquidGlassSettings) {
-    var fetched by remember { mutableStateOf<WeatherRepository.WeatherData?>(null) }
+    val fetched by WeatherStateRepository.weatherData.collectAsState()
     val apiKey = glassSettings.openWeatherApiKey
     val units = if (glassSettings.weatherUnit == "C") "metric" else "imperial"
 
-    LaunchedEffect(apiKey, units) {
-        if (apiKey.isNotBlank()) {
+    LaunchedEffect(apiKey, units, glassSettings.weatherSource) {
+        if (glassSettings.weatherSource == "OpenWeather" && apiKey.isNotBlank()) {
             withContext(Dispatchers.IO) {
-                fetched = WeatherRepository.fetchForecast(0.0, 0.0, units = units, apiKey = apiKey)
+                WeatherRepository.fetchForecast(0.0, 0.0, units = units, apiKey = apiKey)
             }
         }
     }

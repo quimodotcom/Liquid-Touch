@@ -65,6 +65,7 @@ data class LiquidGlassSettings(
     val openWeatherApiKey: String = "",
     val searchWidgetOpensBrowserOnTap: Boolean = true,
     val weatherUnit: String = "F", // "F" or "C"
+    val weatherSource: String = "OpenWeather", // "OpenWeather" or "BreezyWeather"
 
     // Device Integrity
     val playIntegrityCloudProjectNumber: String = "",
