@@ -849,23 +849,23 @@ private fun WallpaperOption(
 /**
  * Persist the wallpaper URI by copying to app storage
  */
-private fun persistWallpaperUri(context: Context, uri: Uri): String {
+fun persistWallpaperUri(context: Context, uri: Uri): String {
+    // We ALWAYS copy to internal storage to ensure cross-boot persistence
+    // Content URIs frequently lose permissions after reboot
     return try {
-        context.contentResolver.takePersistableUriPermission(
-            uri,
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-        )
-        uri.toString()
-    } catch (e: Exception) {
-        // If we can't persist permissions, copy the file
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val file = java.io.File(context.filesDir, "wallpaper_${System.currentTimeMillis()}.jpg")
-        inputStream?.use { input ->
+        val extension = context.contentResolver.getType(uri)?.split("/")?.lastOrNull() ?: "jpg"
+        val fileName = "wallpaper_${System.currentTimeMillis()}.$extension"
+        val file = java.io.File(context.filesDir, fileName)
+
+        context.contentResolver.openInputStream(uri)?.use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)
             }
         }
         file.absolutePath
+    } catch (e: Exception) {
+        android.util.Log.e("WallpaperPicker", "Failed to persist wallpaper", e)
+        uri.toString() // Fallback to raw URI if copy fails
     }
 }
 

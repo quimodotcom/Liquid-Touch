@@ -1342,14 +1342,8 @@ private fun SecretWallpaperPickerDialog(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: android.net.Uri? ->
         if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (e: Exception) {}
-
-            onConfigChanged(currentConfig.copy(wallpaperSecretUri = uri.toString()))
+            val persistedPath = persistWallpaperUri(context, uri)
+            onConfigChanged(currentConfig.copy(wallpaperSecretUri = persistedPath))
             Toast.makeText(context, "Secret wallpaper set!", Toast.LENGTH_SHORT).show()
             onDismiss()
         }
