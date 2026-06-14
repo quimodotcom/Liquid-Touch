@@ -918,10 +918,13 @@ fun HomeScreen(
                 )
             },
             onSortApps = {
+                val sortedApps = folder.apps.sortedBy { pkg ->
+                    viewModel.availableApps.find { it.packageName == pkg }?.label?.lowercase() ?: pkg.lowercase()
+                }
                 viewModel.launcherConfig = viewModel.launcherConfig.copy(
                     items = viewModel.launcherConfig.items.map {
                         if (it.id == folder.id && it is LauncherItem.Folder) {
-                            val sf = it.copy(apps = it.apps.sorted())
+                            val sf = it.copy(apps = sortedApps)
                             viewModel.openedFolder = sf
                             sf
                         } else it

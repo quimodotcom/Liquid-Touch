@@ -6,6 +6,7 @@ import android.net.Uri
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -659,10 +660,21 @@ fun AppGridPanelContent(item: LauncherItem.GlassPanel, glassSettings: LiquidGlas
         Text("Empty", color = Color.White.copy(0.4f), fontSize = 12.sp)
         return
     }
-    val cols = if (apps.size <= 1) 1 else if (apps.size <= 4) 2 else 3
+
+    // Auto-calculate columns based on count to keep icons reasonably sized
+    val cols = when {
+        apps.size <= 1 -> 1
+        apps.size <= 4 -> 2
+        apps.size <= 9 -> 3
+        else -> 4
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(cols),
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(8.dp), // Internal padding to prevent edge-touching
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         userScrollEnabled = false
     ) {
         items(apps) { pkg ->
@@ -676,14 +688,15 @@ fun AppGridPanelContent(item: LauncherItem.GlassPanel, glassSettings: LiquidGlas
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
                     .clickable { launchAppLocal(context, pkg) },
                 contentAlignment = Alignment.Center
             ) {
                 if (icon != null) {
                     Image(
-                        bitmap = icon.toBitmap(64, 64).asImageBitmap(),
+                        bitmap = icon.toBitmap(96, 96).asImageBitmap(),
                         null,
-                        modifier = Modifier.fillMaxSize(0.7f)
+                        modifier = Modifier.fillMaxSize(0.85f) // Better scaling within the subgrid cell
                     )
                 } else {
                     Icon(Icons.Rounded.Android, null, tint = Color.White.copy(0.3f))
@@ -705,42 +718,78 @@ fun BrowserSearchPanelContent(openBrowserOnTap: Boolean, isEditMode: Boolean) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=$query")))
             query = ""
             focusManager.clearFocus()
-        } else if (openBrowserOnTap) {
+        } else {
+            // If empty, always open browser regardless of setting if explicitly triggered by button
             context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER))
         }
     }
 
-    OutlinedTextField(
-        value = query,
-        onValueChange = { query = it },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp),
-        placeholder = { Text("Search...", color = Color.White.copy(0.4f), fontSize = 14.sp) },
-        singleLine = true,
-        shape = RoundedCornerShape(24.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Color.White,
-            focusedBorderColor = Color.White.copy(0.3f),
-            unfocusedBorderColor = Color.White.copy(0.1f)
-        ),
-        trailingIcon = {
-            IconButton(onClick = {
+    if (openBrowserOnTap && !isEditMode) {
+        // Render as a clean button that opens the browser immediately
+        Surface(
+            onClick = {
+                view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER))
+            },
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White.copy(alpha = 0.05f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Search...",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 14.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    Icons.Rounded.Search,
+                    null,
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        // Standard interactive text field
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            placeholder = { Text("Search...", color = Color.White.copy(0.4f), fontSize = 14.sp) },
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color.White,
+                focusedBorderColor = Color.White.copy(0.3f),
+                unfocusedBorderColor = Color.White.copy(0.1f),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent
+            ),
+            trailingIcon = {
+                IconButton(onClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    searchAction()
+                }) {
+                    Icon(Icons.Rounded.Search, null, tint = Color.White.copy(0.6f))
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 searchAction()
-            }) {
-                Icon(Icons.Rounded.Search, null, tint = Color.White.copy(0.6f))
-            }
-        },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = {
-            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            searchAction()
-        }),
-        enabled = !isEditMode
-    )
+            }),
+            enabled = !isEditMode
+        )
+    }
 }
 
 @Composable
