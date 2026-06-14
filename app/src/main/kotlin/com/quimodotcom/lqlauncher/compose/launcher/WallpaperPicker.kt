@@ -101,6 +101,8 @@ fun WallpaperPickerDialog(
     onSubjectSelected: ((String?) -> Unit)? = null,
     onSubjectNightSelected: ((String?) -> Unit)? = null,
     onSubjectConfigChanged: ((Boolean, Boolean, Float, Float, Float) -> Unit)? = null,
+    backgroundScaleMode: String = "Fill",
+    onBackgroundScaleModeChanged: (String) -> Unit = {},
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
     onDismiss: () -> Unit
@@ -314,6 +316,40 @@ fun WallpaperPickerDialog(
                     }
 
                     Spacer(Modifier.height(24.dp))
+
+                    Text("Display Style", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF2E2E3E))
+                            .padding(4.dp)
+                    ) {
+                        listOf("Fill", "Fit").forEach { mode ->
+                            val isSelected = backgroundScaleMode == mode
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color(0xFF6366F1) else Color.Transparent)
+                                    .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        onBackgroundScaleModeChanged(mode)
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = mode,
+                                    color = if (isSelected) Color.White else Color.Gray,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(24.dp))
 

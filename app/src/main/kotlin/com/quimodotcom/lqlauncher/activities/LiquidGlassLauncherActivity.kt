@@ -423,7 +423,7 @@ private fun EditableLauncherScreen(
             Image(
                 painter = wallpaperPainter,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (launcherConfig.backgroundScaleMode == "Fit") ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
@@ -572,7 +572,7 @@ private fun EditableLauncherScreen(
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = if (launcherConfig.backgroundScaleMode == "Fit") ContentScale.Fit else ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1141,6 +1141,10 @@ private fun EditableLauncherScreen(
             subjectNightOffsetY = launcherConfig.subjectNightOffsetY,
             selectedSubjectMode = selectedSubjectAdjustmentMode,
             onSubjectModeChanged = { selectedSubjectAdjustmentMode = it },
+            backgroundScaleMode = launcherConfig.backgroundScaleMode,
+            onBackgroundScaleModeChanged = { mode ->
+                launcherConfig = launcherConfig.copy(backgroundScaleMode = mode)
+            },
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
             onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
