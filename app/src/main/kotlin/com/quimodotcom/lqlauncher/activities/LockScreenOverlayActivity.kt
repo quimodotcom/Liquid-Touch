@@ -75,10 +75,12 @@ class LockScreenOverlayActivity : ComponentActivity() {
                             super.onDismissSucceeded()
                             action?.invoke()
                             finish()
+                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                         }
                         override fun onDismissCancelled() {
                             super.onDismissCancelled()
                             finish()
+                            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                         }
                     })
                 },
@@ -482,6 +484,7 @@ fun LockScreenOverlayContent(onUnlock: (action: (() -> Unit)?) -> Unit, onDismis
             override fun onReceive(context: Context?, intent: android.content.Intent?) {
                 if (intent?.action == android.content.Intent.ACTION_USER_PRESENT) {
                     onDismiss()
+                    (context as? android.app.Activity)?.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 }
             }
         }

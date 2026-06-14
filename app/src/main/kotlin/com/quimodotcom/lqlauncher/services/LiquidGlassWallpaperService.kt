@@ -61,8 +61,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
         private var mediaArtBitmap: Bitmap? = null
 
         // Scaled bitmaps for optimized drawing
-        private var scaledWallpaper: Bitmap? = null
-        private var scaledSubject: Bitmap? = null
         private var scaledMediaArt: Bitmap? = null
         private var blurredMediaArt: Bitmap? = null
         private var animatedMediaArt: Bitmap? = null
@@ -700,30 +698,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val config = LauncherConfigRepository.loadConfig(this@LiquidGlassWallpaperService)
                 if (config != null) launcherConfig = config
 
-                // Determine if it's currently "night" based on custom settings or system theme
-                val calendar = Calendar.getInstance()
-                val currentMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-
                 val isDark = isCurrentlyNight()
-                DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark (min=$currentMinutes)")
+                DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark")
 
                 val mainUri = if (isLocked) {
-                    if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
+                    if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
                 } else {
                     if (settings.secretWallpaperVisible) {
-                        config?.wallpaperSecretUri ?: (if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri)
+                        launcherConfig.wallpaperSecretUri ?: (if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri)
                     } else {
-                        if (isDark) (config?.wallpaperNightUri ?: config?.wallpaperUri) else config?.wallpaperUri
+                        if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
                     }
                 }
 
                 // Prioritize specialized URIs (GIF/Video) if set
-                val gifUri = config?.wallpaperGifUri
-                val videoUri = config?.wallpaperVideoUri
-
-                // Determine effective wallpaper mode
-                // If isLocked, media art takes priority.
-                // Otherwise, check if user has a global GIF or Video.
+                val gifUri = launcherConfig.wallpaperGifUri
+                val videoUri = launcherConfig.wallpaperVideoUri
 
                 var resolvedGif: String? = null
                 var resolvedVideo: String? = null
@@ -736,7 +726,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Process resolveImage for Bitmaps
                 var bitmapLoaded = false
-                if (resolvedImage != null && config != null && (!config.useSystemWallpaper || (resolvedImage == config.wallpaperSecretUri))) {
+                if (resolvedImage != null && (!launcherConfig.useSystemWallpaper || (resolvedImage == launcherConfig.wallpaperSecretUri))) {
                     val type = getMimeType(resolvedImage)
                     if (type?.startsWith("video/") == true) {
                         resolvedVideo = resolvedImage
@@ -747,14 +737,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
                         wallpaperBitmap = null
                         bitmapLoaded = true
                     } else {
-                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage), targetW, targetH)
+                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage))
                         if (wallpaperBitmap != null) bitmapLoaded = true
                     }
                 }
 
                 if (!bitmapLoaded) {
                     // Fallback to system wallpaper if custom failed or useSystemWallpaper is true
-                    wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService, targetW, targetH)
+                    wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService)
                 }
 
                 // Initial clock color update if no media playing
@@ -762,8 +752,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     updateClockColor(wallpaperBitmap)
                 }
 
-                val daySubject = config?.wallpaperSubjectUri
-                val nightSubject = config?.wallpaperSubjectNightUri
+                val daySubject = launcherConfig.wallpaperSubjectUri
+                val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
                 // Rule: Day subject layer should never show if there's no night layer
                 val subjectUri = if (nightSubject != null) {
@@ -773,7 +763,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
 
                 if (subjectUri != null) {
-                    subjectBitmap = loadBitmap(Uri.parse(subjectUri), targetW, targetH)
+                    subjectBitmap = loadBitmap(Uri.parse(subjectUri))
                 } else {
                     subjectBitmap = null
                 }
@@ -806,83 +796,29 @@ class LiquidGlassWallpaperService : WallpaperService() {
         }
 
         private suspend fun updateScaledBitmaps(width: Int, height: Int) = withContext(Dispatchers.Default) {
-            if (width <= 0 || height <= 0) return@withContext
-            DebugLogger.log("WallpaperService", "Scaling bitmaps to ${width}x${height}")
-
-            // Scale Wallpaper
-            val srcWp = wallpaperBitmap
-            if (srcWp != null && !srcWp.isRecycled) {
-                val scaled = createCenterCropBitmap(srcWp, width, height)
-                synchronized(this@LiquidGlassEngine) {
-                    scaledWallpaper?.recycle()
-                    scaledWallpaper = scaled
-                }
-                DebugLogger.log("WallpaperService", "Wallpaper scaled successfully")
-            } else {
-                synchronized(this@LiquidGlassEngine) {
-                    scaledWallpaper?.recycle()
-                    scaledWallpaper = null
-                }
-                DebugLogger.log("WallpaperService", "Wallpaper bitmap null or recycled, scaled version cleared")
-            }
-
-            // Scale Subject
-            val srcSub = subjectBitmap
-            if (srcSub != null && !srcSub.isRecycled) {
-                val scaled = createCenterCropBitmap(srcSub, width, height)
-                synchronized(this@LiquidGlassEngine) {
-                    scaledSubject?.recycle()
-                    scaledSubject = scaled
-                }
-            } else {
-                synchronized(this@LiquidGlassEngine) {
-                    scaledSubject?.recycle()
-                    scaledSubject = null
-                }
-            }
-        }
-
-        private fun createCenterCropBitmap(src: Bitmap, reqW: Int, reqH: Int): Bitmap {
-            val scale = max(reqW.toFloat() / src.width, reqH.toFloat() / src.height)
-            val w = (src.width * scale).toInt()
-            val h = (src.height * scale).toInt()
-
-            val scaled = Bitmap.createScaledBitmap(src, w, h, true)
-
-            // If strictly matching size is required, we can crop.
-            // But for wallpaper, overflow is fine or we create exact match.
-            // Let's create exact match to optimize drawing.
-            val final = Bitmap.createBitmap(reqW, reqH, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(final)
-            val x = (reqW - w) / 2f
-            val y = (reqH - h) / 2f
-            canvas.drawBitmap(scaled, x, y, bitmapPaint)
-            if (scaled != src) scaled.recycle() // Recycle intermediate if not source
-            return final
+             // Aspect ratio now handled in GL shaders to prevent "zoom"
         }
 
         private fun recycleScaledBitmaps() {
-            scaledWallpaper?.recycle()
-            scaledSubject?.recycle()
             scaledMediaArt?.recycle()
             blurredMediaArt?.recycle()
             animatedMediaArt?.recycle()
-            scaledWallpaper = null
-            scaledSubject = null
             scaledMediaArt = null
             blurredMediaArt = null
             animatedMediaArt = null
         }
 
-        private fun loadSystemWallpaper(context: Context, reqW: Int, reqH: Int): Bitmap? {
+        private fun loadSystemWallpaper(context: Context): Bitmap? {
             return try {
                 val wm = android.app.WallpaperManager.getInstance(context)
                 // Use peekDrawable first as it's often more reliable for background services
                 val drawable = wm.peekDrawable() ?: wm.drawable
                 if (drawable != null) {
-                    val bitmap = android.graphics.Bitmap.createBitmap(reqW, reqH, android.graphics.Bitmap.Config.ARGB_8888)
+                    val w = drawable.intrinsicWidth.coerceAtLeast(1)
+                    val h = drawable.intrinsicHeight.coerceAtLeast(1)
+                    val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
                     val canvas = android.graphics.Canvas(bitmap)
-                    drawable.setBounds(0, 0, reqW, reqH)
+                    drawable.setBounds(0, 0, w, h)
                     drawable.draw(canvas)
                     bitmap
                 } else {
@@ -895,7 +831,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
         }
 
-        private fun loadBitmap(uri: Uri, reqW: Int, reqH: Int): Bitmap? {
+        private fun loadBitmap(uri: Uri): Bitmap? {
             return try {
                 // 1. Get EXIF rotation
                 var rotation = 0
@@ -914,23 +850,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     Log.w("WallpaperService", "Could not read EXIF for $uri")
                 }
 
-                // 2. Decode bounds
-                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                contentResolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it, null, options)
+                // 2. Load the original image size to maintain aspect ratio in GL
+                val options = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
                 }
-
-                if (options.outWidth <= 0 || options.outHeight <= 0) {
-                    return null
-                }
-
-                // Swap dimensions for sample size calculation if rotated 90 or 270
-                val rotatedW = if (rotation == 90 || rotation == 270) options.outHeight else options.outWidth
-                val rotatedH = if (rotation == 90 || rotation == 270) options.outWidth else options.outHeight
-
-                options.inSampleSize = calculateInSampleSize(rotatedW, rotatedH, reqW, reqH)
-                options.inJustDecodeBounds = false
-                options.inPreferredConfig = Bitmap.Config.ARGB_8888
 
                 val bitmap = contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, options)
@@ -1123,9 +1046,15 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
             // Background Layer
             val currentBg = if (useGlowEffect) {
-                blurredMediaArt ?: artToDisplay ?: scaledWallpaper
+                blurredMediaArt ?: artToDisplay ?: wallpaperBitmap
             } else {
-                artToDisplay ?: scaledWallpaper
+                artToDisplay ?: wallpaperBitmap
+            }
+
+            // Safety: If for some reason both are null, force a reload to ensure system wallpaper is fetched
+            if (currentBg == null && wallpaperBitmap == null && lastBgBitmap != null) {
+                DebugLogger.log("WallpaperService", "Safety trigger: Background lost. Reloading.")
+                reloadSettings()
             }
 
             if (isLocked) {
@@ -1145,11 +1074,20 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
             }
 
+            // Always update scale mode based on config
+            videoRenderer?.setBackgroundScaleMode(
+                if (launcherConfig.backgroundScaleMode == "Fit")
+                    VideoWallpaperRenderer.ScaleMode.FIT_CENTER
+                else
+                    VideoWallpaperRenderer.ScaleMode.CENTER_CROP
+            )
+            videoRenderer?.setBackgroundZoom(launcherConfig.backgroundZoom)
+
             // Subject Layer
             val currentSub = if (useGlowEffect) {
                 artToDisplay
             } else if (!isLocked) {
-                scaledSubject
+                subjectBitmap
             } else {
                 null
             }

@@ -101,6 +101,10 @@ fun WallpaperPickerDialog(
     onSubjectSelected: ((String?) -> Unit)? = null,
     onSubjectNightSelected: ((String?) -> Unit)? = null,
     onSubjectConfigChanged: ((Boolean, Boolean, Float, Float, Float) -> Unit)? = null,
+    backgroundScaleMode: String = "Fill",
+    onBackgroundScaleModeChanged: (String) -> Unit = {},
+    backgroundZoom: Float = 1.0f,
+    onBackgroundZoomChanged: (Float) -> Unit = {},
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
     onDismiss: () -> Unit
@@ -313,60 +317,53 @@ fun WallpaperPickerDialog(
                         }
                     }
 
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Background Zoom: ${(backgroundZoom * 100).toInt()}%", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Slider(
+                        value = backgroundZoom,
+                        onValueChange = { onBackgroundZoomChanged(it) },
+                        valueRange = 0.5f..2.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF6366F1),
+                            activeTrackColor = Color(0xFF6366F1)
+                        )
+                    )
+
                     Spacer(Modifier.height(24.dp))
 
-                    Text("Schedule", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Text("Display Style", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
                     Spacer(Modifier.height(8.dp))
 
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        color = Color(0xFF2E2E3E),
-                        shape = RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF2E2E3E))
+                            .padding(4.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column(
-                                    modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
-                                    Text("Day", color = Color.Gray, fontSize = 12.sp)
-                                    Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
-                                    Text("Night", color = Color.Gray, fontSize = 12.sp)
-                                    Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
-                                }
+                        listOf("Fill", "Fit").forEach { mode ->
+                            val isSelected = backgroundScaleMode == mode
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color(0xFF6366F1) else Color.Transparent)
+                                    .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        onBackgroundScaleModeChanged(mode)
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = mode,
+                                    color = if (isSelected) Color.White else Color.Gray,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
-                    }
-
-                    if (showDayTimePicker) {
-                        TimePickerDialog(
-                            initialHour = settings.dayStartHour,
-                            initialMinute = settings.dayStartMinute,
-                            onTimeSelected = { h, m ->
-                                onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
-                                showDayTimePicker = false
-                            },
-                            onDismiss = { showDayTimePicker = false }
-                        )
-                    }
-
-                    if (showNightTimePicker) {
-                        TimePickerDialog(
-                            initialHour = settings.nightStartHour,
-                            initialMinute = settings.nightStartMinute,
-                            onTimeSelected = { h, m ->
-                                onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
-                                showNightTimePicker = false
-                            },
-                            onDismiss = { showNightTimePicker = false }
-                        )
                     }
 
                     Spacer(Modifier.height(24.dp))
@@ -424,7 +421,66 @@ fun WallpaperPickerDialog(
                                 Icon(Icons.Rounded.NightsStay, null, tint = Color.Gray.copy(alpha = 0.5f))
                             }
                         }
+
+                        Spacer(Modifier.height(24.dp))
+                    }
+
+                    Text("Schedule", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        color = Color(0xFF2E2E3E),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(
+                                    modifier = Modifier.weight(1f).clickable { showDayTimePicker = true }.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(Icons.Rounded.WbSunny, null, tint = Color(0xFFFBBF24))
+                                    Text("Day", color = Color.Gray, fontSize = 12.sp)
+                                    Text(String.format("%02d:%02d", settings.dayStartHour, settings.dayStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f).clickable { showNightTimePicker = true }.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(Icons.Rounded.NightsStay, null, tint = Color(0xFF818CF8))
+                                    Text("Night", color = Color.Gray, fontSize = 12.sp)
+                                    Text(String.format("%02d:%02d", settings.nightStartHour, settings.nightStartMinute), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
+                    }
+
+                    if (showDayTimePicker) {
+                        TimePickerDialog(
+                            initialHour = settings.dayStartHour,
+                            initialMinute = settings.dayStartMinute,
+                            onTimeSelected = { h, m ->
+                                onSettingsChanged(settings.copy(dayStartHour = h, dayStartMinute = m))
+                                showDayTimePicker = false
+                            },
+                            onDismiss = { showDayTimePicker = false }
+                        )
+                    }
+
+                    if (showNightTimePicker) {
+                        TimePickerDialog(
+                            initialHour = settings.nightStartHour,
+                            initialMinute = settings.nightStartMinute,
+                            onTimeSelected = { h, m ->
+                                onSettingsChanged(settings.copy(nightStartHour = h, nightStartMinute = m))
+                                showNightTimePicker = false
+                            },
+                            onDismiss = { showNightTimePicker = false }
+                        )
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
                     }
 
                 } else {
@@ -844,23 +900,23 @@ private fun WallpaperOption(
 /**
  * Persist the wallpaper URI by copying to app storage
  */
-private fun persistWallpaperUri(context: Context, uri: Uri): String {
+fun persistWallpaperUri(context: Context, uri: Uri): String {
+    // We ALWAYS copy to internal storage to ensure cross-boot persistence
+    // Content URIs frequently lose permissions after reboot
     return try {
-        context.contentResolver.takePersistableUriPermission(
-            uri,
-            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-        )
-        uri.toString()
-    } catch (e: Exception) {
-        // If we can't persist permissions, copy the file
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val file = java.io.File(context.filesDir, "wallpaper_${System.currentTimeMillis()}.jpg")
-        inputStream?.use { input ->
+        val extension = context.contentResolver.getType(uri)?.split("/")?.lastOrNull() ?: "jpg"
+        val fileName = "wallpaper_${System.currentTimeMillis()}.$extension"
+        val file = java.io.File(context.filesDir, fileName)
+
+        context.contentResolver.openInputStream(uri)?.use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)
             }
         }
         file.absolutePath
+    } catch (e: Exception) {
+        android.util.Log.e("WallpaperPicker", "Failed to persist wallpaper", e)
+        uri.toString() // Fallback to raw URI if copy fails
     }
 }
 

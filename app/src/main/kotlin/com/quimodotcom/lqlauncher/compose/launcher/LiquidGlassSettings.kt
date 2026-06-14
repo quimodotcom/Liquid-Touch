@@ -177,7 +177,14 @@ object LiquidGlassSettingsRepository {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(context.filesDir, SETTINGS_FILE)
-                file.writeText(json.encodeToString(settings))
+                val tempFile = File(context.filesDir, "$SETTINGS_FILE.tmp")
+
+                val jsonString = json.encodeToString(settings)
+                tempFile.writeText(jsonString)
+
+                if (tempFile.exists() && tempFile.length() > 0) {
+                    tempFile.renameTo(file)
+                }
 
                 // Notify service (WallpaperService) to reload settings
                 context.sendBroadcast(Intent(ACTION_CONFIG_CHANGED))
@@ -189,15 +196,18 @@ object LiquidGlassSettingsRepository {
     
     suspend fun loadSettings(context: Context): LiquidGlassSettings {
         return withContext(Dispatchers.IO) {
-            try {
-                val file = File(context.filesDir, SETTINGS_FILE)
-                if (file.exists()) {
-                    json.decodeFromString<LiquidGlassSettings>(file.readText())
-                } else {
-                    LiquidGlassSettings()
+            val file = File(context.filesDir, SETTINGS_FILE)
+            if (file.exists()) {
+                val jsonString = file.readText()
+                if (jsonString.isBlank()) return@withContext LiquidGlassSettings()
+
+                try {
+                    json.decodeFromString<LiquidGlassSettings>(jsonString)
+                } catch (e: Exception) {
+                    // Re-throw to prevent returning defaults on corruption
+                    throw Exception("Failed to decode LiquidGlassSettings: ${e.message}", e)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else {
                 LiquidGlassSettings()
             }
         }

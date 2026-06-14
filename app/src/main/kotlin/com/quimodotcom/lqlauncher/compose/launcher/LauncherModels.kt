@@ -48,7 +48,8 @@ sealed class LauncherItem {
         val tintColor: Long = 0xFF6366F1L, // Default indigo
         val backgroundAlpha: Float = 0.12f,
         val panelType: PanelType = PanelType.EMPTY,
-        val customImageUri: String? = null
+        val customImageUri: String? = null,
+        val apps: List<String> = emptyList() // Package names for APPS type
     ) : LauncherItem()
     
     /**
@@ -106,6 +107,7 @@ enum class PanelType {
     SEARCH,     // One-row browser search
     MEDIA_CONTROL, // Interactive media controls
     PLAY_INTEGRITY, // Device Integrity Testing
+    APPS,       // Mini-grid of apps
     CUSTOM      // User-defined content
 }
 
@@ -124,6 +126,8 @@ data class LauncherConfig(
     val wallpaperSecretUri: String? = null,
     val wallpaperSubjectUri: String? = null,
     val wallpaperSubjectNightUri: String? = null,
+    val backgroundScaleMode: String = "Fill", // "Fill" (Center Crop) or "Fit" (Fit Center)
+    val backgroundZoom: Float = 1.0f,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,
@@ -144,7 +148,7 @@ data class LauncherConfig(
 @Serializable
 data class LauncherTheme(
     val id: String = UUID.randomUUID().toString(),
-    val name: String,
+    val name: String = "Unnamed Theme",
     val description: String = "",
     val liquidGlassEnabled: Boolean = true,
     val blurRadius: Float = 20f,

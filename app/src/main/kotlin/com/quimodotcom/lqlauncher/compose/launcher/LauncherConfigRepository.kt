@@ -29,8 +29,14 @@ object LauncherConfigRepository {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(context.filesDir, CONFIG_FILE_NAME)
+                val tempFile = File(context.filesDir, "$CONFIG_FILE_NAME.tmp")
+
                 val jsonString = json.encodeToString(config)
-                file.writeText(jsonString)
+                tempFile.writeText(jsonString)
+
+                if (tempFile.exists() && tempFile.length() > 0) {
+                    tempFile.renameTo(file)
+                }
 
                 // Notify service (WallpaperService) to reload config
                 context.sendBroadcast(Intent(ACTION_CONFIG_CHANGED))
@@ -45,16 +51,18 @@ object LauncherConfigRepository {
      */
     suspend fun loadConfig(context: Context): LauncherConfig? {
         return withContext(Dispatchers.IO) {
-            try {
-                val file = File(context.filesDir, CONFIG_FILE_NAME)
-                if (file.exists()) {
-                    val jsonString = file.readText()
+            val file = File(context.filesDir, CONFIG_FILE_NAME)
+            if (file.exists()) {
+                val jsonString = file.readText()
+                if (jsonString.isBlank()) return@withContext null
+
+                try {
                     json.decodeFromString<LauncherConfig>(jsonString)
-                } else {
-                    null
+                } catch (e: Exception) {
+                    // Re-throw to prevent returning null/default on corruption
+                    throw Exception("Failed to decode LauncherConfig: ${e.message}", e)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else {
                 null
             }
         }

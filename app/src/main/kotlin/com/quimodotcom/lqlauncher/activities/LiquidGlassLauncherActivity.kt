@@ -218,12 +218,16 @@ private fun EditableLauncherScreen(
     // Load saved config, available apps, and glass settings
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            // Load glass settings first
-            val savedSettings = LiquidGlassSettingsRepository.loadSettings(context)
-            if (savedSettings != null) {
+            try {
+                // Load glass settings first
+                val savedSettings = LiquidGlassSettingsRepository.loadSettings(context)
                 glassSettings = savedSettings
+            } catch (e: Exception) {
+                android.util.Log.e("Launcher", "CRITICAL: Settings corruption detected", e)
+            } finally {
+                // Allow user changes to fix the state even if load failed
+                isSettingsLoaded = true
             }
-            isSettingsLoaded = true
 
             // Icon pack system removed — delete any residual icon pack caches
             try {
@@ -236,17 +240,22 @@ private fun EditableLauncherScreen(
             // Load available apps
             availableApps = loadAvailableApps(context)
 
-            // Try to load saved config
-            val savedConfig = LauncherConfigRepository.loadConfig(context)
-            if (savedConfig != null) {
-                launcherConfig = savedConfig
-            } else if (launcherConfig.items.isEmpty()) {
-                // Create default items only if no saved config exists
-                launcherConfig = launcherConfig.copy(
-                    items = createDefaultItems(availableApps)
-                )
+            try {
+                // Try to load saved config
+                val savedConfig = LauncherConfigRepository.loadConfig(context)
+                if (savedConfig != null) {
+                    launcherConfig = savedConfig
+                } else if (launcherConfig.items.isEmpty()) {
+                    // Create default items only if no saved config exists (fresh install)
+                    launcherConfig = launcherConfig.copy(
+                        items = createDefaultItems(availableApps)
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("Launcher", "CRITICAL: Config corruption detected", e)
+            } finally {
+                isConfigLoaded = true
             }
-            isConfigLoaded = true
         }
     }
 
@@ -414,14 +423,14 @@ private fun EditableLauncherScreen(
             Image(
                 painter = wallpaperPainter,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (launcherConfig.backgroundScaleMode == "Fit") ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
                         if (glassSettings.windowBlurEnabled) {
                             Modifier.drawBackdrop(
                                 backdrop = backdrop,
-                                shape = { com.kyant.shapes.RoundedRectangle(0f) },
+                                shape = { com.kyant.shapes.RoundedRectangle(0.dp) },
                                 effects = {
                                     blur(glassSettings.windowBlurRadius.dp.toPx())
                                 }
@@ -534,14 +543,13 @@ private fun EditableLauncherScreen(
             }
 
             val currentSubjectUri = remember(effectiveSubjectNight, launcherConfig.wallpaperSubjectUri, launcherConfig.wallpaperSubjectNightUri, editModeState.showWallpaperPicker) {
-                // Rule: Day subject layer should never show if there's no night layer.
-                // UNLESS we are in the picker (so the user can see what they are doing).
                 val daySubject = launcherConfig.wallpaperSubjectUri
                 val nightSubject = launcherConfig.wallpaperSubjectNightUri
 
                 if (editModeState.showWallpaperPicker) {
                     if (effectiveSubjectNight) nightSubject ?: daySubject else daySubject
                 } else {
+                    // Rule: Day subject layer should never show if there's no night layer.
                     if (nightSubject != null) {
                         if (effectiveSubjectNight) nightSubject else daySubject
                     } else {
@@ -564,7 +572,7 @@ private fun EditableLauncherScreen(
                             .crossfade(true)
                             .build(),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = if (launcherConfig.backgroundScaleMode == "Fit") ContentScale.Fit else ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1133,6 +1141,14 @@ private fun EditableLauncherScreen(
             subjectNightOffsetY = launcherConfig.subjectNightOffsetY,
             selectedSubjectMode = selectedSubjectAdjustmentMode,
             onSubjectModeChanged = { selectedSubjectAdjustmentMode = it },
+            backgroundScaleMode = launcherConfig.backgroundScaleMode,
+            onBackgroundScaleModeChanged = { mode ->
+                launcherConfig = launcherConfig.copy(backgroundScaleMode = mode)
+            },
+            backgroundZoom = launcherConfig.backgroundZoom,
+            onBackgroundZoomChanged = { zoom ->
+                launcherConfig = launcherConfig.copy(backgroundZoom = zoom)
+            },
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
             onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
@@ -1542,7 +1558,7 @@ private fun AppShortcutView(
         // App icon - perfectly centered in the tile
         Box(
             modifier = Modifier
-                .fillMaxSize(if (showLabel) 0.65f else 0.85f)
+                .fillMaxSize(if (showLabel) 0.6f else 0.8f)
                 .clip(RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1704,6 +1720,7 @@ private fun GlassPanelContent(
             PanelType.SEARCH -> BrowserSearchPanelContent(isEditMode = isEditMode)
             PanelType.MEDIA_CONTROL -> MediaControlPanelContent()
             PanelType.PLAY_INTEGRITY -> PlayIntegrityPanelContent(glassSettings)
+            PanelType.APPS -> AppGridPanelContent(item, glassSettings)
             PanelType.EMPTY, PanelType.CUSTOM -> {
                 if (item.title.isNotEmpty()) {
                     Text(
@@ -1713,6 +1730,79 @@ private fun GlassPanelContent(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AppGridPanelContent(item: LauncherItem.GlassPanel, glassSettings: LiquidGlassSettings) {
+    val context = LocalContext.current
+    val apps = item.apps
+    if (apps.isEmpty()) {
+        Text(
+            text = "No apps in panel",
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+        return
+    }
+
+    // Dynamic grid calculation to "fit" the number of apps
+    // We aim for a balanced square-ish grid
+    val count = apps.size
+    val cols = when {
+        count <= 1 -> 1
+        count <= 4 -> 2
+        count <= 9 -> 3
+        else -> 4
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(cols),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        userScrollEnabled = false // Usually panels are small, don't scroll
+    ) {
+        items(apps) { pkg ->
+            MiniAppIcon(pkg) { launchApp(context, pkg) }
+        }
+    }
+}
+
+@Composable
+private fun MiniAppIcon(packageName: String, onClick: () -> Unit) {
+    val context = LocalContext.current
+    val icon = remember(packageName) {
+        try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (icon != null) {
+            Image(
+                bitmap = icon.toBitmap(96, 96).asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(0.8f)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Rounded.Android,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxSize(0.6f)
+            )
         }
     }
 }
@@ -2913,11 +3003,11 @@ private fun rememberWallpaperPainter(
     var painter by remember { mutableStateOf<Painter?>(null) }
     var retryCount by remember { mutableStateOf(0) }
 
-    // Retry loading wallpaper after a short delay if initial load fails
+    // Aggressive retry logic for wallpaper loading (essential for boot performance)
     LaunchedEffect(customUri, useSystem, retryCount, permissionGranted) {
         withContext(Dispatchers.IO) {
-            painter = try {
-                if (!useSystem && customUri != null) {
+            try {
+                val newPainter = if (!useSystem && customUri != null) {
                     // Load custom wallpaper from URI or file path
                     val uri = android.net.Uri.parse(customUri)
 
@@ -2963,18 +3053,31 @@ private fun rememberWallpaperPainter(
                     }
 
                     finalBitmap?.asImageBitmap()?.let { BitmapPainter(it) }
+                } else if (permissionGranted) {
+                    // Aggressive system wallpaper loading with internal retries
+                    var sysPainter: Painter? = null
+                    for (i in 0..2) {
+                        sysPainter = loadSystemWallpaper(context)
+                        if (sysPainter != null) break
+                        delay(300)
+                    }
+                    sysPainter
                 } else {
-                    // Use system wallpaper with fallback only if permission is granted
-                    if (permissionGranted) loadSystemWallpaper(context) else null
+                    null
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // Retry once after delay
-                if (retryCount == 0) {
-                    delay(500)
+
+                if (newPainter != null) {
+                    painter = newPainter
+                } else if (retryCount < 2) {
+                    delay(1000)
                     retryCount++
                 }
-                null
+            } catch (e: Exception) {
+                android.util.Log.e("LiquidGlassLauncher", "Wallpaper load error", e)
+                if (retryCount < 2) {
+                    delay(1000)
+                    retryCount++
+                }
             }
         }
     }
@@ -3031,13 +3134,13 @@ private class GradientPainter : Painter() {
     override val intrinsicSize = Size.Unspecified
 
     override fun DrawScope.onDraw() {
+        // High-quality multi-stop gradient for a polished "Liquid Glass" look when no wallpaper is loaded
         drawRect(
             brush = Brush.linearGradient(
-                colors = listOf(
-                    Color(0xFF0F0C29),
-                    Color(0xFF302B63),
-                    Color(0xFF24243E)
-                ),
+                0.0f to Color(0xFF0F0C29),
+                0.4f to Color(0xFF302B63),
+                0.7f to Color(0xFF533483),
+                1.0f to Color(0xFF24243E),
                 start = Offset.Zero,
                 end = Offset(size.width, size.height)
             )
