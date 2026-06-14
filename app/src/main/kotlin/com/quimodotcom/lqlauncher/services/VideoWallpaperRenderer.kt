@@ -285,7 +285,7 @@ class VideoWallpaperRenderer(private val context: Context) {
         uiDirty = true
     }
 
-    fun updateGifFrame(bitmap: Bitmap) {
+    fun updateGifFrame(bitmap: Bitmap?) {
         gifBitmap = bitmap
         gifDirty = true
     }

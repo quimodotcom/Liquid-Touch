@@ -516,16 +516,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                     }
                 }
 
-                // Resume video/gif if file exists
-                if (animatedMediaFile != null && shouldShowAnimatedArt() && !isInAmbientMode && !isPowerSaveMode) {
-                    videoRenderer?.setVideoSource(animatedMediaFile!!)
-                }
-                if (!isInAmbientMode && !isPowerSaveMode) {
-                    startGifJobIfNeeded()
-                    if (isAnimating()) {
-                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
-                    }
+                // Animation loop is managed within draw() which is called below
+                if (isVisible && !isInAmbientMode && !isPowerSaveMode && isAnimating()) {
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
                 draw()
             } else {
@@ -560,16 +554,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 tickerJob?.cancel()
                 android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
             } else {
-                // Resume video/gif if needed
-                if (isVisible && animatedMediaFile != null && shouldShowAnimatedArt() && !isInAmbientMode) {
-                    videoRenderer?.setVideoSource(animatedMediaFile!!)
-                }
-                if (isVisible && !isInAmbientMode) {
-                    startGifJobIfNeeded()
-                    if (isAnimating()) {
-                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
-                    }
+                // Resume animation loop if needed
+                if (isVisible && !isInAmbientMode && isAnimating()) {
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
             }
             draw()
@@ -593,16 +581,10 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 clockPaint.alpha = 255
                 datePaint.alpha = 255
 
-                // Resume video/gif if needed
-                if (isVisible && animatedMediaFile != null && shouldShowAnimatedArt() && !isPowerSaveMode) {
-                    videoRenderer?.setVideoSource(animatedMediaFile!!)
-                }
-                if (isVisible && !isPowerSaveMode) {
-                    startGifJobIfNeeded()
-                    if (isAnimating()) {
-                        android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
-                        android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
-                    }
+                // Resume animation loop if needed
+                if (isVisible && !isPowerSaveMode && isAnimating()) {
+                    android.view.Choreographer.getInstance().removeFrameCallback(frameCallback)
+                    android.view.Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
                 // Reset burn-in offset
                 burnInOffsetX = 0f
@@ -736,10 +718,8 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 var resolvedVideo: String? = null
                 var resolvedImage: String? = mainUri
 
-                if (!isLocked) {
-                    if (videoUri != null) resolvedVideo = videoUri
-                    else if (gifUri != null) resolvedGif = gifUri
-                }
+                if (videoUri != null) resolvedVideo = videoUri
+                else if (gifUri != null) resolvedGif = gifUri
 
                 // Process resolveImage for Bitmaps
                 var bitmapLoaded = false
@@ -807,9 +787,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 // Handle GIF background
                 if (resolvedGif != currentGifUri) {
                     currentGifUri = resolvedGif
-                    withContext(Dispatchers.Main) {
-                        startGifJobIfNeeded()
-                    }
                 }
 
                 // Update scaled versions immediately after loading
@@ -918,11 +895,6 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
         private fun updateVideoBackground() {
             val path = currentVideoWallpaperPath
-            if (isLocked) {
-                // If locked, we don't show main video (Media Art has priority if playing)
-                // If path is null, it'll clear.
-                return
-            }
 
             if (path != null) {
                 try {
@@ -946,7 +918,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
         }
 
-        private fun startGifJobIfNeeded() {
+        private fun startGifJobInternal() {
             gifJob?.cancel()
             val uri = currentGifUri ?: return
             if (isInAmbientMode || isPowerSaveMode || !isVisible) return
@@ -1066,11 +1038,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Re-verify lock state immediately to prevent secret bleed
             updateLockState()
 
-            val isShowingMediaArt = (isLocked && settings.enableLockScreenMediaArt) || settings.enableHomeMediaArt
-            val artToDisplay = if (isShowingMediaArt) mediaArtBitmap else null
+            // Determine if we should effectively be showing media art (if enabled and art is available)
+            val effectivelyShowingMediaArt = (if (isLocked) settings.enableLockScreenMediaArt else settings.enableHomeMediaArt) && mediaArtBitmap != null
+            val artToDisplay = if (effectivelyShowingMediaArt) mediaArtBitmap else null
 
             // Determine if we should use the "Glow" look
-            val useGlowEffect = isShowingMediaArt && settings.mediaArtGlowEnabled && artToDisplay != null
+            val useGlowEffect = effectivelyShowingMediaArt && settings.mediaArtGlowEnabled && artToDisplay != null
 
             // Background Layer
             val currentBg = if (useGlowEffect) {
@@ -1086,7 +1059,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             }
 
             if (isLocked) {
-                DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, glow=$useGlowEffect, currentBg=${currentBg != null}")
+                DebugLogger.log("WallpaperService", "Locked status check: effectivelyShowingMediaArt=$effectivelyShowingMediaArt, glow=$useGlowEffect, currentBg=${currentBg != null}")
             }
 
             // Identity check to avoid redundant texture uploads
@@ -1114,7 +1087,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
             // Subject Layer
             val currentSub = if (useGlowEffect) {
                 artToDisplay
-            } else if (!isLocked) {
+            } else if (!effectivelyShowingMediaArt) {
                 subjectBitmap
             } else {
                 null
@@ -1148,15 +1121,17 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 }
             }
 
-            // Update Video Renderer state for Animated Art
-            if (isShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode && !useGlowEffect) {
+            // --- Animation Management (Video & GIF) ---
+
+            // A. Video Management
+            if (effectivelyShowingMediaArt && animatedMediaFile != null && !isPowerSaveMode && !useGlowEffect) {
                 // Ensure video renderer is playing our animated cover
                 if (currentVideoPath != animatedMediaFile?.absolutePath) {
                     videoRenderer?.setVideoSource(animatedMediaFile!!)
                     currentVideoPath = animatedMediaFile?.absolutePath
                 }
-            } else if (!isLocked && currentVideoWallpaperPath != null && !isPowerSaveMode) {
-                 // Home Screen Video Background
+            } else if (!effectivelyShowingMediaArt && currentVideoWallpaperPath != null && !isPowerSaveMode) {
+                 // Standard Video Background
                  if (currentVideoPath != currentVideoWallpaperPath) {
                      val file = java.io.File(currentVideoWallpaperPath!!)
                      if (file.exists()) {
@@ -1165,12 +1140,24 @@ class LiquidGlassWallpaperService : WallpaperService() {
                      }
                  }
             } else {
-                 // No video should be playing if we are not showing media art on lock screen
-                 // or if no home screen video is set.
+                 // Stop video if none of the above apply
                  if (currentVideoPath != null) {
                      videoRenderer?.reset()
                      currentVideoPath = null
                  }
+            }
+
+            // B. GIF Management
+            if (!effectivelyShowingMediaArt && currentGifUri != null && !isPowerSaveMode) {
+                if (gifJob == null || !gifJob!!.isActive) {
+                    startGifJobInternal()
+                }
+            } else {
+                if (gifJob != null) {
+                    gifJob?.cancel()
+                    gifJob = null
+                    videoRenderer?.updateGifFrame(null)
+                }
             }
 
             // Render UI to Bitmap, then pass to GL
