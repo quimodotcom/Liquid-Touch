@@ -481,7 +481,7 @@ class VideoWallpaperRenderer(private val context: Context) {
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0) // Unbind
 
                 // Just clear to a nice dark color if no bitmap
-                GLES20.glClearColor(0.06f, 0.05f, 0.16f, 1f) // Indigo-ish
+                GLES20.glClearColor(0.03f, 0.02f, 0.10f, 1f) // Much darker indigo to distinguish from gradient
                 GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
             }
         }
