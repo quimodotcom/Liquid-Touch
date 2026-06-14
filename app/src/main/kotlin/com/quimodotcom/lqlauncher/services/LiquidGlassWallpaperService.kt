@@ -1051,6 +1051,12 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 artToDisplay ?: wallpaperBitmap
             }
 
+            // Safety: If for some reason both are null, force a reload to ensure system wallpaper is fetched
+            if (currentBg == null && wallpaperBitmap == null && lastBgBitmap != null) {
+                DebugLogger.log("WallpaperService", "Safety trigger: Background lost. Reloading.")
+                reloadSettings()
+            }
+
             if (isLocked) {
                 DebugLogger.log("WallpaperService", "Locked status check: showingMediaArt=$isShowingMediaArt, glow=$useGlowEffect, currentBg=${currentBg != null}")
             }
@@ -1075,6 +1081,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 else
                     VideoWallpaperRenderer.ScaleMode.CENTER_CROP
             )
+            videoRenderer?.setBackgroundZoom(launcherConfig.backgroundZoom)
 
             // Subject Layer
             val currentSub = if (useGlowEffect) {

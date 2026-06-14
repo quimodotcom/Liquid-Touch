@@ -66,6 +66,7 @@ class VideoWallpaperRenderer(private val context: Context) {
     private var subjectOffsetX = 0f
     private var subjectOffsetY = 0f
     private var backgroundScale = 1.0f
+    private var backgroundZoom = 1.0f
     private var subjectScaleMode = ScaleMode.CENTER_CROP
     private var backgroundScaleMode = ScaleMode.CENTER_CROP
 
@@ -89,6 +90,10 @@ class VideoWallpaperRenderer(private val context: Context) {
 
     fun setBackgroundScale(scale: Float) {
         backgroundScale = scale
+    }
+
+    fun setBackgroundZoom(zoom: Float) {
+        backgroundZoom = zoom
     }
 
     fun setSubjectScaleMode(mode: ScaleMode) {
@@ -329,20 +334,17 @@ class VideoWallpaperRenderer(private val context: Context) {
             val gifRatio = if (gifH > 0) gifW.toFloat() / gifH else 1f
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
-            if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
-                if (gifRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, gifRatio / screenRatio, 1f, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / gifRatio, 1f)
-                }
+            val baseScaleX = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                if (gifRatio > screenRatio) gifRatio / screenRatio else 1f
             } else {
-                // Fit Center
-                if (gifRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / gifRatio, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, gifRatio / screenRatio, 1f, 1f)
-                }
+                if (gifRatio > screenRatio) 1f else gifRatio / screenRatio
             }
+            val baseScaleY = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                if (gifRatio > screenRatio) 1f else screenRatio / gifRatio
+            } else {
+                if (gifRatio > screenRatio) screenRatio / gifRatio else 1f
+            }
+            Matrix.scaleM(mvpMatrix, 0, baseScaleX * backgroundZoom, baseScaleY * backgroundZoom, 1f)
 
             val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")
             val uSTMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uSTMatrix")
@@ -363,20 +365,17 @@ class VideoWallpaperRenderer(private val context: Context) {
             val screenRatio = if (height > 0) width.toFloat() / height else 1f
             Matrix.setIdentityM(mvpMatrix, 0)
 
-            if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
-                if (videoRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, videoRatio / screenRatio, 1f, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / videoRatio, 1f)
-                }
+            val baseScaleX = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                if (videoRatio > screenRatio) videoRatio / screenRatio else 1f
             } else {
-                // Fit Center
-                if (videoRatio > screenRatio) {
-                    Matrix.scaleM(mvpMatrix, 0, 1f, screenRatio / videoRatio, 1f)
-                } else {
-                    Matrix.scaleM(mvpMatrix, 0, videoRatio / screenRatio, 1f, 1f)
-                }
+                if (videoRatio > screenRatio) 1f else videoRatio / screenRatio
             }
+            val baseScaleY = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                if (videoRatio > screenRatio) 1f else screenRatio / videoRatio
+            } else {
+                if (videoRatio > screenRatio) screenRatio / videoRatio else 1f
+            }
+            Matrix.scaleM(mvpMatrix, 0, baseScaleX * backgroundZoom, baseScaleY * backgroundZoom, 1f)
 
             // Debug Logging for Scaling
             val now = System.currentTimeMillis()
@@ -436,20 +435,17 @@ class VideoWallpaperRenderer(private val context: Context) {
                 val bgRatio = if (bgH > 0) bgW.toFloat() / bgH else 1f
                 val screenRatio = if (height > 0) width.toFloat() / height else 1f
 
-                if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
-                    if (bgRatio > screenRatio) {
-                        Matrix.scaleM(mvpMatrix, 0, (bgRatio / screenRatio) * backgroundScale, backgroundScale, 1f)
-                    } else {
-                        Matrix.scaleM(mvpMatrix, 0, backgroundScale, (screenRatio / bgRatio) * backgroundScale, 1f)
-                    }
+                val baseScaleX = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                    if (bgRatio > screenRatio) bgRatio / screenRatio else 1f
                 } else {
-                    // Fit Center with Zoom support
-                    if (bgRatio > screenRatio) {
-                        Matrix.scaleM(mvpMatrix, 0, backgroundScale, (screenRatio / bgRatio) * backgroundScale, 1f)
-                    } else {
-                        Matrix.scaleM(mvpMatrix, 0, (bgRatio / screenRatio) * backgroundScale, backgroundScale, 1f)
-                    }
+                    if (bgRatio > screenRatio) 1f else bgRatio / screenRatio
                 }
+                val baseScaleY = if (backgroundScaleMode == ScaleMode.CENTER_CROP) {
+                    if (bgRatio > screenRatio) 1f else screenRatio / bgRatio
+                } else {
+                    if (bgRatio > screenRatio) screenRatio / bgRatio else 1f
+                }
+                Matrix.scaleM(mvpMatrix, 0, baseScaleX * backgroundScale * backgroundZoom, baseScaleY * backgroundScale * backgroundZoom, 1f)
 
                 val uMVPMatrixHandle = GLES20.glGetUniformLocation(uiProgramId, "uMVPMatrix")
                 // Check if UI program has uMVPMatrix.

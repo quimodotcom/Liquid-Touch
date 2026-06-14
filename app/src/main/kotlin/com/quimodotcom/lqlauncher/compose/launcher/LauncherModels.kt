@@ -127,6 +127,7 @@ data class LauncherConfig(
     val wallpaperSubjectUri: String? = null,
     val wallpaperSubjectNightUri: String? = null,
     val backgroundScaleMode: String = "Fill", // "Fill" (Center Crop) or "Fit" (Fit Center)
+    val backgroundZoom: Float = 1.0f,
     val subjectMatchWallpaper: Boolean = true,
     val subjectScale: Float = 1f,
     val subjectOffsetX: Float = 0f,

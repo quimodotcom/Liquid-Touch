@@ -103,6 +103,8 @@ fun WallpaperPickerDialog(
     onSubjectConfigChanged: ((Boolean, Boolean, Float, Float, Float) -> Unit)? = null,
     backgroundScaleMode: String = "Fill",
     onBackgroundScaleModeChanged: (String) -> Unit = {},
+    backgroundZoom: Float = 1.0f,
+    onBackgroundZoomChanged: (Float) -> Unit = {},
     onInteractionStart: () -> Unit = {},
     onInteractionEnd: () -> Unit = {},
     onDismiss: () -> Unit
@@ -314,6 +316,19 @@ fun WallpaperPickerDialog(
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Background Zoom: ${(backgroundZoom * 100).toInt()}%", style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                    Slider(
+                        value = backgroundZoom,
+                        onValueChange = { onBackgroundZoomChanged(it) },
+                        valueRange = 0.5f..2.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF6366F1),
+                            activeTrackColor = Color(0xFF6366F1)
+                        )
+                    )
 
                     Spacer(Modifier.height(24.dp))
 

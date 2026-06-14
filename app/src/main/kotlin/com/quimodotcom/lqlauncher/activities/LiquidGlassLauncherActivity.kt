@@ -1145,6 +1145,10 @@ private fun EditableLauncherScreen(
             onBackgroundScaleModeChanged = { mode ->
                 launcherConfig = launcherConfig.copy(backgroundScaleMode = mode)
             },
+            backgroundZoom = launcherConfig.backgroundZoom,
+            onBackgroundZoomChanged = { zoom ->
+                launcherConfig = launcherConfig.copy(backgroundZoom = zoom)
+            },
             onWallpaperPermissionGranted = onWallpaperPermissionGranted,
             onWallpaperSelected = { uri ->
                 launcherConfig = if (uri == null) {
