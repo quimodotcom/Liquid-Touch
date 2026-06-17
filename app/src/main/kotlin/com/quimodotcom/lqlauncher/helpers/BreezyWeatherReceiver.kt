@@ -85,7 +85,9 @@ class BreezyWeatherReceiver : BroadcastReceiver() {
             val weatherData = WeatherRepository.WeatherData(
                 currentTemp = currentTemp,
                 currentIcon = iconCode,
-                hourly = finalHourly
+                hourly = finalHourly,
+                location = spec.location,
+                lastUpdated = (spec.timestamp ?: (System.currentTimeMillis() / 1000L)) * 1000L
             )
 
             WeatherStateRepository.update(weatherData)

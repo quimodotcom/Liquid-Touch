@@ -23,6 +23,7 @@ object WeatherRepository {
     @Serializable
     private data class CurrentWeatherResponse(
         @SerialName("dt") val dt: Long,
+        @SerialName("name") val name: String? = null,
         val main: MainData,
         val weather: List<OwmWeather>
     )
@@ -41,7 +42,13 @@ object WeatherRepository {
     )
 
     data class ForecastItem(val label: String, val temp: String, val iconCode: String)
-    data class WeatherData(val currentTemp: String, val currentIcon: String, val hourly: List<ForecastItem>)
+    data class WeatherData(
+        val currentTemp: String,
+        val currentIcon: String,
+        val hourly: List<ForecastItem>,
+        val location: String? = null,
+        val lastUpdated: Long? = null
+    )
 
     /**
      * Fetches weather for the provided coordinates using standard Current + Forecast APIs.
@@ -112,7 +119,13 @@ object WeatherRepository {
             finalHourly.add(ForecastItem("Now", currentTemp, currentIcon))
             finalHourly.addAll(hourlyList)
 
-            val result = WeatherData(currentTemp, currentIcon, finalHourly)
+            val result = WeatherData(
+                currentTemp = currentTemp,
+                currentIcon = currentIcon,
+                hourly = finalHourly,
+                location = currentData.name,
+                lastUpdated = currentData.dt * 1000L
+            )
             WeatherStateRepository.update(result)
             result
 
