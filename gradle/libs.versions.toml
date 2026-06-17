@@ -15,6 +15,8 @@ gradlePlugins-agp = "8.11.1"
 #Compose
 compose-bom = "2025.01.00"
 compose-activity = "1.10.0"
+#Glance
+glance = "1.1.1"
 #LiquidGlass
 backdrop = "2.0.0-alpha01"
 shapes = "1.0.4"
@@ -43,6 +45,9 @@ compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-activity = { module = "androidx.activity:activity-compose", version.ref = "compose-activity" }
 compose-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "detektCompose" }
+#Glance
+androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+androidx-glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }
 #LiquidGlass
 backdrop = { module = "io.github.kyant0:backdrop", version.ref = "backdrop" }
 shapes = { module = "io.github.kyant0:shapes", version.ref = "shapes" }

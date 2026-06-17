@@ -200,6 +200,10 @@ dependencies {
     implementation(libs.coil.video)
     implementation(libs.coil.gif)
 
+    // Glance for widgets
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     // WorkManager for background prewarm
     implementation("androidx.work:work-runtime-ktx:2.8.1")
 
