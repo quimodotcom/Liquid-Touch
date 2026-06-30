@@ -657,6 +657,22 @@ class LiquidGlassWallpaperService : WallpaperService() {
                  )
         }
 
+        private fun createFallbackGradientBitmap(width: Int, height: Int): Bitmap {
+            val w = width.coerceAtLeast(1)
+            val h = height.coerceAtLeast(1)
+            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val paint = Paint()
+            paint.shader = android.graphics.LinearGradient(
+                0f, 0f, w.toFloat(), h.toFloat(),
+                intArrayOf(Color.parseColor("#0F0C29"), Color.parseColor("#302B63"), Color.parseColor("#24243E")),
+                null,
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
+            return bitmap
+        }
+
         private fun reloadSettings() {
             settingsJob?.cancel()
             settingsJob = engineScope.launch {
@@ -665,6 +681,7 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 loadWallpapers()
 
                 withContext(Dispatchers.Main) {
+                    // Refresh the display immediately on settings change
                     draw()
                     // Restart animation loop if needed
                     if (isVisible && !isInAmbientMode && !isPowerSaveMode && isAnimating()) {
@@ -701,14 +718,14 @@ class LiquidGlassWallpaperService : WallpaperService() {
                 val isDark = isCurrentlyNight()
                 DebugLogger.log("WallpaperService", "Loading wallpapers: isDark=$isDark")
 
-                val mainUri = if (isLocked) {
-                    if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
+                // Handle the case where Secret wallpaper is visible and exists
+                val secretUri = launcherConfig.wallpaperSecretUri
+                val mainUri = if (!isLocked && settings.secretWallpaperVisible && secretUri != null) {
+                    secretUri
+                } else if (isDark) {
+                    launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri
                 } else {
-                    if (settings.secretWallpaperVisible) {
-                        launcherConfig.wallpaperSecretUri ?: (if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri)
-                    } else {
-                        if (isDark) (launcherConfig.wallpaperNightUri ?: launcherConfig.wallpaperUri) else launcherConfig.wallpaperUri
-                    }
+                    launcherConfig.wallpaperUri
                 }
 
                 // Prioritize specialized URIs (GIF/Video) if set
@@ -726,25 +743,36 @@ class LiquidGlassWallpaperService : WallpaperService() {
 
                 // Process resolveImage for Bitmaps
                 var bitmapLoaded = false
-                if (resolvedImage != null && (!launcherConfig.useSystemWallpaper || (resolvedImage == launcherConfig.wallpaperSecretUri))) {
-                    val type = getMimeType(resolvedImage)
-                    if (type?.startsWith("video/") == true) {
-                        resolvedVideo = resolvedImage
-                        wallpaperBitmap = null
-                        bitmapLoaded = true
-                    } else if (type?.contains("gif") == true) {
-                        resolvedGif = resolvedImage
-                        wallpaperBitmap = null
-                        bitmapLoaded = true
-                    } else {
-                        wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage))
-                        if (wallpaperBitmap != null) bitmapLoaded = true
+                // Rule: If it's a custom wallpaper, or it's the Secret wallpaper, try loading it
+                val isSecret = resolvedImage != null && secretUri != null && resolvedImage == secretUri
+                if (resolvedImage != null && (!launcherConfig.useSystemWallpaper || isSecret)) {
+                    try {
+                        val type = getMimeType(resolvedImage)
+                        if (type?.startsWith("video/") == true) {
+                            resolvedVideo = resolvedImage
+                            wallpaperBitmap = null
+                            bitmapLoaded = true
+                        } else if (type?.contains("gif") == true) {
+                            resolvedGif = resolvedImage
+                            wallpaperBitmap = null
+                            bitmapLoaded = true
+                        } else {
+                            wallpaperBitmap = loadBitmap(Uri.parse(resolvedImage))
+                            if (wallpaperBitmap != null) bitmapLoaded = true
+                        }
+                    } catch (e: Exception) {
+                        Log.e("WallpaperService", "Failed to load custom wallpaper: $resolvedImage", e)
                     }
                 }
 
                 if (!bitmapLoaded) {
                     // Fallback to system wallpaper if custom failed or useSystemWallpaper is true
                     wallpaperBitmap = loadSystemWallpaper(this@LiquidGlassWallpaperService)
+                }
+
+                // If still null, create a high-quality gradient fallback
+                if (wallpaperBitmap == null) {
+                    wallpaperBitmap = createFallbackGradientBitmap(targetW, targetH)
                 }
 
                 // Initial clock color update if no media playing

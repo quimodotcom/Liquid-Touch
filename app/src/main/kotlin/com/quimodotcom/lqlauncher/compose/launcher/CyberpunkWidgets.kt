@@ -225,7 +225,9 @@ fun CyberpunkWeather(
 @Composable
 fun CyberpunkBattery(
     level: Int,
-    isCharging: Boolean
+    isCharging: Boolean,
+    voltageMv: Int = 0,
+    currentUa: Long = 0L
 ) {
     val infiniteTransition = rememberInfiniteTransition()
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -293,13 +295,41 @@ fun CyberpunkBattery(
                 )
             }
 
+            if (voltageMv > 0) {
+                val voltageV = voltageMv / 1000f
+                val currentMa = currentUa / 1000f
+                val wattageW = com.quimodotcom.lqlauncher.helpers.LauncherUtils.calculateWattage(currentUa, voltageMv)
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 4.dp)) {
+                    Text(
+                        text = String.format("VOLT: %.2fV", voltageV),
+                        color = CyberpunkCyan.copy(alpha = 0.7f),
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = String.format("CURR: %.0fMA", currentMa),
+                        color = if (currentMa > 0) CyberpunkYellow else Color.White.copy(alpha = 0.5f),
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = String.format("POWR: %.2fW", kotlin.math.abs(wattageW)),
+                        color = CyberpunkMagenta.copy(alpha = 0.8f),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             if (isCharging) {
                 Text(
                     text = "CHARGING...",
                     color = CyberpunkYellow,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
